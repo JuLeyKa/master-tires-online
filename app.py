@@ -49,7 +49,7 @@ def init_session_state():
             'fahrgestellnummer': ''
         }
     
-    # Tab 3 - Premium Verwaltung
+    # Tab 3 - Reifen Verwaltung
     if 'df_original' not in st.session_state:
         st.session_state.df_original = None
     if 'df_filtered' not in st.session_state:
