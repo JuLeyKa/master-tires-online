@@ -268,40 +268,6 @@ def remove_tire(teilenummer):
     
     return False
 
-def mass_update_tires(selected_indices, updates):
-    """Führt Massen-Update durch"""
-    df = load_master_database()
-    
-    if df.empty:
-        return False
-    
-    count = 0
-    for idx in selected_indices:
-        if idx in df.index:
-            for update_type, value in updates.items():
-                if update_type == 'price_percent' and value != 0:
-                    current_price = df.loc[idx, 'Preis_EUR']
-                    new_price = current_price * (1 + value / 100)
-                    df.loc[idx, 'Preis_EUR'] = new_price
-                    count += 1
-                elif update_type == 'kraftstoff' and value != 'Nicht ändern':
-                    df.loc[idx, 'Kraftstoffeffizienz'] = value
-                    count += 1
-                elif update_type == 'nasshaftung' and value != 'Nicht ändern':
-                    df.loc[idx, 'Nasshaftung'] = value
-                    count += 1
-                elif update_type == 'geraeusch' and value > 0:
-                    df.loc[idx, 'Geräuschklasse'] = value
-                    count += 1
-                elif update_type == 'bestand' and value != 999:
-                    df.loc[idx, 'Bestand'] = value
-                    count += 1
-    
-    if count > 0:
-        return save_master_database(df)
-    
-    return False
-
 # ================================================================================================
 # EXPORT FUNKTIONEN
 # ================================================================================================
