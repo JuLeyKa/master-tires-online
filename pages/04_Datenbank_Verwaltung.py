@@ -129,8 +129,10 @@ def init_session_state():
     """Initialisiert Session State für Datenbank Verwaltung"""
     if 'db_authenticated' not in st.session_state:
         st.session_state.db_authenticated = False
-    if 'db_selected_indices' not in st.session_state:
-        st.session_state.db_selected_indices = []
+    if 'db_selected_index' not in st.session_state:
+        st.session_state.db_selected_index = None
+    if 'db_current_tire_index' not in st.session_state:
+        st.session_state.db_current_tire_index = 0
 
 # ================================================================================================
 # HELPER FUNCTIONS
@@ -500,11 +502,72 @@ def render_stock_distribution(df):
             color = "🔴" if total_stock < 0 else "🟢"
             st.markdown(f"{color} **Gesamtbestand:** {total_stock:.0f}")
 
-def render_tire_list(df):
-    """Rendert die Reifen-Liste mit Checkboxes"""
+def render_tire_list_with_navigation(df):
+    """Rendert die Reifen-Liste mit Navigation und Radio Buttons"""
     st.markdown("### 📋 Reifen auswählen")
     
-    # Paginierung
+    if len(df) == 0:
+        st.info("Keine Reifen gefunden.")
+        return
+    
+    # Index Bounds Check
+    max_index = len(df) - 1
+    if st.session_state.db_current_tire_index > max_index:
+        st.session_state.db_current_tire_index = max_index
+    if st.session_state.db_current_tire_index < 0:
+        st.session_state.db_current_tire_index = 0
+    
+    # Navigation Controls
+    col_nav1, col_nav2, col_nav3, col_nav4 = st.columns([2, 1, 1, 3])
+    
+    with col_nav1:
+        st.info(f"Reifen {st.session_state.db_current_tire_index + 1} von {len(df)}")
+    
+    with col_nav2:
+        if st.button("< Vorheriger", disabled=(st.session_state.db_current_tire_index == 0)):
+            st.session_state.db_current_tire_index -= 1
+            # Index der gefilterten Liste zum DataFrame Index konvertieren
+            current_row = df.iloc[st.session_state.db_current_tire_index]
+            st.session_state.db_selected_index = current_row.name
+            st.rerun()
+    
+    with col_nav3:
+        if st.button("Nächster >", disabled=(st.session_state.db_current_tire_index >= max_index)):
+            st.session_state.db_current_tire_index += 1
+            # Index der gefilterten Liste zum DataFrame Index konvertieren
+            current_row = df.iloc[st.session_state.db_current_tire_index]
+            st.session_state.db_selected_index = current_row.name
+            st.rerun()
+    
+    with col_nav4:
+        # Dropdown für direkten Sprung
+        tire_options = []
+        for i, (idx, row) in enumerate(df.iterrows()):
+            display_text = f"{i+1}: {row['Breite']}/{row['Hoehe']} R{row['Zoll']} - {row['Fabrikat']} {row['Profil']}"
+            tire_options.append(display_text)
+        
+        selected_dropdown = st.selectbox(
+            "Direkt zu Reifen:",
+            options=range(len(tire_options)),
+            index=st.session_state.db_current_tire_index,
+            format_func=lambda x: tire_options[x],
+            key="db_tire_select"
+        )
+        
+        if selected_dropdown != st.session_state.db_current_tire_index:
+            st.session_state.db_current_tire_index = selected_dropdown
+            current_row = df.iloc[selected_dropdown]
+            st.session_state.db_selected_index = current_row.name
+            st.rerun()
+    
+    st.markdown("---")
+    
+    # Automatisch ersten Reifen auswählen falls noch nichts ausgewählt
+    if st.session_state.db_selected_index is None and len(df) > 0:
+        current_row = df.iloc[st.session_state.db_current_tire_index]
+        st.session_state.db_selected_index = current_row.name
+    
+    # Paginierung für Anzeige
     items_per_page = 20
     total_pages = (len(df) + items_per_page - 1) // items_per_page
     
@@ -516,45 +579,67 @@ def render_tire_list(df):
     else:
         page_data = df
     
-    # Checkboxes für Auswahl
-    for idx, row in page_data.iterrows():
-        is_selected = idx in st.session_state.db_selected_indices
+    # Radio Buttons für Auswahl (nur EINER auswählbar)
+    selected_option = None
+    options_list = []
+    
+    for i, (idx, row) in enumerate(page_data.iterrows()):
+        reifengroesse = f"{row['Breite']}/{row['Hoehe']} R{row['Zoll']}"
         
-        col_check, col_info = st.columns([1, 9])
+        # Bestandsanzeige
+        bestand_info = ""
+        if 'Bestand' in row.index:
+            bestand_info = f" | {get_stock_display(row['Bestand'])}"
         
-        with col_check:
-            if st.checkbox("Auswählen", value=is_selected, key=f"db_check_{idx}", label_visibility="hidden"):
-                if idx not in st.session_state.db_selected_indices:
-                    st.session_state.db_selected_indices.append(idx)
-            else:
-                if idx in st.session_state.db_selected_indices:
-                    st.session_state.db_selected_indices.remove(idx)
+        # EU-Label
+        eu_info = ""
+        if 'Kraftstoffeffizienz' in row.index and pd.notna(row['Kraftstoffeffizienz']) and row['Kraftstoffeffizienz'] != '':
+            eu_info += f" {get_efficiency_emoji(row['Kraftstoffeffizienz'])}{row['Kraftstoffeffizienz']}"
         
-        with col_info:
-            reifengroesse = f"{row['Breite']}/{row['Hoehe']} R{row['Zoll']}"
+        display_text = f"**{reifengroesse}** - {row['Fabrikat']} {row['Profil']} - **{row['Preis_EUR']:.2f}EUR**{bestand_info}{eu_info} - {row['Teilenummer']}"
+        options_list.append((idx, display_text))
+        
+        if st.session_state.db_selected_index == idx:
+            selected_option = i
+    
+    # Radio Button Group
+    if options_list:
+        if selected_option is None:
+            selected_option = 0
+        
+        radio_selection = st.radio(
+            "Reifen auswählen:",
+            options=range(len(options_list)),
+            index=selected_option,
+            format_func=lambda x: options_list[x][1],
+            key="tire_radio_selection"
+        )
+        
+        # Update selection
+        selected_idx = options_list[radio_selection][0]
+        if st.session_state.db_selected_index != selected_idx:
+            st.session_state.db_selected_index = selected_idx
             
-            # Bestandsanzeige
-            bestand_info = ""
-            if 'Bestand' in row.index:
-                bestand_info = f" | {get_stock_display(row['Bestand'])}"
-            
-            # EU-Label
-            eu_info = ""
-            if 'Kraftstoffeffizienz' in row.index and pd.notna(row['Kraftstoffeffizienz']) and row['Kraftstoffeffizienz'] != '':
-                eu_info += f" {get_efficiency_emoji(row['Kraftstoffeffizienz'])}{row['Kraftstoffeffizienz']}"
-            
-            st.write(f"**{reifengroesse}** - {row['Fabrikat']} {row['Profil']} - **{row['Preis_EUR']:.2f}EUR**{bestand_info}{eu_info} - {row['Teilenummer']}")
+            # Current tire index in gefilterten Daten finden
+            for i, (idx, _) in enumerate(df.iterrows()):
+                if idx == selected_idx:
+                    st.session_state.db_current_tire_index = i
+                    break
+            st.rerun()
 
 def render_single_tire_editor(df):
     """Rendert Editor für einzelnen Reifen"""
-    if len(st.session_state.db_selected_indices) != 1:
+    if st.session_state.db_selected_index is None:
+        return
+    
+    if st.session_state.db_selected_index not in df.index:
+        st.warning("Ausgewählter Reifen nicht in gefilterten Daten gefunden.")
         return
     
     st.markdown("---")
     st.markdown("### 🔧 Einzelreifen bearbeiten")
     
-    selected_idx = st.session_state.db_selected_indices[0]
-    selected_row = df.loc[selected_idx]
+    selected_row = df.loc[st.session_state.db_selected_index]
     
     col1, col2 = st.columns(2)
     
@@ -657,80 +742,12 @@ def render_single_tire_editor(df):
     with col_delete:
         if st.button("Reifen löschen", use_container_width=True, type="secondary"):
             if remove_tire(selected_row['Teilenummer']):
-                st.session_state.db_selected_indices = []
+                st.session_state.db_selected_index = None
+                st.session_state.db_current_tire_index = 0
                 st.success("Reifen erfolgreich gelöscht!")
                 st.rerun()
             else:
                 st.error("Fehler beim Löschen!")
-
-def render_mass_editor():
-    """Rendert Massen-Bearbeitung"""
-    if len(st.session_state.db_selected_indices) <= 1:
-        return
-    
-    st.markdown("---")
-    st.markdown(f"### 🔄 Massen-Bearbeitung ({len(st.session_state.db_selected_indices)} Reifen)")
-    
-    col1, col2 = st.columns(2)
-    
-    with col1:
-        mass_preis_percent = st.number_input(
-            "Preise ändern (% Aufschlag/Abschlag):",
-            min_value=-50.0,
-            max_value=100.0,
-            value=0.0,
-            step=1.0,
-            help="z.B. 10 = +10%, -5 = -5%",
-            key="db_mass_preis"
-        )
-        
-        mass_kraftstoff = st.selectbox(
-            "Kraftstoffeffizienz für alle setzen:",
-            options=['Nicht ändern', '', 'A', 'B', 'C', 'D', 'E', 'F', 'G'],
-            key="db_mass_kraftstoff"
-        )
-    
-    with col2:
-        mass_nasshaftung = st.selectbox(
-            "Nasshaftung für alle setzen:",
-            options=['Nicht ändern', '', 'A', 'B', 'C', 'D', 'E', 'F', 'G'],
-            key="db_mass_nasshaftung"
-        )
-        
-        mass_geraeusch = st.number_input(
-            "Geräuschklasse für alle setzen (0 = nicht ändern):",
-            min_value=0,
-            max_value=75,
-            value=0,
-            step=1,
-            key="db_mass_geraeusch"
-        )
-        
-        mass_bestand = st.number_input(
-            "Bestand für alle setzen (999 = nicht ändern):",
-            min_value=-999,
-            max_value=1000,
-            value=999,
-            step=1,
-            key="db_mass_bestand",
-            help="Negative Werte = Nachbestellung nötig"
-        )
-    
-    # Massen-Update Button
-    if st.button("Massen-Update durchführen", use_container_width=True, type="primary"):
-        updates = {
-            'price_percent': mass_preis_percent,
-            'kraftstoff': mass_kraftstoff,
-            'nasshaftung': mass_nasshaftung,
-            'geraeusch': mass_geraeusch,
-            'bestand': mass_bestand
-        }
-        
-        if mass_update_tires(st.session_state.db_selected_indices, updates):
-            st.success(f"Massen-Update durchgeführt! {len(st.session_state.db_selected_indices)} Reifen aktualisiert.")
-            st.rerun()
-        else:
-            st.error("Fehler beim Massen-Update!")
 
 def render_export_functions(df, filtered_df):
     """Rendert Export-Funktionen"""
@@ -844,37 +861,6 @@ def main():
         )
         
         st.markdown("---")
-        st.header("🛠️ Massen-Aktionen")
-        
-        # Massen-Auswahl
-        if st.button("Alle auswählen", use_container_width=True):
-            st.session_state.db_selected_indices = current_df.index.tolist()
-            st.rerun()
-        
-        if st.button("Alle abwählen", use_container_width=True):
-            st.session_state.db_selected_indices = []
-            st.rerun()
-        
-        # Gefährliche Aktionen
-        st.markdown("**⚠️ Gefährliche Aktionen:**")
-        
-        if st.button("Ausgewählte löschen", use_container_width=True, type="secondary"):
-            if st.session_state.db_selected_indices:
-                updated_df = current_df.drop(index=st.session_state.db_selected_indices)
-                if save_master_database(updated_df):
-                    st.session_state.db_selected_indices = []
-                    st.success(f"Reifen gelöscht!")
-                    st.rerun()
-                else:
-                    st.error("Fehler beim Löschen!")
-        
-        if st.button("🗑️ Komplette DB löschen", use_container_width=True, type="secondary"):
-            if save_master_database(pd.DataFrame()):
-                st.session_state.db_selected_indices = []
-                st.success("Datenbank komplett geleert!")
-                st.rerun()
-            else:
-                st.error("Fehler beim Löschen!")
         
         if st.button("Abmelden", use_container_width=True, type="secondary"):
             st.session_state.db_authenticated = False
@@ -926,14 +912,11 @@ def main():
     if len(filtered_df) > 0:
         st.markdown(f"### 📋 Reifen in Datenbank: {len(filtered_df)}")
         
-        # Reifen-Liste
-        render_tire_list(filtered_df)
+        # Reifen-Liste mit Navigation
+        render_tire_list_with_navigation(filtered_df)
         
         # Einzelreifen-Editor
         render_single_tire_editor(current_df)
-        
-        # Massen-Editor
-        render_mass_editor()
         
         # Export-Funktionen
         render_export_functions(current_df, filtered_df)
