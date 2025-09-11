@@ -831,7 +831,14 @@ def main():
     </div>
     """, unsafe_allow_html=True)
     
-    # Sidebar Navigation
+    # Datenbank laden
+    current_df = load_master_database()
+    
+    if current_df.empty:
+        st.error("Keine Datenbank gefunden!")
+        return
+    
+    # Sidebar Navigation und Filter
     with st.sidebar:
         st.markdown("---")
         
@@ -847,13 +854,6 @@ def main():
         st.markdown("---")
         st.header("🔍 Datenbank Filter")
         
-        # Datenbank laden
-        current_df = load_master_database()
-        
-        if current_df.empty:
-            st.error("Keine Datenbank gefunden!")
-            return
-        
         # Filter-Optionen
         db_fabrikat_opt = ["Alle"] + sorted([x for x in current_df["Fabrikat"].dropna().unique().tolist()])
         db_fabrikat = st.selectbox("Hersteller filtern:", options=db_fabrikat_opt, index=0, key="db_fabrikat")
@@ -861,11 +861,20 @@ def main():
         db_zoll_opt = ["Alle"] + sorted(current_df["Zoll"].unique().tolist())
         db_zoll = st.selectbox("Zoll filtern:", options=db_zoll_opt, index=0, key="db_zoll")
         
-        # Teilenummer Suche
+        # Teilenummer Suche (Bulk-Eingabe)
         db_search = st.text_input(
-            "Teilenummer/Profil suchen:",
-            placeholder="z.B. ZTW225 oder WinterContact",
-            key="db_search"
+            "Teilenummer suchen:",
+            placeholder="z.B. ZTW185655TSZ00, ZTW206606HSZ00, ZTW205556HC870",
+            key="db_search",
+            help="Mehrere Teilenummern mit Komma trennen"
+        )
+        
+        # Bestandsfilter
+        mit_bestand_filter = st.checkbox(
+            "Nur Reifen mit Bestand",
+            value=False,
+            key="db_bestand_filter",
+            help="Zeigt nur Reifen mit positivem Bestand (> 0)"
         )
         
         st.markdown("---")
