@@ -1,0 +1,5 @@
+service_name,service_label,price,unit
+montage_bis_17,Montage bis 17 Zoll,25.0,pro Reifen
+montage_ab_18,Montage ab 18 Zoll,30.0,pro Reifen
+radwechsel,Radwechsel,39.9,pauschal
+einlagerung,Einlagerung,55.0,pauschal
