@@ -500,15 +500,11 @@ def render_config_card(row, idx, filtered_df):
     st.markdown("</div>", unsafe_allow_html=True)
 
 def render_tire_list(filtered_df):
-    """Rendert die Reifen-Liste mit Auswahl-Buttons"""
+    """Rendert die Reifen-Liste mit verbesserter Darstellung"""
     display = filtered_df.copy().reset_index(drop=True)
     display["Reifengroesse"] = (
         display["Breite"].astype(str) + "/" + display["Hoehe"].astype(str) + " R" + display["Zoll"].astype(str)
     )
-    display["Kraftstoff"] = display["Kraftstoffeffizienz"].apply(lambda x: f"{get_efficiency_emoji(x)} {x}" if pd.notna(x) else "")
-    display["Nasshaft."] = display["Nasshaftung"].apply(lambda x: f"{get_efficiency_emoji(x)} {x}" if pd.notna(x) else "")
-    display["Preis EUR"] = display["Preis_EUR"].apply(lambda x: f"{float(x):.2f} EUR")
-    display["Bestand"] = display["Bestand"].apply(get_stock_display)
     
     st.markdown("**Reifen auswaehlen und konfigurieren:**")
     
@@ -516,12 +512,36 @@ def render_tire_list(filtered_df):
         col_info, col_button = st.columns([5, 1])
         
         with col_info:
-            # Kompakte Reifen-Info
-            effi_display = f" {row['Kraftstoff']}" if row['Kraftstoff'] else ""
-            nasshaft_display = f" {row['Nasshaft.']}" if row['Nasshaft.'] else ""
-            bestand_display = f" (Bestand: {row['Bestand']})" if row['Bestand'] != "unbekannt" else ""
+            # Hauptzeile: Reifengröße und Hersteller/Modell
+            st.markdown(f"**{row['Reifengroesse']}** - {row['Fabrikat']} {row['Profil']}")
             
-            st.write(f"**{row['Reifengroesse']}** - {row['Fabrikat']} {row['Profil']} - **{row['Preis EUR']}**{bestand_display}{effi_display}{nasshaft_display} - {row['Teilenummer']}")
+            # Zweite Zeile: Preis, Bestand, Tragfähigkeit
+            preis_display = f"**{float(row['Preis_EUR']):.2f} EUR**"
+            bestand_display = get_stock_display(row['Bestand'])
+            tragkraft_display = f"{row['Loadindex']}{row['Speedindex']}" if pd.notna(row['Loadindex']) and pd.notna(row['Speedindex']) else ""
+            
+            info_zeile = f"Preis: {preis_display}"
+            if bestand_display != "unbekannt":
+                info_zeile += f" | Bestand: {bestand_display}"
+            if tragkraft_display:
+                info_zeile += f" | Tragkraft: {tragkraft_display}"
+            
+            st.markdown(info_zeile)
+            
+            # Dritte Zeile: EU-Labels (falls vorhanden)
+            eu_labels = []
+            if pd.notna(row['Kraftstoffeffizienz']) and row['Kraftstoffeffizienz'] != '':
+                eu_labels.append(f"Kraftstoff {get_efficiency_emoji(row['Kraftstoffeffizienz'])}")
+            if pd.notna(row['Nasshaftung']) and row['Nasshaftung'] != '':
+                eu_labels.append(f"Nasshaftung {get_efficiency_emoji(row['Nasshaftung'])}")
+            if pd.notna(row['Geräuschklasse']) and row['Geräuschklasse'] != '':
+                eu_labels.append(f"Lärm {int(row['Geräuschklasse'])}dB")
+            
+            if eu_labels:
+                st.markdown(f"EU-Label: {' | '.join(eu_labels)}")
+            
+            # Vierte Zeile: Teilenummer (kleiner)
+            st.markdown(f"<small>Teilenummer: {row['Teilenummer']}</small>", unsafe_allow_html=True)
         
         with col_button:
             card_key = f"tire_card_{idx}"
@@ -540,6 +560,9 @@ def render_tire_list(filtered_df):
         # Ausklappbare Konfigurationskarte
         if card_key in st.session_state.opened_tire_cards:
             render_config_card(row, idx, filtered_df)
+        
+        # Trennlinie zwischen Reifen
+        st.markdown("---")
 
 def render_statistics(filtered_df):
     """Rendert Statistiken"""
