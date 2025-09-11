@@ -430,7 +430,7 @@ def check_authentication():
             
             with col_back:
                 if st.button("Zurück", use_container_width=True):
-                    st.switch_page("app.py")
+                    st.switch_page("pages/01_Reifen_Suche.py")
         
         return False
     return True
@@ -832,7 +832,7 @@ def main():
             st.switch_page("pages/02_Warenkorb.py")
         
         if st.button("🔧 Reifen Verwaltung", use_container_width=True):
-            st.switch_page("pages/03_Premium_Verwaltung.py")
+            st.switch_page("pages/03_Reifen_Verwaltung.py")
         
         st.markdown("---")
         st.header("🔍 Datenbank Filter")

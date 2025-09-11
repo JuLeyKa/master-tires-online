@@ -225,7 +225,7 @@ def main():
         <ul>
             <li><strong>🔍 Reifen Suche:</strong> Reifen finden und zum Warenkorb hinzufügen</li>
             <li><strong>🛒 Warenkorb:</strong> Angebote erstellen und verwalten</li>
-            <li><strong>⚙️ Premium Verwaltung:</strong> Reifen bearbeiten und EU-Labels hinzufügen</li>
+            <li><strong>⚙️ Reifen Verwaltung:</strong> Reifen bearbeiten und EU-Labels hinzufügen</li>
             <li><strong>🗄️ Datenbank Verwaltung:</strong> Datenbank verwalten und exportieren</li>
         </ul>
     </div>
@@ -317,7 +317,7 @@ def main():
     
     with col3:
         if st.button("⚙️ Reifen Verwaltung", use_container_width=True):
-            st.switch_page("pages/03_Premium_Verwaltung.py")
+            st.switch_page("pages/03_Reifen_Verwaltung.py")
     
     with col4:
         if st.button("🗄️ Datenbank Verwaltung", use_container_width=True):

@@ -665,7 +665,7 @@ def main():
             st.switch_page("pages/02_Warenkorb.py")
         
         if st.button("Reifen Verwaltung", use_container_width=True, type="secondary"):
-            st.switch_page("pages/03_Premium_Verwaltung.py")
+            st.switch_page("pages/03_Reifen_Verwaltung.py")
         
         if st.button("Datenbank Verwaltung", use_container_width=True, type="secondary"):
             st.switch_page("pages/04_Datenbank_Verwaltung.py")

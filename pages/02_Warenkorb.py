@@ -785,7 +785,7 @@ def render_actions(total, breakdown):
     with col4:
         # Service-Preise bearbeiten (für Admins)
         if st.button("Service-Preise", use_container_width=True):
-            st.switch_page("pages/03_Premium_Verwaltung.py")
+            st.switch_page("pages/03_Reifen_Verwaltung.py")
     
     with col5:
         # Bestände reduzieren
