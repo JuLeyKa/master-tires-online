@@ -1596,22 +1596,29 @@ def render_premium_content():
                 else:
                     st.warning("Keine Reifen zum Speichern vorhanden!")
         
-        with col_btn6:
-            # NEU: Vollständige Datenbank für GitHub Update
-            complete_db_data = create_complete_database_export()
-            if complete_db_data:
-                timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-                filename = f"Ramsperger_Winterreifen_VOLLSTAENDIG_{timestamp}.csv"
-                
+        # Separater Bereich für Vollständige Datenbank Export
+        st.markdown("---")
+        st.markdown("#### 🔄 Vollständige Datenbank für GitHub Update")
+        
+        complete_db_data = create_complete_database_export()
+        if complete_db_data:
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            filename = f"Ramsperger_Winterreifen_VOLLSTAENDIG_{timestamp}.csv"
+            
+            col_info, col_download = st.columns([2, 1])
+            with col_info:
+                st.info("Lädt die komplette Datenbank (Master-CSV + alle neuen Reifen) für das GitHub Update herunter.")
+            with col_download:
                 st.download_button(
-                    label="🔄 Vollständige DB",
+                    label="📥 Vollständige DB herunterladen",
                     data=complete_db_data,
                     file_name=filename,
                     mime="text/csv",
-                    help="Vollständige Datenbank (Master + Neue Reifen) für GitHub Update herunterladen"
+                    help="Vollständige Datenbank für GitHub Update",
+                    use_container_width=True
                 )
-            else:
-                st.info("Keine Daten für DB-Export")
+        else:
+            st.warning("Keine Daten für DB-Export verfügbar")
         
         st.markdown("---")
         st.info("🔄 **Intelligentes System:** Neue Reifen werden hinzugefügt, bestehende Reifen (gleiche Teilenummer) werden aktualisiert. Keine Daten gehen verloren!")
