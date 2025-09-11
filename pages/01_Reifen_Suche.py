@@ -58,21 +58,6 @@ MAIN_CSS = """
         font-family: 'Inter', sans-serif;
     }
     
-    .main-header p {
-        margin: 0.5rem 0 0 0;
-        font-size: 1.1rem;
-        opacity: 0.9;
-    }
-    
-    .info-box {
-        background: linear-gradient(135deg, #f0fdf4, #dcfce7);
-        padding: 1rem;
-        border-radius: var(--border-radius);
-        border-left: 4px solid var(--success-color);
-        margin: 1rem 0;
-        box-shadow: var(--shadow-sm);
-    }
-    
     .warning-box {
         background: linear-gradient(135deg, #fef3c7, #fde68a);
         padding: 1rem;
@@ -201,7 +186,7 @@ def clean_dataframe(df):
     
     # Fehlende Spalten ergänzen
     required_cols = ["Fabrikat", "Profil", "Kraftstoffeffizienz", "Nasshaftung", 
-                    "Loadindex", "Speedindex", "Teilenummer"]
+                    "Loadindex", "Speedindex", "Teilenummer", "Geräuschklasse"]
     for col in required_cols:
         if col not in df.columns:
             df[col] = pd.NA
@@ -230,10 +215,8 @@ def load_reifen_data():
             df_clean = clean_dataframe(df)
             return df_clean
         else:
-            st.error(f"Datei nicht gefunden: {csv_path}")
             return create_fallback_data()
     except Exception as e:
-        st.error(f"Fehler beim Laden der CSV: {e}")
         return create_fallback_data()
 
 def create_fallback_data():
@@ -250,16 +233,16 @@ def create_fallback_data():
         'Speedindex': ['T', 'H', 'H', 'V', 'H', 'H', 'H', 'V'],
         'Kraftstoffeffizienz': ['C', 'B', 'A', 'C', 'C', 'B', 'A', 'C'],
         'Nasshaftung': ['B', 'A', 'A', 'B', 'B', 'A', 'A', 'B'],
-        'Bestand': [25, 12, 8, 15, 30, 0, -5, 20]
+        'Bestand': [25, 12, 8, 15, 30, 0, -5, 20],
+        'Geräuschklasse': [68, 69, 67, 70, 68, 69, 67, 71]
     }
     return pd.DataFrame(sample_data)
 
 def get_reifen_data():
     """Hauptfunktion - lädt Reifen-Daten"""
     if 'reifen_data' not in st.session_state or 'data_loaded' not in st.session_state:
-        with st.spinner("Lade Reifen-Daten..."):
-            st.session_state.reifen_data = load_reifen_data()
-            st.session_state.data_loaded = True
+        st.session_state.reifen_data = load_reifen_data()
+        st.session_state.data_loaded = True
     
     return st.session_state.reifen_data
 
@@ -610,28 +593,19 @@ def render_legend(mit_bestand):
 def main():
     init_session_state()
     
-    # Header
+    # Header - OHNE Untertitel
     st.markdown("""
     <div class="main-header">
         <h1>Reifen Suche</h1>
-        <p>Finde die perfekten Reifen fuer deine Kunden</p>
     </div>
     """, unsafe_allow_html=True)
     
-    # Daten laden
+    # Daten laden - OHNE Info-Box
     df = get_reifen_data()
     
     if df.empty:
         st.warning("Keine Reifen-Daten verfuegbar. Bitte pruefe die CSV-Datei.")
         st.stop()
-    
-    # Info über Datenquelle
-    st.markdown(f"""
-    <div class="info-box">
-        <h4>Datenquelle</h4>
-        <p><strong>{len(df)} Reifen</strong> aus Ramsperger_Winterreifen_20250826_160010.csv geladen</p>
-    </div>
-    """, unsafe_allow_html=True)
     
     # Sidebar Filter
     with st.sidebar:
@@ -769,16 +743,9 @@ def main():
     if len(filtered) > 0:
         st.markdown("---")
         
-        # Info über Bestandsfilter
+        # Einfache Überschrift OHNE zusätzliche Info-Boxen
         if mit_bestand:
             st.subheader(f"Gefundene Reifen mit Bestand: {len(filtered)}")
-            if len(df) > len(filtered):
-                nicht_auf_lager = len(df) - len(filtered)
-                st.markdown(f"""
-                <div class="info-box">
-                    <p>{nicht_auf_lager} weitere Reifen ohne Lagerbestand verfuegbar (Bestandsfilter deaktivieren)</p>
-                </div>
-                """, unsafe_allow_html=True)
         else:
             st.subheader(f"Gefundene Reifen: {len(filtered)}")
         
