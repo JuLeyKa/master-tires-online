@@ -316,7 +316,7 @@ def main():
             st.switch_page("pages/02_Warenkorb.py")
     
     with col3:
-        if st.button("⚙️ Premium Verwaltung", use_container_width=True):
+        if st.button("⚙️ Reifen Verwaltung", use_container_width=True):
             st.switch_page("pages/03_Premium_Verwaltung.py")
     
     with col4:

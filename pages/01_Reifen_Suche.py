@@ -664,7 +664,7 @@ def main():
         if st.button("Zum Warenkorb", use_container_width=True, type="primary"):
             st.switch_page("pages/02_Warenkorb.py")
         
-        if st.button("Premium Verwaltung", use_container_width=True, type="secondary"):
+        if st.button("Reifen Verwaltung", use_container_width=True, type="secondary"):
             st.switch_page("pages/03_Premium_Verwaltung.py")
         
         if st.button("Datenbank Verwaltung", use_container_width=True, type="secondary"):
