@@ -2,7 +2,20 @@ import streamlit as st
 import pandas as pd
 import io
 from datetime import datetime
-from utils import data_manager, apply_main_css, get_efficiency_emoji, get_stock_display, create_metric_card
+import sys
+from pathlib import Path
+
+# Pfad-Fix für Streamlit Cloud
+root_dir = Path(__file__).parent.parent
+sys.path.append(str(root_dir))
+
+# Imports nach Pfad-Fix
+try:
+    from utils.data_manager import data_manager
+    from utils.styles import apply_main_css, get_efficiency_emoji, get_stock_display, create_metric_card
+except ImportError:
+    # Fallback für lokale Entwicklung
+    from utils import data_manager, apply_main_css, get_efficiency_emoji, get_stock_display, create_metric_card
 
 # Page Config
 st.set_page_config(
