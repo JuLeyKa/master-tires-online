@@ -2,20 +2,6 @@ import streamlit as st
 import pandas as pd
 import io
 from datetime import datetime
-import sys
-from pathlib import Path
-
-# Pfad-Fix für Streamlit Cloud
-root_dir = Path(__file__).parent.parent
-sys.path.append(str(root_dir))
-
-# Imports nach Pfad-Fix
-try:
-    from utils.data_manager import data_manager
-    from utils.styles import apply_main_css, get_efficiency_emoji, get_stock_display, create_metric_card
-except ImportError:
-    # Fallback für lokale Entwicklung
-    from utils import data_manager, apply_main_css, get_efficiency_emoji, get_stock_display, create_metric_card
 
 # Page Config
 st.set_page_config(
@@ -24,9 +10,333 @@ st.set_page_config(
     layout="wide"
 )
 
-# CSS anwenden
-apply_main_css()
+# ================================================================================================
+# CSS STYLES - DIREKT EINGEBETTET
+# ================================================================================================
+MAIN_CSS = """
+<style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+    
+    :root {
+        --primary-color: #0ea5e9;
+        --primary-dark: #0284c7;
+        --secondary-color: #64748b;
+        --success-color: #16a34a;
+        --warning-color: #f59e0b;
+        --error-color: #dc2626;
+        --background-light: #f8fafc;
+        --background-white: #ffffff;
+        --text-primary: #1e293b;
+        --text-secondary: #64748b;
+        --border-color: #e2e8f0;
+        --border-radius: 8px;
+        --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+        --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+        --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1);
+    }
+    
+    .main > div {
+        padding-top: 1rem;
+    }
+    
+    .main-header {
+        background: linear-gradient(135deg, var(--primary-color), var(--primary-dark));
+        color: white;
+        padding: 2rem;
+        border-radius: 12px;
+        text-align: center;
+        margin-bottom: 2rem;
+        box-shadow: var(--shadow-lg);
+    }
+    
+    .main-header h1 {
+        margin: 0;
+        font-size: 2.5rem;
+        font-weight: 700;
+        font-family: 'Inter', sans-serif;
+    }
+    
+    .main-header p {
+        margin: 0.5rem 0 0 0;
+        font-size: 1.1rem;
+        opacity: 0.9;
+    }
+    
+    .info-box {
+        background: linear-gradient(135deg, #f0fdf4, #dcfce7);
+        padding: 1rem;
+        border-radius: var(--border-radius);
+        border-left: 4px solid var(--success-color);
+        margin: 1rem 0;
+        box-shadow: var(--shadow-sm);
+    }
+    
+    .warning-box {
+        background: linear-gradient(135deg, #fef3c7, #fde68a);
+        padding: 1rem;
+        border-radius: var(--border-radius);
+        border-left: 4px solid var(--warning-color);
+        margin: 1rem 0;
+        box-shadow: var(--shadow-sm);
+    }
+    
+    .error-box {
+        background: linear-gradient(135deg, #fef2f2, #fee2e2);
+        padding: 1rem;
+        border-radius: var(--border-radius);
+        border-left: 4px solid var(--error-color);
+        margin: 1rem 0;
+        box-shadow: var(--shadow-sm);
+    }
+    
+    [data-testid="metric-container"] {
+        background: var(--background-white);
+        border: 1px solid var(--border-color);
+        padding: 1rem;
+        border-radius: var(--border-radius);
+        box-shadow: var(--shadow-sm);
+    }
+    
+    .stButton > button {
+        border-radius: var(--border-radius);
+        border: none;
+        font-weight: 500;
+        transition: all 0.2s ease;
+        font-family: 'Inter', sans-serif;
+    }
+    
+    .stButton > button:hover {
+        transform: translateY(-1px);
+        box-shadow: var(--shadow-md);
+    }
+</style>
+"""
 
+# CSS anwenden
+st.markdown(MAIN_CSS, unsafe_allow_html=True)
+
+# ================================================================================================
+# HELPER FUNCTIONS - DIREKT EINGEBETTET
+# ================================================================================================
+def get_efficiency_emoji(rating):
+    """Gibt Text für Effizienz-Rating zurück"""
+    if pd.isna(rating):
+        return ""
+    rating = str(rating).strip().upper()[:1]
+    return {
+        "A": "[A]", "B": "[B]", "C": "[C]", 
+        "D": "[D]", "E": "[E]", "F": "[F]", "G": "[G]"
+    }.get(rating, "")
+
+def get_stock_display(stock_value):
+    """Formatiert Bestandsanzeige mit Text"""
+    if pd.isna(stock_value) or stock_value == '':
+        return "unbekannt"
+    
+    try:
+        stock_num = float(stock_value)
+        if stock_num < 0:
+            return f"NACHBESTELLEN ({int(stock_num)})"
+        elif stock_num == 0:
+            return f"AUSVERKAUFT ({int(stock_num)})"
+        else:
+            return f"VERFUEGBAR ({int(stock_num)})"
+    except:
+        return "unbekannt"
+
+def create_metric_card(title, value, delta=None, help_text=None):
+    """Erstellt eine ansprechende Metrik-Karte"""
+    delta_html = ""
+    if delta:
+        delta_color = "var(--success-color)" if delta.startswith("↗") else "var(--error-color)" if delta.startswith("↘") else "var(--text-secondary)"
+        delta_html = f'<div style="color: {delta_color}; font-size: 0.9rem; margin-top: 0.25rem;">{delta}</div>'
+    
+    help_html = ""
+    if help_text:
+        help_html = f'<div style="color: var(--text-secondary); font-size: 0.8rem; margin-top: 0.5rem;">{help_text}</div>'
+    
+    return f"""
+    <div style="
+        background: var(--background-white);
+        border: 1px solid var(--border-color);
+        border-radius: var(--border-radius);
+        padding: 1rem;
+        box-shadow: var(--shadow-sm);
+        transition: transform 0.2s ease;
+    " onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='translateY(0)'">
+        <div style="color: var(--text-secondary); font-size: 0.9rem; font-weight: 500;">{title}</div>
+        <div style="color: var(--text-primary); font-size: 1.8rem; font-weight: 700; margin: 0.25rem 0;">{value}</div>
+        {delta_html}
+        {help_html}
+    </div>
+    """
+
+def clean_dataframe(df):
+    """Bereinigt und normalisiert DataFrame"""
+    if df.empty:
+        return df
+    
+    # Preis bereinigen
+    if "Preis_EUR" in df.columns:
+        if df["Preis_EUR"].dtype == object:
+            df["Preis_EUR"] = (
+                df["Preis_EUR"]
+                .astype(str)
+                .str.replace(",", ".", regex=False)
+                .str.replace("€", "", regex=False)
+                .str.strip()
+            )
+        df["Preis_EUR"] = pd.to_numeric(df["Preis_EUR"], errors="coerce")
+    
+    # Dimensionen bereinigen
+    for c in ["Breite", "Hoehe", "Zoll"]:
+        if c in df.columns:
+            df[c] = pd.to_numeric(df[c], errors="coerce").astype("Int64")
+    
+    # Bestand als Float (negative Werte erlaubt)
+    if "Bestand" in df.columns:
+        df["Bestand"] = pd.to_numeric(df["Bestand"], errors="coerce")
+    
+    # Fehlende Spalten ergänzen
+    required_cols = ["Fabrikat", "Profil", "Kraftstoffeffizienz", "Nasshaftung", 
+                    "Loadindex", "Speedindex", "Teilenummer"]
+    for col in required_cols:
+        if col not in df.columns:
+            df[col] = pd.NA
+    
+    # Leere Zeilen entfernen
+    df = df.dropna(subset=["Preis_EUR", "Breite", "Hoehe", "Zoll"], how="any")
+    
+    if not df.empty:
+        df["Breite"] = df["Breite"].astype(int)
+        df["Hoehe"] = df["Hoehe"].astype(int)
+        df["Zoll"] = df["Zoll"].astype(int)
+    
+    return df
+
+# ================================================================================================
+# DATA MANAGEMENT - DIREKT EINGEBETTET
+# ================================================================================================
+def init_sample_data():
+    """Initialisiert Beispiel-Daten wenn keine vorhanden"""
+    if 'master_data' not in st.session_state:
+        sample_data = {
+            'Breite': [195, 205, 215, 225, 195, 205, 215, 225],
+            'Hoehe': [65, 55, 60, 55, 60, 60, 55, 50],
+            'Zoll': [15, 16, 16, 17, 16, 17, 17, 18],
+            'Fabrikat': ['Continental', 'Michelin', 'Bridgestone', 'Pirelli', 'Continental', 'Michelin', 'Bridgestone', 'Pirelli'],
+            'Profil': ['WinterContact TS850', 'Alpin 6', 'Blizzak LM005', 'Winter Sottozero 3', 'WinterContact TS860', 'Alpin 5', 'Blizzak WS90', 'Winter Sottozero Serie II'],
+            'Teilenummer': ['15494940000', '03528700000', '19394', '8019227308853', '15495040000', '03528800000', '19395', '8019227308854'],
+            'Preis_EUR': [89.90, 95.50, 87.20, 99.90, 92.90, 98.50, 89.20, 103.90],
+            'Loadindex': [91, 91, 94, 94, 88, 91, 94, 97],
+            'Speedindex': ['T', 'H', 'H', 'V', 'H', 'H', 'H', 'V'],
+            'Kraftstoffeffizienz': ['C', 'B', 'A', 'C', 'C', 'B', 'A', 'C'],
+            'Nasshaftung': ['B', 'A', 'A', 'B', 'B', 'A', 'A', 'B'],
+            'Bestand': [25, 12, 8, 15, 30, 0, -5, 20]
+        }
+        st.session_state.master_data = pd.DataFrame(sample_data)
+    
+    if 'central_data' not in st.session_state:
+        st.session_state.central_data = pd.DataFrame()
+    
+    if 'services_config' not in st.session_state:
+        services_data = {
+            'service_name': ['montage_bis_17', 'montage_18_19', 'montage_ab_20', 
+                           'radwechsel_1_rad', 'radwechsel_2_raeder', 'radwechsel_3_raeder', 
+                           'radwechsel_4_raeder', 'nur_einlagerung'],
+            'service_label': ['Montage bis 17 Zoll', 'Montage 18-19 Zoll', 'Montage ab 20 Zoll',
+                            'Radwechsel 1 Rad', 'Radwechsel 2 Raeder', 'Radwechsel 3 Raeder',
+                            'Radwechsel 4 Raeder', 'Nur Einlagerung'],
+            'price': [25.0, 30.0, 40.0, 9.95, 19.95, 29.95, 39.90, 55.00],
+            'unit': ['pro Reifen', 'pro Reifen', 'pro Reifen', 
+                    'pauschal', 'pauschal', 'pauschal', 'pauschal', 'pauschal']
+        }
+        st.session_state.services_config = pd.DataFrame(services_data)
+
+def get_combined_data():
+    """Kombiniert Master und Central Data"""
+    init_sample_data()
+    
+    master_data = st.session_state.master_data
+    central_data = st.session_state.central_data
+    
+    if master_data.empty and central_data.empty:
+        return pd.DataFrame()
+    
+    # Bestand-Spalte sicherstellen
+    if not master_data.empty and 'Bestand' not in master_data.columns:
+        master_data['Bestand'] = pd.NA
+    if not central_data.empty and 'Bestand' not in central_data.columns:
+        central_data['Bestand'] = pd.NA
+    
+    if master_data.empty:
+        return clean_dataframe(central_data)
+    if central_data.empty:
+        return clean_dataframe(master_data)
+    
+    # Doppelte Teilenummern aus Central entfernen
+    if 'Teilenummer' in master_data.columns and 'Teilenummer' in central_data.columns:
+        master_teilenummern = set(master_data['Teilenummer'].dropna())
+        central_data_filtered = central_data[~central_data['Teilenummer'].isin(master_teilenummern)]
+        combined_df = pd.concat([master_data, central_data_filtered], ignore_index=True)
+    else:
+        combined_df = pd.concat([master_data, central_data], ignore_index=True)
+    
+    return clean_dataframe(combined_df)
+
+def get_service_prices():
+    """Gibt aktuelle Service-Preise zurück"""
+    init_sample_data()
+    services_config = st.session_state.services_config
+    prices = {}
+    for _, row in services_config.iterrows():
+        prices[row['service_name']] = row['price']
+    return prices
+
+def update_service_prices(new_prices):
+    """Aktualisiert Service-Preise"""
+    init_sample_data()
+    for service_name, price in new_prices.items():
+        # Index finden und Preis aktualisieren
+        idx = st.session_state.services_config[st.session_state.services_config['service_name'] == service_name].index
+        if len(idx) > 0:
+            st.session_state.services_config.loc[idx[0], 'price'] = price
+    return True
+
+def add_or_update_central_data(df):
+    """Fügt Daten zur zentralen Datenbank hinzu oder aktualisiert sie"""
+    init_sample_data()
+    
+    if df.empty:
+        return False, 0
+    
+    df_clean = clean_dataframe(df.copy())
+    if df_clean.empty:
+        return False, 0
+    
+    if st.session_state.central_data.empty:
+        st.session_state.central_data = df_clean
+        return True, len(df_clean)
+    
+    # Bestehende Teilenummern aktualisieren, neue hinzufügen
+    for _, new_row in df_clean.iterrows():
+        teilenummer = new_row['Teilenummer']
+        existing_idx = st.session_state.central_data[st.session_state.central_data['Teilenummer'] == teilenummer].index
+        
+        if len(existing_idx) > 0:
+            # Aktualisieren
+            for col in new_row.index:
+                if pd.notna(new_row[col]):
+                    st.session_state.central_data.loc[existing_idx[0], col] = new_row[col]
+        else:
+            # Hinzufügen
+            st.session_state.central_data = pd.concat([st.session_state.central_data, new_row.to_frame().T], ignore_index=True)
+    
+    return True, len(df_clean)
+
+# ================================================================================================
+# SESSION STATE INITIALISIERUNG
+# ================================================================================================
 def init_session_state():
     """Initialisiert Session State für Premium Verwaltung"""
     if 'premium_authenticated' not in st.session_state:
@@ -42,20 +352,23 @@ def init_session_state():
     if 'premium_current_index' not in st.session_state:
         st.session_state.premium_current_index = 0
 
+# ================================================================================================
+# AUTHENTICATION & MAIN FUNCTIONS
+# ================================================================================================
 def check_authentication():
     """Prüft Authentifizierung für Admin-Bereich"""
     if not st.session_state.premium_authenticated:
         st.markdown("""
         <div class="main-header">
-            <h1>⚙️ Premium Verwaltung</h1>
-            <p>Passwort-geschützter Adminbereich</p>
+            <h1>Premium Verwaltung</h1>
+            <p>Passwort-geschuetzter Adminbereich</p>
         </div>
         """, unsafe_allow_html=True)
         
         st.markdown("""
         <div class="warning-box">
-            <h4>🔐 Authentifizierung erforderlich</h4>
-            <p>Dieser Bereich ist nur für autorisierte Benutzer zugänglich.</p>
+            <h4>Authentifizierung erforderlich</h4>
+            <p>Dieser Bereich ist nur fuer autorisierte Benutzer zugaenglich.</p>
         </div>
         """, unsafe_allow_html=True)
         
@@ -65,83 +378,28 @@ def check_authentication():
             
             col_login, col_back = st.columns(2)
             with col_login:
-                if st.button("🔓 Anmelden", use_container_width=True, type="primary"):
+                if st.button("Anmelden", use_container_width=True, type="primary"):
                     if password == "1234":  # Standard-Passwort
                         st.session_state.premium_authenticated = True
-                        st.success("Zugang gewährt!")
+                        st.success("Zugang gewaehrt!")
                         st.rerun()
                     else:
                         st.error("Falsches Passwort!")
             
             with col_back:
-                if st.button("← Zurück", use_container_width=True):
+                if st.button("Zurueck", use_container_width=True):
                     st.switch_page("app.py")
         
         return False
     return True
 
-def main():
-    init_session_state()
-    
-    if not check_authentication():
-        return
-    
-    # Header
-    st.markdown("""
-    <div class="main-header">
-        <h1>⚙️ Premium Verwaltung</h1>
-        <p>Erweiterte Reifen- und Systemverwaltung</p>
-    </div>
-    """, unsafe_allow_html=True)
-    
-    # Sidebar - Modus-Auswahl
-    with st.sidebar:
-        st.header("Verwaltungsmodus")
-        
-        modus_options = ["Reifen Verwaltung", "Service-Preise", "Bestandsmanagement"]
-        
-        new_modus = st.selectbox(
-            "Modus wählen:",
-            options=modus_options,
-            index=modus_options.index(st.session_state.premium_mode),
-            key="premium_modus_select"
-        )
-        
-        if new_modus != st.session_state.premium_mode:
-            st.session_state.premium_mode = new_modus
-            st.rerun()
-        
-        st.markdown("---")
-        
-        # Navigation
-        if st.button("🔍 Reifen Suche", use_container_width=True):
-            st.switch_page("pages/01_Reifen_Suche.py")
-        
-        if st.button("🛒 Warenkorb", use_container_width=True):
-            st.switch_page("pages/02_Warenkorb.py")
-        
-        if st.button("🗄️ Datenbank Verwaltung", use_container_width=True):
-            st.switch_page("pages/04_Datenbank_Verwaltung.py")
-        
-        if st.button("🚪 Abmelden", use_container_width=True, type="secondary"):
-            st.session_state.premium_authenticated = False
-            st.rerun()
-    
-    # Modus-spezifischer Content
-    if st.session_state.premium_mode == "Reifen Verwaltung":
-        render_tire_management()
-    elif st.session_state.premium_mode == "Service-Preise":
-        render_service_management()
-    elif st.session_state.premium_mode == "Bestandsmanagement":
-        render_stock_management()
-
 def render_tire_management():
     """Rendert Reifen-Verwaltung"""
-    st.markdown("### 🔧 Reifen Verwaltung")
-    st.markdown("Bearbeite EU-Labels, Preise und Bestände für einzelne Reifen.")
+    st.markdown("### Reifen Verwaltung")
+    st.markdown("Bearbeite EU-Labels, Preise und Bestaende fuer einzelne Reifen.")
     
     # Upload-Bereich für Excel/CSV
-    st.markdown("#### 📤 Daten hochladen")
+    st.markdown("#### Daten hochladen")
     uploaded_file = st.file_uploader(
         "Excel oder CSV-Datei hochladen:",
         type=['xlsx', 'xls', 'csv'],
@@ -155,28 +413,28 @@ def render_tire_management():
             else:
                 df = pd.read_excel(uploaded_file)
             
-            df = data_manager.clean_dataframe(df)
+            df = clean_dataframe(df)
             
             if not df.empty:
-                st.success(f"✅ {len(df)} Reifen erfolgreich geladen!")
+                st.success(f"{len(df)} Reifen erfolgreich geladen!")
                 
                 # Zur Central DB hinzufügen
-                if st.button("📁 Zur Datenbank hinzufügen", type="primary"):
-                    success, count = data_manager.add_or_update_central_data(df)
+                if st.button("Zur Datenbank hinzufuegen", type="primary"):
+                    success, count = add_or_update_central_data(df)
                     if success:
-                        st.success(f"✅ {count} Reifen zur Datenbank hinzugefügt/aktualisiert!")
+                        st.success(f"{count} Reifen zur Datenbank hinzugefuegt/aktualisiert!")
                     else:
-                        st.error("❌ Fehler beim Speichern!")
+                        st.error("Fehler beim Speichern!")
             else:
-                st.error("❌ Keine gültigen Daten in der Datei gefunden!")
+                st.error("Keine gueltigen Daten in der Datei gefunden!")
         except Exception as e:
-            st.error(f"❌ Fehler beim Laden der Datei: {e}")
+            st.error(f"Fehler beim Laden der Datei: {e}")
     
     # Aktuelle Daten anzeigen
     st.markdown("---")
-    st.markdown("#### 📊 Aktuelle Reifendaten")
+    st.markdown("#### Aktuelle Reifendaten")
     
-    combined_data = data_manager.get_combined_data()
+    combined_data = get_combined_data()
     if combined_data.empty:
         st.warning("Keine Reifendaten vorhanden. Bitte lade Daten hoch.")
         return
@@ -189,7 +447,7 @@ def render_tire_management():
         st.markdown(create_metric_card("Hersteller", str(combined_data['Fabrikat'].nunique())), unsafe_allow_html=True)
     with col3:
         avg_price = combined_data['Preis_EUR'].mean()
-        st.markdown(create_metric_card("Ø Preis", f"{avg_price:.0f}€"), unsafe_allow_html=True)
+        st.markdown(create_metric_card("O Preis", f"{avg_price:.0f}EUR"), unsafe_allow_html=True)
     with col4:
         with_stock = len(combined_data[combined_data['Bestand'].notna()])
         st.markdown(create_metric_card("Mit Bestand", str(with_stock)), unsafe_allow_html=True)
@@ -203,7 +461,7 @@ def render_tire_management():
 
 def render_premium_filters(df):
     """Rendert Filter-Interface für Premium-Bereich"""
-    st.markdown("#### 🔍 Intelligente Filter")
+    st.markdown("#### Intelligente Filter")
     
     col1, col2, col3 = st.columns(3)
     
@@ -220,7 +478,7 @@ def render_premium_filters(df):
         # Zoll Filter
         zoll_options = sorted(df['Zoll'].unique().tolist())
         zoll_filter = st.multiselect(
-            "Zoll-Größen:",
+            "Zoll-Groessen:",
             options=zoll_options,
             default=[],
             key="premium_zoll"
@@ -232,7 +490,7 @@ def render_premium_filters(df):
         max_price = float(df['Preis_EUR'].max())
         
         price_range = st.slider(
-            "Preisbereich (€):",
+            "Preisbereich (EUR):",
             min_value=min_price,
             max_value=max_price,
             value=(min_price, max_price),
@@ -251,9 +509,9 @@ def render_premium_filters(df):
         # Bestandsfilter
         stock_options = [
             ("alle", "Alle Reifen"),
-            ("negative", "🔴 Negative Bestände"),
-            ("positive", "🟢 Positive Bestände"),
-            ("no_stock", "❓ Ohne Bestandsinfo")
+            ("negative", "Negative Bestaende"),
+            ("positive", "Positive Bestaende"),
+            ("no_stock", "Ohne Bestandsinfo")
         ]
         
         stock_filter = st.selectbox(
@@ -264,14 +522,14 @@ def render_premium_filters(df):
         )
     
     # Filter anwenden
-    if st.button("🔍 Filter anwenden", type="primary"):
+    if st.button("Filter anwenden", type="primary"):
         filtered_df = apply_premium_filters(df, hersteller_filter, zoll_filter, price_range, search_term, stock_filter)
         st.session_state.premium_working_data = filtered_df
         st.session_state.premium_filter_applied = True
-        st.success(f"✅ {len(filtered_df)} Reifen gefiltert")
+        st.success(f"{len(filtered_df)} Reifen gefiltert")
         st.rerun()
     
-    if st.button("🔄 Filter zurücksetzen"):
+    if st.button("Filter zuruecksetzen"):
         st.session_state.premium_working_data = pd.DataFrame()
         st.session_state.premium_filter_applied = False
         st.session_state.premium_current_index = 0
@@ -322,7 +580,7 @@ def apply_premium_filters(df, hersteller_filter, zoll_filter, price_range, searc
 def render_tire_editor():
     """Rendert Einzelreifen-Editor"""
     st.markdown("---")
-    st.markdown("#### ✏️ Reifen bearbeiten")
+    st.markdown("#### Reifen bearbeiten")
     
     if st.session_state.premium_working_data.empty:
         st.info("Keine Reifen zum Bearbeiten. Bitte Filter anwenden.")
@@ -337,12 +595,12 @@ def render_tire_editor():
         st.info(f"Reifen {st.session_state.premium_current_index + 1} von {len(df)}")
     
     with col2:
-        if st.button("← Vorheriger", disabled=(st.session_state.premium_current_index == 0)):
+        if st.button("Vorheriger", disabled=(st.session_state.premium_current_index == 0)):
             st.session_state.premium_current_index -= 1
             st.rerun()
     
     with col3:
-        if st.button("Nächster →", disabled=(st.session_state.premium_current_index >= len(df) - 1)):
+        if st.button("Naechster", disabled=(st.session_state.premium_current_index >= len(df) - 1)):
             st.session_state.premium_current_index += 1
             st.rerun()
     
@@ -356,7 +614,7 @@ def render_tire_editor():
         tire_options.append(option_text)
     
     selected_index = st.selectbox(
-        "Reifen direkt auswählen:",
+        "Reifen direkt auswaehlen:",
         options=range(len(tire_options)),
         index=st.session_state.premium_current_index,
         format_func=lambda x: tire_options[x],
@@ -372,18 +630,18 @@ def render_tire_editor():
     
     with col_info:
         st.markdown("**Reifen-Information:**")
-        st.write(f"**Größe:** {current_tire['Breite']}/{current_tire['Hoehe']} R{current_tire['Zoll']}")
+        st.write(f"**Groesse:** {current_tire['Breite']}/{current_tire['Hoehe']} R{current_tire['Zoll']}")
         st.write(f"**Hersteller:** {current_tire['Fabrikat']}")
         st.write(f"**Profil:** {current_tire['Profil']}")
         st.write(f"**Teilenummer:** {current_tire['Teilenummer']}")
-        st.write(f"**Aktueller Preis:** {current_tire['Preis_EUR']:.2f}€")
+        st.write(f"**Aktueller Preis:** {current_tire['Preis_EUR']:.2f}EUR")
     
     with col_edit:
         st.markdown("**Bearbeitung:**")
         
         # Preis
         new_price = st.number_input(
-            "Neuer Preis (€):",
+            "Neuer Preis (EUR):",
             min_value=0.0,
             max_value=2000.0,
             value=float(current_tire['Preis_EUR']),
@@ -403,7 +661,7 @@ def render_tire_editor():
             value=int(current_stock),
             step=1,
             key="edit_stock",
-            help="Negative Werte = Nachbestellung nötig"
+            help="Negative Werte = Nachbestellung noetig"
         )
         
         # EU-Labels
@@ -429,12 +687,12 @@ def render_tire_editor():
             key="edit_wet_grip"
         )
         
-        current_noise = current_tire.get('Geräuschklasse', 70)
+        current_noise = current_tire.get('Geraeuschklasse', 70)
         if pd.isna(current_noise):
             current_noise = 70
         
         new_noise = st.number_input(
-            "Geräuschklasse (dB):",
+            "Geraeuschklasse (dB):",
             min_value=66,
             max_value=80,
             value=int(current_noise),
@@ -446,38 +704,26 @@ def render_tire_editor():
     col_save, col_delete = st.columns(2)
     
     with col_save:
-        if st.button("💾 Änderungen speichern", use_container_width=True, type="primary"):
-            # Reifen in Central DB aktualisieren
-            updated_row = {
-                'Preis_EUR': new_price,
-                'Bestand': new_stock,
-                'Kraftstoffeffizienz': new_efficiency,
-                'Nasshaftung': new_wet_grip,
-                'Geräuschklasse': new_noise if new_noise > 0 else None
-            }
-            
-            success, message = data_manager.update_tire_stock(
-                current_tire['Teilenummer'], 
-                0,  # Keine Bestandsänderung hier
-                "central"
-            )
-            
+        if st.button("Aenderungen speichern", use_container_width=True, type="primary"):
             # Reifen zu Central DB hinzufügen/aktualisieren
             tire_df = pd.DataFrame([current_tire])
-            for col, value in updated_row.items():
-                tire_df[col] = value
+            tire_df['Preis_EUR'] = new_price
+            tire_df['Bestand'] = new_stock
+            tire_df['Kraftstoffeffizienz'] = new_efficiency
+            tire_df['Nasshaftung'] = new_wet_grip
+            tire_df['Geraeuschklasse'] = new_noise if new_noise > 0 else None
             
-            success, count = data_manager.add_or_update_central_data(tire_df)
+            success, count = add_or_update_central_data(tire_df)
             
             if success:
-                st.success("✅ Reifen erfolgreich aktualisiert!")
+                st.success("Reifen erfolgreich aktualisiert!")
                 # Working data aktualisieren
                 st.session_state.premium_working_data.iloc[st.session_state.premium_current_index] = tire_df.iloc[0]
             else:
-                st.error("❌ Fehler beim Speichern!")
+                st.error("Fehler beim Speichern!")
     
     with col_delete:
-        if st.button("🗑️ Aus Bearbeitung entfernen", use_container_width=True, type="secondary"):
+        if st.button("Aus Bearbeitung entfernen", use_container_width=True, type="secondary"):
             # Aus Working Data entfernen
             st.session_state.premium_working_data = st.session_state.premium_working_data.drop(
                 st.session_state.premium_working_data.index[st.session_state.premium_current_index]
@@ -486,15 +732,16 @@ def render_tire_editor():
             if st.session_state.premium_current_index >= len(st.session_state.premium_working_data):
                 st.session_state.premium_current_index = max(0, len(st.session_state.premium_working_data) - 1)
             
-            st.success("✅ Reifen aus Bearbeitung entfernt!")
+            st.success("Reifen aus Bearbeitung entfernt!")
             st.rerun()
 
 def render_service_management():
     """Rendert Service-Preise Verwaltung"""
-    st.markdown("### ⚙️ Service-Preise verwalten")
-    st.markdown("Hier können die Preise für Montage, Radwechsel und Einlagerung angepasst werden.")
+    st.markdown("### Service-Preise verwalten")
+    st.markdown("Hier koennen die Preise fuer Montage, Radwechsel und Einlagerung angepasst werden.")
     
     # Services laden
+    init_sample_data()
     services_df = st.session_state.services_config
     
     # Aktuelle Preise in Dictionary
@@ -509,7 +756,7 @@ def render_service_management():
         st.markdown("**Montage-Preise:**")
         
         montage_17 = st.number_input(
-            "Montage bis 17 Zoll (€ pro Reifen):",
+            "Montage bis 17 Zoll (EUR pro Reifen):",
             min_value=0.0,
             max_value=100.0,
             value=current_prices.get('montage_bis_17', 25.0),
@@ -518,7 +765,7 @@ def render_service_management():
         )
         
         montage_18 = st.number_input(
-            "Montage 18-19 Zoll (€ pro Reifen):",
+            "Montage 18-19 Zoll (EUR pro Reifen):",
             min_value=0.0,
             max_value=100.0,
             value=current_prices.get('montage_18_19', 30.0),
@@ -527,7 +774,7 @@ def render_service_management():
         )
         
         montage_20 = st.number_input(
-            "Montage ab 20 Zoll (€ pro Reifen):",
+            "Montage ab 20 Zoll (EUR pro Reifen):",
             min_value=0.0,
             max_value=100.0,
             value=current_prices.get('montage_ab_20', 40.0),
@@ -539,7 +786,7 @@ def render_service_management():
         st.markdown("**Radwechsel & Einlagerung:**")
         
         radwechsel_1 = st.number_input(
-            "Radwechsel 1 Rad (€):",
+            "Radwechsel 1 Rad (EUR):",
             min_value=0.0,
             max_value=50.0,
             value=current_prices.get('radwechsel_1_rad', 9.95),
@@ -548,7 +795,7 @@ def render_service_management():
         )
         
         radwechsel_2 = st.number_input(
-            "Radwechsel 2 Räder (€):",
+            "Radwechsel 2 Raeder (EUR):",
             min_value=0.0,
             max_value=50.0,
             value=current_prices.get('radwechsel_2_raeder', 19.95),
@@ -557,7 +804,7 @@ def render_service_management():
         )
         
         radwechsel_3 = st.number_input(
-            "Radwechsel 3 Räder (€):",
+            "Radwechsel 3 Raeder (EUR):",
             min_value=0.0,
             max_value=50.0,
             value=current_prices.get('radwechsel_3_raeder', 29.95),
@@ -566,7 +813,7 @@ def render_service_management():
         )
         
         radwechsel_4 = st.number_input(
-            "Radwechsel 4 Räder (€):",
+            "Radwechsel 4 Raeder (EUR):",
             min_value=0.0,
             max_value=100.0,
             value=current_prices.get('radwechsel_4_raeder', 39.90),
@@ -575,7 +822,7 @@ def render_service_management():
         )
         
         einlagerung = st.number_input(
-            "Nur Einlagerung (€ pauschal):",
+            "Nur Einlagerung (EUR pauschal):",
             min_value=0.0,
             max_value=200.0,
             value=current_prices.get('nur_einlagerung', 55.00),
@@ -584,7 +831,7 @@ def render_service_management():
         )
     
     # Speichern
-    if st.button("💾 Preise speichern", use_container_width=True, type="primary"):
+    if st.button("Preise speichern", use_container_width=True, type="primary"):
         new_prices = {
             'montage_bis_17': montage_17,
             'montage_18_19': montage_18,
@@ -596,27 +843,27 @@ def render_service_management():
             'nur_einlagerung': einlagerung
         }
         
-        if data_manager.update_service_prices(new_prices):
-            st.success("✅ Service-Preise erfolgreich aktualisiert!")
+        if update_service_prices(new_prices):
+            st.success("Service-Preise erfolgreich aktualisiert!")
         else:
-            st.error("❌ Fehler beim Speichern der Service-Preise!")
+            st.error("Fehler beim Speichern der Service-Preise!")
 
 def render_stock_management():
     """Rendert Bestandsmanagement"""
-    st.markdown("### 📦 Bestandsmanagement & Nachbestellungen")
-    st.markdown("Überblick über Lagerbestände und automatische Nachbestelllisten.")
+    st.markdown("### Bestandsmanagement & Nachbestellungen")
+    st.markdown("Ueberblick ueber Lagerbestaende und automatische Nachbestelllisten.")
     
     # Kombinierte Daten laden
-    all_data = data_manager.get_combined_data()
+    all_data = get_combined_data()
     
     if all_data.empty:
-        st.warning("Keine Daten für Bestandsanalyse verfügbar.")
+        st.warning("Keine Daten fuer Bestandsanalyse verfuegbar.")
         return
     
     # Bestandsstatistiken
     stats = calculate_stock_statistics(all_data)
     
-    st.markdown("**📊 Bestandsübersicht:**")
+    st.markdown("**Bestandsuebersicht:**")
     
     col1, col2, col3, col4, col5 = st.columns(5)
     with col1:
@@ -625,25 +872,25 @@ def render_stock_management():
         st.markdown(create_metric_card("Mit Bestandsinfo", str(stats['with_stock'])), unsafe_allow_html=True)
     with col3:
         if stats['negative'] > 0:
-            st.markdown(create_metric_card("🔴 Nachbestellung", str(stats['negative'])), unsafe_allow_html=True)
+            st.markdown(create_metric_card("Nachbestellung", str(stats['negative'])), unsafe_allow_html=True)
         else:
-            st.markdown(create_metric_card("✅ Kein Nachbedarf", str(stats['negative'])), unsafe_allow_html=True)
+            st.markdown(create_metric_card("Kein Nachbedarf", str(stats['negative'])), unsafe_allow_html=True)
     with col4:
-        st.markdown(create_metric_card("🟡 Bestand = 0", str(stats['zero'])), unsafe_allow_html=True)
+        st.markdown(create_metric_card("Bestand = 0", str(stats['zero'])), unsafe_allow_html=True)
     with col5:
-        st.markdown(create_metric_card("🟢 Verfügbar", str(stats['positive'])), unsafe_allow_html=True)
+        st.markdown(create_metric_card("Verfuegbar", str(stats['positive'])), unsafe_allow_html=True)
     
     # Gesamtbestand
     if stats['total_stock'] < 0:
-        st.error(f"⚠️ Gesamtbestand: {stats['total_stock']:.0f} (Negative Bilanz!)")
+        st.error(f"Gesamtbestand: {stats['total_stock']:.0f} (Negative Bilanz!)")
     else:
-        st.success(f"✅ Gesamtbestand: {stats['total_stock']:.0f}")
+        st.success(f"Gesamtbestand: {stats['total_stock']:.0f}")
     
     # Nachbestellliste
     if stats['negative'] > 0:
         render_reorder_list(all_data)
     else:
-        st.success("✅ Alle Reifen sind ausreichend auf Lager!")
+        st.success("Alle Reifen sind ausreichend auf Lager!")
 
 def calculate_stock_statistics(df):
     """Berechnet Bestandsstatistiken"""
@@ -669,7 +916,7 @@ def calculate_stock_statistics(df):
 def render_reorder_list(df):
     """Rendert Nachbestellliste"""
     st.markdown("---")
-    st.markdown("#### ⚠️ Reifen mit Nachbedarf")
+    st.markdown("#### Reifen mit Nachbedarf")
     
     negative_stock_df = df[
         (df['Bestand'].notna()) & 
@@ -677,7 +924,7 @@ def render_reorder_list(df):
     ].copy()
     
     if not negative_stock_df.empty:
-        st.markdown(f"**{len(negative_stock_df)} Reifen-Typen benötigen Nachbestellung:**")
+        st.markdown(f"**{len(negative_stock_df)} Reifen-Typen benoetigen Nachbestellung:**")
         
         # Nach Nachbedarf sortieren
         negative_stock_df = negative_stock_df.sort_values('Bestand')
@@ -690,25 +937,72 @@ def render_reorder_list(df):
             
             col_info, col_details = st.columns([3, 1])
             with col_info:
-                st.markdown(f"🔴 **{reifengroesse}** - {row['Fabrikat']} {row['Profil']}")
-                st.markdown(f"Teilenummer: {row['Teilenummer']} | Einzelpreis: {row['Preis_EUR']:.2f}€")
+                st.markdown(f"**{reifengroesse}** - {row['Fabrikat']} {row['Profil']}")
+                st.markdown(f"Teilenummer: {row['Teilenummer']} | Einzelpreis: {row['Preis_EUR']:.2f}EUR")
             with col_details:
-                st.metric("Rückstand", f"{nachbedarf} Stück")
-                st.metric("Bestellwert", f"{nachbedarf * row['Preis_EUR']:.2f}€")
+                st.metric("Rueckstand", f"{nachbedarf} Stueck")
+                st.metric("Bestellwert", f"{nachbedarf * row['Preis_EUR']:.2f}EUR")
         
         if len(negative_stock_df) > 10:
             st.info(f"... und {len(negative_stock_df) - 10} weitere Reifen mit Nachbedarf")
+
+# ================================================================================================
+# MAIN FUNCTION
+# ================================================================================================
+def main():
+    init_session_state()
+    
+    if not check_authentication():
+        return
+    
+    # Header
+    st.markdown("""
+    <div class="main-header">
+        <h1>Premium Verwaltung</h1>
+        <p>Erweiterte Reifen- und Systemverwaltung</p>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    # Sidebar - Modus-Auswahl
+    with st.sidebar:
+        st.header("Verwaltungsmodus")
         
-        # Export-Option
-        if st.button("📥 Nachbestellliste als CSV exportieren", type="primary"):
-            csv_data, filename = data_manager.export_to_csv("central")
-            if csv_data:
-                st.download_button(
-                    label="📋 Download CSV",
-                    data=csv_data,
-                    file_name=filename,
-                    mime="text/csv"
-                )
+        modus_options = ["Reifen Verwaltung", "Service-Preise", "Bestandsmanagement"]
+        
+        new_modus = st.selectbox(
+            "Modus waehlen:",
+            options=modus_options,
+            index=modus_options.index(st.session_state.premium_mode),
+            key="premium_modus_select"
+        )
+        
+        if new_modus != st.session_state.premium_mode:
+            st.session_state.premium_mode = new_modus
+            st.rerun()
+        
+        st.markdown("---")
+        
+        # Navigation
+        if st.button("Reifen Suche", use_container_width=True):
+            st.switch_page("pages/01_Reifen_Suche.py")
+        
+        if st.button("Warenkorb", use_container_width=True):
+            st.switch_page("pages/02_Warenkorb.py")
+        
+        if st.button("Datenbank Verwaltung", use_container_width=True):
+            st.switch_page("pages/04_Datenbank_Verwaltung.py")
+        
+        if st.button("Abmelden", use_container_width=True, type="secondary"):
+            st.session_state.premium_authenticated = False
+            st.rerun()
+    
+    # Modus-spezifischer Content
+    if st.session_state.premium_mode == "Reifen Verwaltung":
+        render_tire_management()
+    elif st.session_state.premium_mode == "Service-Preise":
+        render_service_management()
+    elif st.session_state.premium_mode == "Bestandsmanagement":
+        render_stock_management()
 
 if __name__ == "__main__":
     main()

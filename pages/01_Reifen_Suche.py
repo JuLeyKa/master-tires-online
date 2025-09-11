@@ -121,30 +121,30 @@ st.markdown(MAIN_CSS, unsafe_allow_html=True)
 # HELPER FUNCTIONS - DIREKT EINGEBETTET
 # ================================================================================================
 def get_efficiency_emoji(rating):
-    """Gibt Emoji für Effizienz-Rating zurück"""
+    """Gibt Text für Effizienz-Rating zurück"""
     if pd.isna(rating):
-        return "⚪"
+        return ""
     rating = str(rating).strip().upper()[:1]
     return {
-        "A": "🟢", "B": "🟡", "C": "🟠", 
-        "D": "🟠", "E": "🔴", "F": "🔴", "G": "⚫"
-    }.get(rating, "⚪")
+        "A": "[A]", "B": "[B]", "C": "[C]", 
+        "D": "[D]", "E": "[E]", "F": "[F]", "G": "[G]"
+    }.get(rating, "")
 
 def get_stock_display(stock_value):
-    """Formatiert Bestandsanzeige mit Farben"""
+    """Formatiert Bestandsanzeige mit Text"""
     if pd.isna(stock_value) or stock_value == '':
-        return "❓ unbekannt"
+        return "unbekannt"
     
     try:
         stock_num = float(stock_value)
         if stock_num < 0:
-            return f⚠️ {int(stock_num)}"
+            return f"NACHBESTELLEN ({int(stock_num)})"
         elif stock_num == 0:
-            return f"⚪ {int(stock_num)}"
+            return f"AUSVERKAUFT ({int(stock_num)})"
         else:
-            return f"✅ {int(stock_num)}"
+            return f"VERFUEGBAR ({int(stock_num)})"
     except:
-        return "❓ unbekannt"
+        return "unbekannt"
 
 def create_metric_card(title, value, delta=None, help_text=None):
     """Erstellt eine ansprechende Metrik-Karte"""
@@ -219,65 +219,49 @@ def clean_dataframe(df):
 # ================================================================================================
 # DATA MANAGEMENT - DIREKT EINGEBETTET
 # ================================================================================================
-def load_data_files():
-    """Lädt alle Datenquellen"""
-    data_dir = Path("data")
+def init_sample_data():
+    """Initialisiert Beispiel-Daten wenn keine vorhanden"""
+    if 'master_data' not in st.session_state:
+        sample_data = {
+            'Breite': [195, 205, 215, 225, 195, 205, 215, 225],
+            'Hoehe': [65, 55, 60, 55, 60, 60, 55, 50],
+            'Zoll': [15, 16, 16, 17, 16, 17, 17, 18],
+            'Fabrikat': ['Continental', 'Michelin', 'Bridgestone', 'Pirelli', 'Continental', 'Michelin', 'Bridgestone', 'Pirelli'],
+            'Profil': ['WinterContact TS850', 'Alpin 6', 'Blizzak LM005', 'Winter Sottozero 3', 'WinterContact TS860', 'Alpin 5', 'Blizzak WS90', 'Winter Sottozero Serie II'],
+            'Teilenummer': ['15494940000', '03528700000', '19394', '8019227308853', '15495040000', '03528800000', '19395', '8019227308854'],
+            'Preis_EUR': [89.90, 95.50, 87.20, 99.90, 92.90, 98.50, 89.20, 103.90],
+            'Loadindex': [91, 91, 94, 94, 88, 91, 94, 97],
+            'Speedindex': ['T', 'H', 'H', 'V', 'H', 'H', 'H', 'V'],
+            'Kraftstoffeffizienz': ['C', 'B', 'A', 'C', 'C', 'B', 'A', 'C'],
+            'Nasshaftung': ['B', 'A', 'A', 'B', 'B', 'A', 'A', 'B'],
+            'Bestand': [25, 12, 8, 15, 30, 0, -5, 20]
+        }
+        st.session_state.master_data = pd.DataFrame(sample_data)
     
-    # Master CSV laden
-    master_csv_path = data_dir / "Ramsperger_Winterreifen_20250826_160010.csv"
-    central_csv_path = data_dir / "ramsperger_central_database.csv"
-    services_csv_path = data_dir / "ramsperger_services_config.csv"
+    if 'central_data' not in st.session_state:
+        st.session_state.central_data = pd.DataFrame()
     
-    master_data = pd.DataFrame()
-    central_data = pd.DataFrame()
-    
-    # Master-Daten laden
-    try:
-        if master_csv_path.exists():
-            master_data = pd.read_csv(master_csv_path)
-            master_data = clean_dataframe(master_data)
-    except Exception as e:
-        st.error(f"Fehler beim Laden der Master-CSV: {e}")
-    
-    # Zentrale Datenbank laden
-    try:
-        if central_csv_path.exists():
-            central_data = pd.read_csv(central_csv_path)
-            central_data = clean_dataframe(central_data)
-    except Exception as e:
-        st.warning(f"Zentrale Datenbank nicht verfügbar: {e}")
-    
-    # Service-Konfiguration laden
-    try:
-        if services_csv_path.exists():
-            services_config = pd.read_csv(services_csv_path)
-        else:
-            # Standard Services
-            services_config = pd.DataFrame({
-                'service_name': ['montage_bis_17', 'montage_18_19', 'montage_ab_20', 
-                               'radwechsel_1_rad', 'radwechsel_2_raeder', 'radwechsel_3_raeder', 
-                               'radwechsel_4_raeder', 'nur_einlagerung'],
-                'service_label': ['Montage bis 17 Zoll', 'Montage 18-19 Zoll', 'Montage ab 20 Zoll',
-                                'Radwechsel 1 Rad', 'Radwechsel 2 Räder', 'Radwechsel 3 Räder',
-                                'Radwechsel 4 Räder', 'Nur Einlagerung'],
-                'price': [25.0, 30.0, 40.0, 9.95, 19.95, 29.95, 39.90, 55.00],
-                'unit': ['pro Reifen', 'pro Reifen', 'pro Reifen', 
-                        'pauschal', 'pauschal', 'pauschal', 'pauschal', 'pauschal']
-            })
-    except Exception as e:
-        st.warning(f"Service-Konfiguration nicht verfügbar: {e}")
-        # Fallback Services
-        services_config = pd.DataFrame({
+    if 'services_config' not in st.session_state:
+        services_data = {
             'service_name': ['montage_bis_17', 'montage_18_19', 'montage_ab_20', 
                            'radwechsel_1_rad', 'radwechsel_2_raeder', 'radwechsel_3_raeder', 
                            'radwechsel_4_raeder', 'nur_einlagerung'],
-            'price': [25.0, 30.0, 40.0, 9.95, 19.95, 29.95, 39.90, 55.00]
-        })
-    
-    return master_data, central_data, services_config
+            'service_label': ['Montage bis 17 Zoll', 'Montage 18-19 Zoll', 'Montage ab 20 Zoll',
+                            'Radwechsel 1 Rad', 'Radwechsel 2 Raeder', 'Radwechsel 3 Raeder',
+                            'Radwechsel 4 Raeder', 'Nur Einlagerung'],
+            'price': [25.0, 30.0, 40.0, 9.95, 19.95, 29.95, 39.90, 55.00],
+            'unit': ['pro Reifen', 'pro Reifen', 'pro Reifen', 
+                    'pauschal', 'pauschal', 'pauschal', 'pauschal', 'pauschal']
+        }
+        st.session_state.services_config = pd.DataFrame(services_data)
 
-def get_combined_data(master_data, central_data):
+def get_combined_data():
     """Kombiniert Master und Central Data"""
+    init_sample_data()
+    
+    master_data = st.session_state.master_data
+    central_data = st.session_state.central_data
+    
     if master_data.empty and central_data.empty:
         return pd.DataFrame()
     
@@ -302,8 +286,10 @@ def get_combined_data(master_data, central_data):
     
     return clean_dataframe(combined_df)
 
-def get_service_prices(services_config):
+def get_service_prices():
     """Gibt aktuelle Service-Preise zurück"""
+    init_sample_data()
+    services_config = st.session_state.services_config
     prices = {}
     for _, row in services_config.iterrows():
         prices[row['service_name']] = row['price']
@@ -324,7 +310,7 @@ def add_to_cart_with_config(tire_data, quantity, services):
     # Warenkorb-Item erstellen
     cart_item = {
         'id': tire_id,
-        'Reifengröße': f"{tire_data['Breite']}/{tire_data['Hoehe']} R{tire_data['Zoll']}",
+        'Reifengroesse': f"{tire_data['Breite']}/{tire_data['Hoehe']} R{tire_data['Zoll']}",
         'Fabrikat': tire_data['Fabrikat'],
         'Profil': tire_data['Profil'],
         'Teilenummer': tire_data['Teilenummer'],
@@ -343,7 +329,7 @@ def add_to_cart_with_config(tire_data, quantity, services):
     # Warenkorb-Anzahl aktualisieren
     st.session_state.cart_count = len(st.session_state.cart_items)
     
-    return True, f"{quantity}x {cart_item['Reifengröße']} hinzugefügt"
+    return True, f"{quantity}x {cart_item['Reifengroesse']} hinzugefuegt"
 
 # ================================================================================================
 # SESSION STATE INITIALISIERUNG
@@ -370,49 +356,49 @@ def init_session_state():
 # ================================================================================================
 # MAIN FUNCTIONS
 # ================================================================================================
-def render_config_card(row, idx, filtered_df, services_config):
+def render_config_card(row, idx, filtered_df):
     """Rendert die Konfigurationskarte für einen Reifen"""
     st.markdown(f"""
     <div class="config-card">
     """, unsafe_allow_html=True)
     
-    st.markdown(f"**Konfiguration für {row['Reifengröße']} - {row['Fabrikat']} {row['Profil']}**")
+    st.markdown(f"**Konfiguration fuer {row['Reifengroesse']} - {row['Fabrikat']} {row['Profil']}**")
     
     col_config1, col_config2 = st.columns(2)
     
     with col_config1:
         # Stückzahl
         quantity = st.number_input(
-            "Stückzahl:",
+            "Stueckzahl:",
             min_value=1,
             max_value=8,
             value=4,
             step=1,
             key=f"qty_{idx}",
-            help="Anzahl der Reifen (1-8 Stück)"
+            help="Anzahl der Reifen (1-8 Stueck)"
         )
         
         # Gesamtpreis anzeigen
         total_price = row['Preis_EUR'] * quantity
-        st.metric("Reifen-Gesamtpreis", f"{total_price:.2f} €")
+        st.metric("Reifen-Gesamtpreis", f"{total_price:.2f} EUR")
     
     with col_config2:
         st.markdown("**Service-Leistungen:**")
         
         # Service-Preise laden
-        service_prices = get_service_prices(services_config)
+        service_prices = get_service_prices()
         
         # Montage-Preis basierend auf Zoll-Größe
         zoll_size = row['Zoll']
         if zoll_size <= 17:
             montage_price = service_prices.get('montage_bis_17', 25.0)
-            montage_label = f"Reifenservice bis 17 Zoll ({montage_price:.2f}€ pro Reifen)"
+            montage_label = f"Reifenservice bis 17 Zoll ({montage_price:.2f}EUR pro Reifen)"
         elif zoll_size <= 19:
             montage_price = service_prices.get('montage_18_19', 30.0)
-            montage_label = f"Reifenservice 18-19 Zoll ({montage_price:.2f}€ pro Reifen)"
+            montage_label = f"Reifenservice 18-19 Zoll ({montage_price:.2f}EUR pro Reifen)"
         else:
             montage_price = service_prices.get('montage_ab_20', 40.0)
-            montage_label = f"Reifenservice ab 20 Zoll ({montage_price:.2f}€ pro Reifen)"
+            montage_label = f"Reifenservice ab 20 Zoll ({montage_price:.2f}EUR pro Reifen)"
         
         # Montage Checkbox
         montage_selected = st.checkbox(
@@ -431,16 +417,16 @@ def render_config_card(row, idx, filtered_df, services_config):
         radwechsel_type = '4_raeder'  # Default
         
         if radwechsel_selected:
-            with st.expander("🔧 Radwechsel-Optionen", expanded=True):
+            with st.expander("Radwechsel-Optionen", expanded=True):
                 radwechsel_options = [
-                    ('4_raeder', f"4 Räder ({service_prices.get('radwechsel_4_raeder', 39.90):.2f}€)"),
-                    ('3_raeder', f"3 Räder ({service_prices.get('radwechsel_3_raeder', 29.95):.2f}€)"),
-                    ('2_raeder', f"2 Räder ({service_prices.get('radwechsel_2_raeder', 19.95):.2f}€)"),
-                    ('1_rad', f"1 Rad ({service_prices.get('radwechsel_1_rad', 9.95):.2f}€)")
+                    ('4_raeder', f"4 Raeder ({service_prices.get('radwechsel_4_raeder', 39.90):.2f}EUR)"),
+                    ('3_raeder', f"3 Raeder ({service_prices.get('radwechsel_3_raeder', 29.95):.2f}EUR)"),
+                    ('2_raeder', f"2 Raeder ({service_prices.get('radwechsel_2_raeder', 19.95):.2f}EUR)"),
+                    ('1_rad', f"1 Rad ({service_prices.get('radwechsel_1_rad', 9.95):.2f}EUR)")
                 ]
                 
                 radwechsel_type = st.radio(
-                    "Anzahl Räder:",
+                    "Anzahl Raeder:",
                     options=[opt[0] for opt in radwechsel_options],
                     format_func=lambda x: next(opt[1] for opt in radwechsel_options if opt[0] == x),
                     key=f"radwechsel_type_{idx}",
@@ -449,7 +435,7 @@ def render_config_card(row, idx, filtered_df, services_config):
         
         # Einlagerung
         einlagerung_selected = st.checkbox(
-            f"Nur Einlagerung (+{service_prices.get('nur_einlagerung', 55.00):.2f}€)",
+            f"Nur Einlagerung (+{service_prices.get('nur_einlagerung', 55.00):.2f}EUR)",
             key=f"einlagerung_{idx}"
         )
         
@@ -473,17 +459,17 @@ def render_config_card(row, idx, filtered_df, services_config):
             service_total += service_prices.get('nur_einlagerung', 55.00)
         
         if service_total > 0:
-            st.metric("Service-Kosten", f"{service_total:.2f} €")
+            st.metric("Service-Kosten", f"{service_total:.2f} EUR")
     
     # Gesamtsumme
     grand_total = total_price + service_total
-    st.markdown(f"### **Gesamtsumme: {grand_total:.2f} €**")
+    st.markdown(f"### **Gesamtsumme: {grand_total:.2f} EUR**")
     
     # Action Buttons
     col_add, col_cancel = st.columns(2)
     
     with col_add:
-        if st.button("🛒 In Warenkorb legen", 
+        if st.button("In Warenkorb legen", 
                    key=f"add_cart_{idx}", 
                    use_container_width=True, 
                    type="primary"):
@@ -510,7 +496,7 @@ def render_config_card(row, idx, filtered_df, services_config):
                 st.warning(message)
     
     with col_cancel:
-        if st.button("❌ Abbrechen", 
+        if st.button("Abbrechen", 
                    key=f"cancel_{idx}", 
                    use_container_width=True):
             card_key = f"tire_card_{idx}"
@@ -519,18 +505,18 @@ def render_config_card(row, idx, filtered_df, services_config):
     
     st.markdown("</div>", unsafe_allow_html=True)
 
-def render_tire_list(filtered_df, services_config):
+def render_tire_list(filtered_df):
     """Rendert die Reifen-Liste mit Auswahl-Buttons"""
     display = filtered_df.copy().reset_index(drop=True)
-    display["Reifengröße"] = (
+    display["Reifengroesse"] = (
         display["Breite"].astype(str) + "/" + display["Hoehe"].astype(str) + " R" + display["Zoll"].astype(str)
     )
     display["Kraftstoff"] = display["Kraftstoffeffizienz"].apply(lambda x: f"{get_efficiency_emoji(x)} {x}" if pd.notna(x) else "")
     display["Nasshaft."] = display["Nasshaftung"].apply(lambda x: f"{get_efficiency_emoji(x)} {x}" if pd.notna(x) else "")
-    display["Preis €"] = display["Preis_EUR"].apply(lambda x: f"{float(x):.2f} €")
+    display["Preis EUR"] = display["Preis_EUR"].apply(lambda x: f"{float(x):.2f} EUR")
     display["Bestand"] = display["Bestand"].apply(get_stock_display)
     
-    st.markdown("**Reifen auswählen und konfigurieren:**")
+    st.markdown("**Reifen auswaehlen und konfigurieren:**")
     
     for idx, row in display.iterrows():
         col_info, col_button = st.columns([5, 1])
@@ -539,15 +525,15 @@ def render_tire_list(filtered_df, services_config):
             # Kompakte Reifen-Info
             effi_display = f" {row['Kraftstoff']}" if row['Kraftstoff'] else ""
             nasshaft_display = f" {row['Nasshaft.']}" if row['Nasshaft.'] else ""
-            bestand_display = f" (Bestand: {row['Bestand']})" if row['Bestand'] != "❓ unbekannt" else ""
+            bestand_display = f" (Bestand: {row['Bestand']})" if row['Bestand'] != "unbekannt" else ""
             
-            st.write(f"**{row['Reifengröße']}** - {row['Fabrikat']} {row['Profil']} - **{row['Preis €']}**{bestand_display}{effi_display}{nasshaft_display} - {row['Teilenummer']}")
+            st.write(f"**{row['Reifengroesse']}** - {row['Fabrikat']} {row['Profil']} - **{row['Preis EUR']}**{bestand_display}{effi_display}{nasshaft_display} - {row['Teilenummer']}")
         
         with col_button:
             card_key = f"tire_card_{idx}"
             is_open = card_key in st.session_state.opened_tire_cards
             
-            if st.button("🛒 Auswählen" if not is_open else "❌ Schließen", 
+            if st.button("Auswaehlen" if not is_open else "Schliessen", 
                         key=f"select_btn_{idx}", 
                         use_container_width=True,
                         type="primary" if not is_open else "secondary"):
@@ -559,29 +545,29 @@ def render_tire_list(filtered_df, services_config):
         
         # Ausklappbare Konfigurationskarte
         if card_key in st.session_state.opened_tire_cards:
-            render_config_card(row, idx, filtered_df, services_config)
+            render_config_card(row, idx, filtered_df)
 
 def render_statistics(filtered_df):
     """Rendert Statistiken"""
-    st.subheader("📊 Statistiken")
+    st.subheader("Statistiken")
     
     col1, col2, col3, col4 = st.columns(4)
     
     with col1:
         avg_price = filtered_df['Preis_EUR'].mean()
-        st.markdown(create_metric_card("Durchschnittspreis", f"{avg_price:.2f} €"), unsafe_allow_html=True)
+        st.markdown(create_metric_card("Durchschnittspreis", f"{avg_price:.2f} EUR"), unsafe_allow_html=True)
     
     with col2:
         min_price = filtered_df['Preis_EUR'].min()
-        st.markdown(create_metric_card("Günstigster Reifen", f"{min_price:.2f} €"), unsafe_allow_html=True)
+        st.markdown(create_metric_card("Guenstigster Reifen", f"{min_price:.2f} EUR"), unsafe_allow_html=True)
     
     with col3:
         max_price = filtered_df['Preis_EUR'].max()
-        st.markdown(create_metric_card("Teuerster Reifen", f"{max_price:.2f} €"), unsafe_allow_html=True)
+        st.markdown(create_metric_card("Teuerster Reifen", f"{max_price:.2f} EUR"), unsafe_allow_html=True)
     
     with col4:
         unique_sizes = len(filtered_df[["Breite", "Hoehe", "Zoll"]].drop_duplicates())
-        st.markdown(create_metric_card("Verfügbare Größen", str(unique_sizes)), unsafe_allow_html=True)
+        st.markdown(create_metric_card("Verfuegbare Groessen", str(unique_sizes)), unsafe_allow_html=True)
 
 def render_legend(mit_bestand):
     """Rendert die Legende"""
@@ -591,15 +577,15 @@ def render_legend(mit_bestand):
     col1, col2 = st.columns(2)
     
     with col1:
-        st.markdown("**⚡ Speedindex (max. zulässige Geschwindigkeit):**")
+        st.markdown("**Speedindex (max. zulaessige Geschwindigkeit):**")
         st.markdown("R = 170 km/h | S = 180 km/h | T = 190 km/h | H = 210 km/h | V = 240 km/h")
     
     with col2:
-        st.markdown("**Reifengröße:** Breite/Höhe R Zoll")
-        st.markdown("**Loadindex:** Tragfähigkeit pro Reifen in kg")
-        st.markdown("**Bestand:** ⚠️ Nachbestellung nötig | ⚪ Null | ✅ Verfügbar | ❓ Unbekannt")
+        st.markdown("**Reifengroesse:** Breite/Hoehe R Zoll")
+        st.markdown("**Loadindex:** Tragfaehigkeit pro Reifen in kg")
+        st.markdown("**Bestand:** NACHBESTELLEN | AUSVERKAUFT | VERFUEGBAR | unbekannt")
         if mit_bestand:
-            st.markdown("**🎯 Bestandsfilter aktiv** - Nur Reifen mit Lagerbestand angezeigt")
+            st.markdown("**Bestandsfilter aktiv** - Nur Reifen mit Lagerbestand angezeigt")
 
 # ================================================================================================
 # MAIN FUNCTION
@@ -610,34 +596,33 @@ def main():
     # Header
     st.markdown("""
     <div class="main-header">
-        <h1>🔍 Reifen Suche</h1>
-        <p>Finde die perfekten Reifen für deine Kunden</p>
+        <h1>Reifen Suche</h1>
+        <p>Finde die perfekten Reifen fuer deine Kunden</p>
     </div>
     """, unsafe_allow_html=True)
     
     # Daten laden
     with st.spinner("Lade Daten..."):
-        master_data, central_data, services_config = load_data_files()
-        df = get_combined_data(master_data, central_data)
+        df = get_combined_data()
     
     if df.empty:
-        st.warning("Keine Reifen-Daten verfügbar. Bitte lade Daten in der Datenbank-Verwaltung hoch.")
+        st.warning("Keine Reifen-Daten verfuegbar. Bitte lade Daten in der Datenbank-Verwaltung hoch.")
         st.stop()
     
     # Info über Datenquellen
-    master_count = len(master_data) if not master_data.empty else 0
-    central_count = len(central_data) if not central_data.empty else 0
+    master_count = len(st.session_state.master_data) if not st.session_state.master_data.empty else 0
+    central_count = len(st.session_state.central_data) if not st.session_state.central_data.empty else 0
     
     st.markdown(f"""
     <div class="info-box">
-        <h4>📊 Datenquellen</h4>
+        <h4>Datenquellen</h4>
         <p>{master_count} Reifen aus Master-Daten + {central_count} bearbeitete Reifen = <strong>{len(df)} gesamt</strong></p>
     </div>
     """, unsafe_allow_html=True)
     
     # Sidebar Filter
     with st.sidebar:
-        st.header("🔍 Detailfilter")
+        st.header("Detailfilter")
         
         # Bestandsfilter (standardmäßig aktiviert)
         mit_bestand = st.checkbox(
@@ -657,7 +642,7 @@ def main():
         
         zoll_filter = st.selectbox("Zoll", options=zoll_opt, index=0)
         breite_filter = st.selectbox("Breite (mm)", options=breite_opt, index=0)
-        hoehe_filter = st.selectbox("Höhe (%)", options=hoehe_opt, index=0)
+        hoehe_filter = st.selectbox("Hoehe (%)", options=hoehe_opt, index=0)
         fabrikat = st.selectbox("Fabrikat", options=fabrikat_opt, index=0)
         
         loadindex_opt = ["Alle"] + sorted([x for x in df["Loadindex"].dropna().astype(str).unique().tolist()])
@@ -670,7 +655,7 @@ def main():
         min_price = float(df["Preis_EUR"].min())
         max_price = float(df["Preis_EUR"].max())
         min_preis, max_preis = st.slider(
-            "Preisbereich (€)",
+            "Preisbereich (EUR)",
             min_value=min_price,
             max_value=max_price,
             value=(min_price, max_price),
@@ -680,26 +665,26 @@ def main():
         # Sortierung
         sortierung = st.selectbox(
             "Sortieren nach",
-            options=["Preis aufsteigend", "Preis absteigend", "Fabrikat", "Reifengröße"],
+            options=["Preis aufsteigend", "Preis absteigend", "Fabrikat", "Reifengroesse"],
         )
         
         # Statistiken
-        show_stats = st.checkbox("📊 Statistiken anzeigen", value=False)
+        show_stats = st.checkbox("Statistiken anzeigen", value=False)
         
         # Navigation zu anderen Bereichen
         st.markdown("---")
         
-        if st.button("🛒 Zum Warenkorb", use_container_width=True, type="primary"):
+        if st.button("Zum Warenkorb", use_container_width=True, type="primary"):
             st.switch_page("pages/02_Warenkorb.py")
         
-        if st.button("⚙️ Premium Verwaltung", use_container_width=True, type="secondary"):
+        if st.button("Premium Verwaltung", use_container_width=True, type="secondary"):
             st.switch_page("pages/03_Premium_Verwaltung.py")
         
-        if st.button("🗄️ Datenbank Verwaltung", use_container_width=True, type="secondary"):
+        if st.button("Datenbank Verwaltung", use_container_width=True, type="secondary"):
             st.switch_page("pages/04_Datenbank_Verwaltung.py")
     
     # Schnellauswahl für gängige Reifengrößen
-    st.subheader("🚀 Schnellauswahl – gängige Reifengrößen")
+    st.subheader("Schnellauswahl - gaengige Reifengroessen")
     top_sizes = [
         "195/65 R15", "195/60 R16", "205/55 R16", "205/60 R16",
         "205/65 R16", "215/55 R16", "215/60 R16", "215/65 R16",
@@ -733,11 +718,11 @@ def main():
         
         st.markdown(f"""
         <div class="warning-box">
-            <h4>🎯 Schnellauswahl aktiv: {st.session_state.selected_size}</h4>
+            <h4>Schnellauswahl aktiv: {st.session_state.selected_size}</h4>
         </div>
         """, unsafe_allow_html=True)
         
-        if st.button("❌ Schnellauswahl zurücksetzen"):
+        if st.button("Schnellauswahl zuruecksetzen"):
             st.session_state.selected_size = None
             st.rerun()
     
@@ -764,7 +749,7 @@ def main():
         filtered = filtered.sort_values("Preis_EUR", ascending=False)
     elif sortierung == "Fabrikat":
         filtered = filtered.sort_values(["Fabrikat", "Preis_EUR"])
-    elif sortierung == "Reifengröße":
+    elif sortierung == "Reifengroesse":
         filtered = filtered.sort_values(["Zoll", "Breite", "Hoehe", "Preis_EUR"])
     
     # Gefundene Reifen anzeigen
@@ -773,28 +758,28 @@ def main():
         
         # Info über Bestandsfilter
         if mit_bestand:
-            st.subheader(f"🎯 Gefundene Reifen mit Bestand: {len(filtered)}")
+            st.subheader(f"Gefundene Reifen mit Bestand: {len(filtered)}")
             if len(df) > len(filtered):
                 nicht_auf_lager = len(df) - len(filtered)
                 st.markdown(f"""
                 <div class="info-box">
-                    <p>ℹ️ {nicht_auf_lager} weitere Reifen ohne Lagerbestand verfügbar (Bestandsfilter deaktivieren)</p>
+                    <p>{nicht_auf_lager} weitere Reifen ohne Lagerbestand verfuegbar (Bestandsfilter deaktivieren)</p>
                 </div>
                 """, unsafe_allow_html=True)
         else:
-            st.subheader(f"🎯 Gefundene Reifen: {len(filtered)}")
+            st.subheader(f"Gefundene Reifen: {len(filtered)}")
         
         # Reifen-Liste
-        render_tire_list(filtered, services_config)
+        render_tire_list(filtered)
         
         # Statistiken
         if show_stats:
             render_statistics(filtered)
     else:
         if mit_bestand:
-            st.warning("⚠️ Keine Reifen mit Bestand gefunden. Bitte Filter anpassen oder Bestandsfilter deaktivieren.")
+            st.warning("Keine Reifen mit Bestand gefunden. Bitte Filter anpassen oder Bestandsfilter deaktivieren.")
         else:
-            st.warning("⚠️ Keine Reifen gefunden. Bitte Filter anpassen oder andere Reifengröße wählen.")
+            st.warning("Keine Reifen gefunden. Bitte Filter anpassen oder andere Reifengroesse waehlen.")
     
     # Legende
     render_legend(mit_bestand)
