@@ -219,41 +219,109 @@ def clean_dataframe(df):
 # ================================================================================================
 # DATA MANAGEMENT - DIREKT EINGEBETTET
 # ================================================================================================
-def init_sample_data():
-    """Initialisiert Beispiel-Daten wenn keine vorhanden"""
-    if 'master_data' not in st.session_state:
-        sample_data = {
-            'Breite': [195, 205, 215, 225, 195, 205, 215, 225],
-            'Hoehe': [65, 55, 60, 55, 60, 60, 55, 50],
-            'Zoll': [15, 16, 16, 17, 16, 17, 17, 18],
-            'Fabrikat': ['Continental', 'Michelin', 'Bridgestone', 'Pirelli', 'Continental', 'Michelin', 'Bridgestone', 'Pirelli'],
-            'Profil': ['WinterContact TS850', 'Alpin 6', 'Blizzak LM005', 'Winter Sottozero 3', 'WinterContact TS860', 'Alpin 5', 'Blizzak WS90', 'Winter Sottozero Serie II'],
-            'Teilenummer': ['15494940000', '03528700000', '19394', '8019227308853', '15495040000', '03528800000', '19395', '8019227308854'],
-            'Preis_EUR': [89.90, 95.50, 87.20, 99.90, 92.90, 98.50, 89.20, 103.90],
-            'Loadindex': [91, 91, 94, 94, 88, 91, 94, 97],
-            'Speedindex': ['T', 'H', 'H', 'V', 'H', 'H', 'H', 'V'],
-            'Kraftstoffeffizienz': ['C', 'B', 'A', 'C', 'C', 'B', 'A', 'C'],
-            'Nasshaftung': ['B', 'A', 'A', 'B', 'B', 'A', 'A', 'B'],
-            'Bestand': [25, 12, 8, 15, 30, 0, -5, 20]
-        }
-        st.session_state.master_data = pd.DataFrame(sample_data)
+def load_data_from_files():
+    """Lädt echte Daten aus dem data/ Ordner"""
+    data_dir = Path("data")
     
-    if 'central_data' not in st.session_state:
+    # Master CSV laden - Haupt-Reifendatenbank
+    master_csv_path = data_dir / "Ramsperger_Winterreifen_20250826_160010.csv"
+    central_csv_path = data_dir / "ramsperger_central_database.csv"
+    services_csv_path = data_dir / "ramsperger_services_config.csv"
+    premium_excel_path = data_dir / "2025-07-29_ReifenPremium_Winterreifen_2025-26.xlsx"
+    
+    # Master-Daten laden
+    master_data = pd.DataFrame()
+    try:
+        if master_csv_path.exists():
+            master_data = pd.read_csv(master_csv_path)
+            master_data = clean_dataframe(master_data)
+            st.session_state.master_data = master_data
+        else:
+            st.error(f"Master-Datei nicht gefunden: {master_csv_path}")
+    except Exception as e:
+        st.error(f"Fehler beim Laden der Master-CSV: {e}")
+        # Fallback zu Beispieldaten
+        init_fallback_data()
+        return
+
+    # Zentrale Datenbank laden
+    central_data = pd.DataFrame()
+    try:
+        if central_csv_path.exists():
+            central_data = pd.read_csv(central_csv_path)
+            central_data = clean_dataframe(central_data)
+            st.session_state.central_data = central_data
+        else:
+            st.session_state.central_data = pd.DataFrame()
+    except Exception as e:
+        st.warning(f"Zentrale Datenbank nicht verfuegbar: {e}")
         st.session_state.central_data = pd.DataFrame()
+
+    # Service-Konfiguration laden
+    try:
+        if services_csv_path.exists():
+            services_config = pd.read_csv(services_csv_path)
+            st.session_state.services_config = services_config
+        else:
+            # Standard Services
+            init_default_services()
+    except Exception as e:
+        st.warning(f"Service-Konfiguration nicht verfuegbar: {e}")
+        init_default_services()
     
-    if 'services_config' not in st.session_state:
-        services_data = {
-            'service_name': ['montage_bis_17', 'montage_18_19', 'montage_ab_20', 
-                           'radwechsel_1_rad', 'radwechsel_2_raeder', 'radwechsel_3_raeder', 
-                           'radwechsel_4_raeder', 'nur_einlagerung'],
-            'service_label': ['Montage bis 17 Zoll', 'Montage 18-19 Zoll', 'Montage ab 20 Zoll',
-                            'Radwechsel 1 Rad', 'Radwechsel 2 Raeder', 'Radwechsel 3 Raeder',
-                            'Radwechsel 4 Raeder', 'Nur Einlagerung'],
-            'price': [25.0, 30.0, 40.0, 9.95, 19.95, 29.95, 39.90, 55.00],
-            'unit': ['pro Reifen', 'pro Reifen', 'pro Reifen', 
-                    'pauschal', 'pauschal', 'pauschal', 'pauschal', 'pauschal']
-        }
-        st.session_state.services_config = pd.DataFrame(services_data)
+    # Premium Excel für neue Reifen laden (wird in Premium Verwaltung genutzt)
+    try:
+        if premium_excel_path.exists():
+            premium_data = pd.read_excel(premium_excel_path)
+            premium_data = clean_dataframe(premium_data)
+            st.session_state.premium_excel_data = premium_data
+        else:
+            st.session_state.premium_excel_data = pd.DataFrame()
+    except Exception as e:
+        st.warning(f"Premium Excel nicht verfuegbar: {e}")
+        st.session_state.premium_excel_data = pd.DataFrame()
+
+def init_default_services():
+    """Initialisiert Standard Service-Konfiguration"""
+    services_data = {
+        'service_name': ['montage_bis_17', 'montage_18_19', 'montage_ab_20', 
+                       'radwechsel_1_rad', 'radwechsel_2_raeder', 'radwechsel_3_raeder', 
+                       'radwechsel_4_raeder', 'nur_einlagerung'],
+        'service_label': ['Montage bis 17 Zoll', 'Montage 18-19 Zoll', 'Montage ab 20 Zoll',
+                        'Radwechsel 1 Rad', 'Radwechsel 2 Raeder', 'Radwechsel 3 Raeder',
+                        'Radwechsel 4 Raeder', 'Nur Einlagerung'],
+        'price': [25.0, 30.0, 40.0, 9.95, 19.95, 29.95, 39.90, 55.00],
+        'unit': ['pro Reifen', 'pro Reifen', 'pro Reifen', 
+                'pauschal', 'pauschal', 'pauschal', 'pauschal', 'pauschal']
+    }
+    st.session_state.services_config = pd.DataFrame(services_data)
+
+def init_fallback_data():
+    """Fallback Beispiel-Daten falls echte Dateien nicht geladen werden können"""
+    sample_data = {
+        'Breite': [195, 205, 215, 225],
+        'Hoehe': [65, 55, 60, 55],
+        'Zoll': [15, 16, 16, 17],
+        'Fabrikat': ['Continental', 'Michelin', 'Bridgestone', 'Pirelli'],
+        'Profil': ['WinterContact TS850', 'Alpin 6', 'Blizzak LM005', 'Winter Sottozero 3'],
+        'Teilenummer': ['15494940000', '03528700000', '19394', '8019227308853'],
+        'Preis_EUR': [89.90, 95.50, 87.20, 99.90],
+        'Loadindex': [91, 91, 94, 94],
+        'Speedindex': ['T', 'H', 'H', 'V'],
+        'Kraftstoffeffizienz': ['C', 'B', 'A', 'C'],
+        'Nasshaftung': ['B', 'A', 'A', 'B'],
+        'Bestand': [25, 12, 8, 15]
+    }
+    st.session_state.master_data = pd.DataFrame(sample_data)
+    st.session_state.central_data = pd.DataFrame()
+    init_default_services()
+
+def init_sample_data():
+    """Hauptfunktion - lädt echte Daten oder Fallback"""
+    # Nur beim ersten Start laden
+    if 'data_loaded' not in st.session_state:
+        load_data_from_files()
+        st.session_state.data_loaded = True
 
 def get_combined_data():
     """Kombiniert Master und Central Data"""
