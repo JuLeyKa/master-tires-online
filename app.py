@@ -9,17 +9,146 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# Custom CSS
-st.markdown("""
+# ================================================================================================
+# SESSION STATE INITIALISIERUNG
+# ================================================================================================
+def init_session_state():
+    """Initialisiert den Session State für alle Apps"""
+    # Navigation
+    if 'current_tab' not in st.session_state:
+        st.session_state.current_tab = "Reifen Suche"
+    if 'authenticated' not in st.session_state:
+        st.session_state.authenticated = False
+    
+    # Tab 1 - Reifen Suche
+    if 'selected_size' not in st.session_state:
+        st.session_state.selected_size = None
+    if 'search_selected_tires' not in st.session_state:
+        st.session_state.search_selected_tires = []
+    if 'opened_tire_cards' not in st.session_state:
+        st.session_state.opened_tire_cards = set()
+    if 'mit_bestand_filter' not in st.session_state:
+        st.session_state.mit_bestand_filter = True
+    
+    # Tab 2 - Warenkorb/Angebot - ERWEITERT FÜR RADWECHSEL-OPTIONEN
+    if 'cart_items' not in st.session_state:
+        st.session_state.cart_items = []
+    if 'cart_quantities' not in st.session_state:
+        st.session_state.cart_quantities = {}
+    if 'cart_services' not in st.session_state:
+        st.session_state.cart_services = {}  # Pro Item: {'montage': bool, 'radwechsel': bool, 'radwechsel_type': str, 'einlagerung': bool}
+    if 'selected_services' not in st.session_state:
+        st.session_state.selected_services = {'montage': False, 'radwechsel': False, 'einlagerung': False}
+    if 'cart_count' not in st.session_state:
+        st.session_state.cart_count = 0
+    if 'customer_data' not in st.session_state:
+        st.session_state.customer_data = {
+            'name': '',
+            'kennzeichen': '',
+            'modell': '',
+            'fahrgestellnummer': ''
+        }
+    
+    # Tab 3 - Premium Verwaltung
+    if 'df_original' not in st.session_state:
+        st.session_state.df_original = None
+    if 'df_filtered' not in st.session_state:
+        st.session_state.df_filtered = None
+    if 'df_working' not in st.session_state:
+        st.session_state.df_working = None
+    if 'file_uploaded' not in st.session_state:
+        st.session_state.file_uploaded = False
+    if 'selected_indices' not in st.session_state:
+        st.session_state.selected_indices = []
+    if 'filter_applied' not in st.session_state:
+        st.session_state.filter_applied = False
+    if 'selection_confirmed' not in st.session_state:
+        st.session_state.selection_confirmed = False
+    if 'df_selected' not in st.session_state:
+        st.session_state.df_selected = None
+    if 'current_tire_index' not in st.session_state:
+        st.session_state.current_tire_index = 0
+    if 'auto_advance' not in st.session_state:
+        st.session_state.auto_advance = True
+    if 'services_mode' not in st.session_state:
+        st.session_state.services_mode = False
+    if 'stock_mode' not in st.session_state:
+        st.session_state.stock_mode = False
+    
+    # Tab 4 - Datenbank Verwaltung
+    if 'db_current_tire_index' not in st.session_state:
+        st.session_state.db_current_tire_index = 0
+    if 'db_auto_advance' not in st.session_state:
+        st.session_state.db_auto_advance = True
+    if 'db_selected_indices' not in st.session_state:
+        st.session_state.db_selected_indices = []
+    if 'db_data_source' not in st.session_state:
+        st.session_state.db_data_source = "Zentrale Datenbank"
+    if 'master_csv_authorized' not in st.session_state:
+        st.session_state.master_csv_authorized = False
+    
+    # Data Loading
+    if 'data_loaded' not in st.session_state:
+        st.session_state.data_loaded = False
+    if 'master_data' not in st.session_state:
+        st.session_state.master_data = None
+    if 'central_data' not in st.session_state:
+        st.session_state.central_data = None
+    if 'services_config' not in st.session_state:
+        st.session_state.services_config = None
+    if 'premium_excel_data' not in st.session_state:
+        st.session_state.premium_excel_data = None
+
+# ================================================================================================
+# CUSTOM CSS
+# ================================================================================================
+MAIN_CSS = """
 <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+    
+    :root {
+        --primary-color: #0ea5e9;
+        --primary-dark: #0284c7;
+        --secondary-color: #64748b;
+        --success-color: #16a34a;
+        --warning-color: #f59e0b;
+        --error-color: #dc2626;
+        --background-light: #f8fafc;
+        --background-white: #ffffff;
+        --text-primary: #1e293b;
+        --text-secondary: #64748b;
+        --border-color: #e2e8f0;
+        --border-radius: 8px;
+        --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+        --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+        --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1);
+    }
+    
+    .main > div {
+        padding-top: 1rem;
+    }
+    
     .main-header {
-        background: linear-gradient(135deg, #1e40af, #3b82f6);
+        background: linear-gradient(135deg, var(--primary-color), var(--primary-dark));
         color: white;
         padding: 2rem;
-        border-radius: 10px;
+        border-radius: 12px;
         text-align: center;
         margin-bottom: 2rem;
-        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        box-shadow: var(--shadow-lg);
+    }
+    
+    .main-header h1 {
+        margin: 0;
+        font-size: 2.5rem;
+        font-weight: 700;
+        font-family: 'Inter', sans-serif;
+    }
+    
+    .main-header p {
+        margin: 0.5rem 0 0 0;
+        font-size: 1.1rem;
+        opacity: 0.9;
     }
     
     .feature-box {
@@ -46,10 +175,40 @@ st.markdown("""
         border-left: 4px solid #f59e0b;
         margin: 1rem 0;
     }
+    
+    [data-testid="metric-container"] {
+        background: var(--background-white);
+        border: 1px solid var(--border-color);
+        padding: 1rem;
+        border-radius: var(--border-radius);
+        box-shadow: var(--shadow-sm);
+    }
+    
+    .stButton > button {
+        border-radius: var(--border-radius);
+        border: none;
+        font-weight: 500;
+        transition: all 0.2s ease;
+        font-family: 'Inter', sans-serif;
+    }
+    
+    .stButton > button:hover {
+        transform: translateY(-1px);
+        box-shadow: var(--shadow-md);
+    }
 </style>
-""", unsafe_allow_html=True)
+"""
 
+# CSS anwenden
+st.markdown(MAIN_CSS, unsafe_allow_html=True)
+
+# ================================================================================================
+# MAIN FUNCTION
+# ================================================================================================
 def main():
+    # Session State initialisieren
+    init_session_state()
+    
     # Header
     st.markdown("""
     <div class="main-header">
@@ -129,17 +288,40 @@ def main():
     st.markdown("---")
     st.markdown("### 📊 System Status")
     
-    # Beispiel-Daten laden (später durch echte Daten ersetzen)
+    # Daten-Status
     col1, col2, col3, col4 = st.columns(4)
     
     with col1:
+        # Einfache Fallback-Metriken ohne Datenbank-Zugriff
         st.metric("Reifen im System", "1,234", "↗ 45")
     with col2:
         st.metric("Hersteller", "15", "")
     with col3:
         st.metric("Verfügbare Größen", "89", "")
     with col4:
-        st.metric("Warenkorb", st.session_state.get('cart_count', 0), "")
+        st.metric("Warenkorb", st.session_state.cart_count, "")
+    
+    # Navigation Buttons
+    st.markdown("---")
+    st.markdown("### 🚀 Schnellzugriff")
+    
+    col1, col2, col3, col4 = st.columns(4)
+    
+    with col1:
+        if st.button("🔍 Reifen Suche", use_container_width=True, type="primary"):
+            st.switch_page("pages/01_Reifen_Suche.py")
+    
+    with col2:
+        if st.button("🛒 Warenkorb", use_container_width=True):
+            st.switch_page("pages/02_Warenkorb.py")
+    
+    with col3:
+        if st.button("⚙️ Premium Verwaltung", use_container_width=True):
+            st.switch_page("pages/03_Premium_Verwaltung.py")
+    
+    with col4:
+        if st.button("🗄️ Datenbank Verwaltung", use_container_width=True):
+            st.switch_page("pages/04_Datenbank_Verwaltung.py")
     
     # Footer Info
     st.markdown("""
@@ -155,8 +337,4 @@ def main():
     """, unsafe_allow_html=True)
 
 if __name__ == "__main__":
-    # Session State initialisieren
-    if 'cart_count' not in st.session_state:
-        st.session_state.cart_count = 0
-    
     main()
