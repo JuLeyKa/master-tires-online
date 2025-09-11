@@ -914,14 +914,27 @@ def main():
     if db_zoll != "Alle":
         filtered_df = filtered_df[filtered_df["Zoll"] == int(db_zoll)]
     
+    # Bestandsfilter anwenden
+    if mit_bestand_filter:
+        filtered_df = filtered_df[
+            (filtered_df['Bestand'].notna()) & 
+            (filtered_df['Bestand'] > 0)
+        ]
+    
+    # Teilenummer-Bulk-Suche
     if db_search and db_search.strip() != "":
-        search_term = db_search.strip().upper()
-        mask = (
-            filtered_df['Teilenummer'].str.upper().str.contains(search_term, na=False, regex=False) |
-            filtered_df['Fabrikat'].str.upper().str.contains(search_term, na=False, regex=False) |
-            filtered_df['Profil'].str.upper().str.contains(search_term, na=False, regex=False)
-        )
-        filtered_df = filtered_df[mask]
+        # Komma-getrennte Teilenummern verarbeiten
+        search_terms = [term.strip().upper() for term in db_search.split(',') if term.strip()]
+        
+        if search_terms:
+            mask = pd.Series([False] * len(filtered_df))
+            
+            for search_term in search_terms:
+                # Nur in Teilenummer suchen
+                term_mask = filtered_df['Teilenummer'].str.upper().str.contains(search_term, na=False, regex=False)
+                mask = mask | term_mask
+            
+            filtered_df = filtered_df[mask]
     
     # Info über Datenbank
     st.markdown("""
