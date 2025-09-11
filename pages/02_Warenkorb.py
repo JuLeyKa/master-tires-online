@@ -195,7 +195,7 @@ def get_service_prices():
     return prices
 
 # ================================================================================================
-# CART MANAGEMENT - OPTIMIERT FÜR PERFORMANCE
+# CART MANAGEMENT - OHNE PROBLEMATISCHE CALLBACKS
 # ================================================================================================
 def remove_from_cart(tire_id):
     """Entfernt einen Reifen aus dem Warenkorb"""
@@ -212,23 +212,6 @@ def clear_cart():
     st.session_state.cart_quantities = {}
     st.session_state.cart_services = {}
     st.session_state.cart_count = 0
-
-def update_quantity(tire_id, new_qty):
-    """Callback-Function für Mengen-Updates"""
-    current_qty = st.session_state.cart_quantities.get(tire_id, 4)
-    if new_qty != current_qty:
-        st.session_state.cart_quantities[tire_id] = new_qty
-
-def update_service(tire_id, service_key, value):
-    """Callback-Function für Service-Updates"""
-    if tire_id not in st.session_state.cart_services:
-        st.session_state.cart_services[tire_id] = {
-            'montage': False, 'radwechsel': False, 'radwechsel_type': '4_raeder', 'einlagerung': False
-        }
-    
-    current_value = st.session_state.cart_services[tire_id].get(service_key)
-    if value != current_value:
-        st.session_state.cart_services[tire_id][service_key] = value
 
 def calculate_position_total(item):
     """Berechnet Gesamtpreis für eine Position (Reifen + Services)"""
@@ -478,7 +461,7 @@ def init_session_state():
         st.session_state.offer_scenario = "vergleich"
 
 # ================================================================================================
-# RENDER FUNCTIONS - OPTIMIERT FÜR PERFORMANCE
+# RENDER FUNCTIONS - OHNE CALLBACKS
 # ================================================================================================
 def render_empty_cart():
     """Rendert leeren Warenkorb"""
@@ -500,7 +483,7 @@ def render_cart_content():
         render_cart_item(item, i)
 
 def render_cart_item(item, position_number):
-    """Rendert ein einzelnes Warenkorb-Item mit optimierter Performance"""
+    """Rendert ein einzelnes Warenkorb-Item OHNE problematische Callbacks"""
     st.markdown('<div class="cart-item">', unsafe_allow_html=True)
     
     # Header mit Position
@@ -528,11 +511,9 @@ def render_cart_item(item, position_number):
             max_value=8,
             value=current_qty,
             step=1,
-            key=f"qty_{item['id']}",
-            on_change=update_quantity,
-            args=(item['id'], )
+            key=f"qty_{item['id']}"
         )
-        # Manueller Update nur wenn nötig
+        # Nur updaten wenn sich was geändert hat - OHNE Callbacks
         if new_qty != current_qty:
             st.session_state.cart_quantities[item['id']] = new_qty
     
@@ -553,7 +534,7 @@ def render_cart_item(item, position_number):
     st.markdown('</div>', unsafe_allow_html=True)
 
 def render_item_services(item):
-    """Rendert Service-Optionen für ein Item mit optimierter Performance"""
+    """Rendert Service-Optionen für ein Item OHNE problematische Callbacks"""
     st.markdown("**Services:**")
     
     # Services für diesen Reifen sicherstellen
@@ -582,7 +563,7 @@ def render_item_services(item):
         value=current_services.get('montage', False),
         key=f"cart_montage_{item['id']}"
     )
-    # Nur updaten wenn sich was geändert hat
+    # Nur updaten wenn sich was geändert hat - OHNE Callbacks
     if montage_selected != current_services.get('montage', False):
         st.session_state.cart_services[item['id']]['montage'] = montage_selected
     
@@ -592,7 +573,7 @@ def render_item_services(item):
         value=current_services.get('radwechsel', False),
         key=f"cart_radwechsel_{item['id']}"
     )
-    # Nur updaten wenn sich was geändert hat
+    # Nur updaten wenn sich was geändert hat - OHNE Callbacks
     if radwechsel_selected != current_services.get('radwechsel', False):
         st.session_state.cart_services[item['id']]['radwechsel'] = radwechsel_selected
     
@@ -615,7 +596,7 @@ def render_item_services(item):
             format_func=lambda x: next(opt[1] for opt in radwechsel_options if opt[0] == x),
             key=f"cart_radwechsel_type_{item['id']}"
         )
-        # Nur updaten wenn sich was geändert hat
+        # Nur updaten wenn sich was geändert hat - OHNE Callbacks
         if radwechsel_type != current_services.get('radwechsel_type', '4_raeder'):
             st.session_state.cart_services[item['id']]['radwechsel_type'] = radwechsel_type
     
@@ -625,7 +606,7 @@ def render_item_services(item):
         value=current_services.get('einlagerung', False),
         key=f"cart_einlagerung_{item['id']}"
     )
-    # Nur updaten wenn sich was geändert hat
+    # Nur updaten wenn sich was geändert hat - OHNE Callbacks
     if einlagerung_selected != current_services.get('einlagerung', False):
         st.session_state.cart_services[item['id']]['einlagerung'] = einlagerung_selected
 
@@ -655,7 +636,7 @@ def render_price_summary(total, breakdown):
     st.markdown('</div>', unsafe_allow_html=True)
 
 def render_customer_data():
-    """Rendert Kundendaten-Eingabe"""
+    """Rendert Kundendaten-Eingabe OHNE problematische Callbacks"""
     st.markdown("---")
     st.markdown("#### Kundendaten (optional)")
     st.markdown("Diese Angaben werden in das Angebot aufgenommen, falls gewünscht:")
@@ -669,7 +650,7 @@ def render_customer_data():
             placeholder="z.B. Max Mustermann",
             key="customer_name"
         )
-        # Nur updaten wenn sich was geändert hat
+        # Nur updaten wenn sich was geändert hat - OHNE Callbacks
         if name_value != st.session_state.customer_data.get('name', ''):
             st.session_state.customer_data['name'] = name_value
         
@@ -679,7 +660,7 @@ def render_customer_data():
             placeholder="z.B. GP-AB 123",
             key="customer_kennzeichen"
         )
-        # Nur updaten wenn sich was geändert hat
+        # Nur updaten wenn sich was geändert hat - OHNE Callbacks
         if kennzeichen_value != st.session_state.customer_data.get('kennzeichen', ''):
             st.session_state.customer_data['kennzeichen'] = kennzeichen_value
     
@@ -690,7 +671,7 @@ def render_customer_data():
             placeholder="z.B. BMW 3er E90",
             key="customer_modell"
         )
-        # Nur updaten wenn sich was geändert hat
+        # Nur updaten wenn sich was geändert hat - OHNE Callbacks
         if modell_value != st.session_state.customer_data.get('modell', ''):
             st.session_state.customer_data['modell'] = modell_value
         
@@ -700,12 +681,12 @@ def render_customer_data():
             placeholder="z.B. WBAVA31070F123456",
             key="customer_fahrgestell"
         )
-        # Nur updaten wenn sich was geändert hat
+        # Nur updaten wenn sich was geändert hat - OHNE Callbacks
         if fahrgestell_value != st.session_state.customer_data.get('fahrgestellnummer', ''):
             st.session_state.customer_data['fahrgestellnummer'] = fahrgestell_value
 
 def render_scenario_selection():
-    """Rendert Szenario-Auswahl für Angebotserstellung"""
+    """Rendert Szenario-Auswahl für Angebotserstellung OHNE problematische Callbacks"""
     st.markdown("---")
     st.markdown("#### Angebot-Typ auswählen")
     
@@ -729,7 +710,7 @@ def render_scenario_selection():
         key="scenario_selection"
     )
     
-    # Nur updaten wenn sich was geändert hat
+    # Nur updaten wenn sich was geändert hat - OHNE Callbacks
     if selected_scenario != st.session_state.offer_scenario:
         st.session_state.offer_scenario = selected_scenario
     
