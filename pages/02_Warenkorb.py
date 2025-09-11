@@ -121,16 +121,6 @@ MAIN_CSS = """
         box-shadow: var(--shadow-sm);
     }
     
-    .position-total {
-        background: linear-gradient(135deg, #dbeafe, #bfdbfe);
-        padding: 0.75rem;
-        border-radius: var(--border-radius);
-        margin: 0.5rem 0;
-        border: 1px solid var(--primary-color);
-        font-weight: 600;
-        text-align: center;
-    }
-    
     .stButton > button {
         border-radius: var(--border-radius);
         border: none;
@@ -174,7 +164,7 @@ def get_stock_display(stock_value):
         elif stock_num == 0:
             return f"AUSVERKAUFT ({int(stock_num)})"
         else:
-            return f"VERFUEGBAR ({int(stock_num)})"
+            return f"VERFÜGBAR ({int(stock_num)})"
     except:
         return "unbekannt"
 
@@ -185,8 +175,8 @@ def init_default_services():
                        'radwechsel_1_rad', 'radwechsel_2_raeder', 'radwechsel_3_raeder', 
                        'radwechsel_4_raeder', 'nur_einlagerung'],
         'service_label': ['Montage bis 17 Zoll', 'Montage 18-19 Zoll', 'Montage ab 20 Zoll',
-                        'Radwechsel 1 Rad', 'Radwechsel 2 Raeder', 'Radwechsel 3 Raeder',
-                        'Radwechsel 4 Raeder', 'Nur Einlagerung'],
+                        'Radwechsel 1 Rad', 'Radwechsel 2 Räder', 'Radwechsel 3 Räder',
+                        'Radwechsel 4 Räder', 'Nur Einlagerung'],
         'price': [25.0, 30.0, 40.0, 9.95, 19.95, 29.95, 39.90, 55.00],
         'unit': ['pro Reifen', 'pro Reifen', 'pro Reifen', 
                 'pauschal', 'pauschal', 'pauschal', 'pauschal', 'pauschal']
@@ -319,7 +309,7 @@ def create_professional_offer(customer_data=None, offer_scenario="vergleich"):
     
     # Header
     content.append("AUTOHAUS RAMSPERGER")
-    content.append("Kostenvoranschlag fuer Winterreifen")
+    content.append("Kostenvoranschlag für Winterreifen")
     content.append("=" * 60)
     content.append(f"Datum: {datetime.now().strftime('%d.%m.%Y')}")
     content.append("")
@@ -344,13 +334,13 @@ def create_professional_offer(customer_data=None, offer_scenario="vergleich"):
     
     if offer_scenario == "vergleich":
         content.append("der Sommer geht langsam zu Ende und die Zeichen stehen auf Winter.")
-        content.append("Jetzt wird es auch Zeit fuer Ihre Winterreifen von Ihrem Auto.")
+        content.append("Jetzt wird es auch Zeit für Ihre Winterreifen von Ihrem Auto.")
         content.append("Gerne stelle ich Ihnen verschiedene hochwertige Reifenmodelle vor,")
-        content.append("aus denen Sie die fuer Sie beste Option waehlen koennen:")
+        content.append("aus denen Sie die für Sie beste Option wählen können:")
     else:  # separate fahrzeuge
         content.append("der Sommer geht langsam zu Ende und die Zeichen stehen auf Winter.")
-        content.append("Jetzt wird es auch Zeit fuer Ihre Winterreifen.")
-        content.append("Gerne erstelle ich Ihnen ein Angebot fuer Ihre beiden Fahrzeuge:")
+        content.append("Jetzt wird es auch Zeit für Ihre Winterreifen.")
+        content.append("Gerne erstelle ich Ihnen ein Angebot für Ihre beiden Fahrzeuge:")
     
     content.append("")
     
@@ -365,7 +355,7 @@ def create_professional_offer(customer_data=None, offer_scenario="vergleich"):
             
             content.append(f"OPTION {i}:")
             content.append("-" * 20)
-            content.append(f"Groesse: {item['Reifengroesse']}")
+            content.append(f"Größe: {item['Reifengroesse']}")
             content.append(f"Marke: {item['Fabrikat']} {item['Profil']}")
             content.append(f"Teilenummer: {item['Teilenummer']}")
             
@@ -386,7 +376,7 @@ def create_professional_offer(customer_data=None, offer_scenario="vergleich"):
             content.append("")
     
     else:  # separate fahrzeuge
-        content.append("ANGEBOT FUER IHRE FAHRZEUGE:")
+        content.append("ANGEBOT FÜR IHRE FAHRZEUGE:")
         content.append("=" * 60)
         
         for i, item in enumerate(st.session_state.cart_items, 1):
@@ -395,7 +385,7 @@ def create_professional_offer(customer_data=None, offer_scenario="vergleich"):
             
             content.append(f"FAHRZEUG {i}:")
             content.append("-" * 20)
-            content.append(f"Groesse: {item['Reifengroesse']}")
+            content.append(f"Größe: {item['Reifengroesse']}")
             content.append(f"Marke: {item['Fabrikat']} {item['Profil']}")
             content.append(f"Teilenummer: {item['Teilenummer']}")
             
@@ -416,13 +406,13 @@ def create_professional_offer(customer_data=None, offer_scenario="vergleich"):
             content.append("")
     
     # Gesamtübersicht
-    content.append("GESAMTUEBERSICHT:")
+    content.append("GESAMTÜBERSICHT:")
     content.append("=" * 30)
     
     if offer_scenario == "vergleich":
-        content.append("Sie koennen zwischen den oben genannten Optionen waehlen.")
+        content.append("Sie können zwischen den oben genannten Optionen wählen.")
         content.append("Die Preise verstehen sich als Komplettpreis inkl. aller")
-        content.append("gewaehlten Service-Leistungen.")
+        content.append("gewählten Service-Leistungen.")
     else:
         content.append(f"Reifen-Kosten gesamt: {breakdown['reifen']:.2f}EUR")
         if breakdown['montage'] + breakdown['radwechsel'] + breakdown['einlagerung'] > 0:
@@ -435,10 +425,10 @@ def create_professional_offer(customer_data=None, offer_scenario="vergleich"):
     content.append("")
     
     # Abschluss
-    content.append("Gerne stehen wir Ihnen fuer Rueckfragen zur Verfuegung.")
+    content.append("Gerne stehen wir Ihnen für Rückfragen zur Verfügung.")
     content.append("Wir freuen uns auf Ihren Auftrag!")
     content.append("")
-    content.append("Mit freundlichen Gruessen")
+    content.append("Mit freundlichen Grüßen")
     content.append("Autohaus Ramsperger")
     
     return "\n".join(content)
@@ -478,7 +468,7 @@ def render_empty_cart():
     st.markdown("""
     <div class="cart-container">
         <h3>Der Warenkorb ist leer</h3>
-        <p>Gehe zur <strong>Reifen Suche</strong> und waehle Reifen fuer dein Angebot aus.</p>
+        <p>Gehe zur <strong>Reifen Suche</strong> und wähle Reifen für dein Angebot aus.</p>
     </div>
     """, unsafe_allow_html=True)
     
@@ -516,7 +506,7 @@ def render_cart_item(item, position_number):
     with col_qty:
         current_qty = st.session_state.cart_quantities.get(item['id'], 4)
         new_qty = st.number_input(
-            "Stueckzahl:",
+            "Stückzahl:",
             min_value=1,
             max_value=8,
             value=current_qty,
@@ -533,15 +523,11 @@ def render_cart_item(item, position_number):
             remove_from_cart(item['id'])
             st.rerun()
     
-    # Position-Gesamtpreis prominent anzeigen
+    # Position-Gesamtpreis OHNE blauen Kasten - nur fetter Text
     reifen_kosten, service_kosten, position_total = calculate_position_total(item)
     
-    st.markdown(f"""
-    <div class="position-total">
-        <strong>Position {position_number} Gesamt: {position_total:.2f} EUR</strong><br>
-        <small>Reifen: {reifen_kosten:.2f}EUR + Services: {service_kosten:.2f}EUR</small>
-    </div>
-    """, unsafe_allow_html=True)
+    st.markdown(f"### **Position {position_number} Gesamt: {position_total:.2f} EUR**")
+    st.markdown(f"Reifen: {reifen_kosten:.2f}EUR + Services: {service_kosten:.2f}EUR")
     
     st.markdown('</div>', unsafe_allow_html=True)
 
@@ -588,9 +574,9 @@ def render_item_services(item):
     # Radwechsel-Optionen (editierbar im Warenkorb)
     if radwechsel_selected:
         radwechsel_options = [
-            ('4_raeder', f"4 Raeder ({service_prices.get('radwechsel_4_raeder', 39.90):.2f}EUR)"),
-            ('3_raeder', f"3 Raeder ({service_prices.get('radwechsel_3_raeder', 29.95):.2f}EUR)"),
-            ('2_raeder', f"2 Raeder ({service_prices.get('radwechsel_2_raeder', 19.95):.2f}EUR)"),
+            ('4_raeder', f"4 Räder ({service_prices.get('radwechsel_4_raeder', 39.90):.2f}EUR)"),
+            ('3_raeder', f"3 Räder ({service_prices.get('radwechsel_3_raeder', 29.95):.2f}EUR)"),
+            ('2_raeder', f"2 Räder ({service_prices.get('radwechsel_2_raeder', 19.95):.2f}EUR)"),
             ('1_rad', f"1 Rad ({service_prices.get('radwechsel_1_rad', 9.95):.2f}EUR)")
         ]
         
@@ -618,7 +604,7 @@ def render_price_summary(total, breakdown):
     """Rendert Preisübersicht"""
     st.markdown("---")
     st.markdown('<div class="total-box">', unsafe_allow_html=True)
-    st.markdown("#### Preisuebersicht")
+    st.markdown("#### Preisübersicht")
     
     col_breakdown, col_total = st.columns([2, 1])
     
@@ -643,7 +629,7 @@ def render_customer_data():
     """Rendert Kundendaten-Eingabe"""
     st.markdown("---")
     st.markdown("#### Kundendaten (optional)")
-    st.markdown("Diese Angaben werden in das Angebot aufgenommen, falls gewuenscht:")
+    st.markdown("Diese Angaben werden in das Angebot aufgenommen, falls gewünscht:")
     
     col_kunde1, col_kunde2 = st.columns(2)
     
@@ -680,18 +666,18 @@ def render_customer_data():
 def render_scenario_selection():
     """Rendert Szenario-Auswahl für Angebotserstellung"""
     st.markdown("---")
-    st.markdown("#### Angebot-Typ auswaehlen")
+    st.markdown("#### Angebot-Typ auswählen")
     
     st.markdown("""
     <div class="scenario-box">
         <h4>Wie soll das Angebot erstellt werden?</h4>
-        <p>Waehle das passende Szenario fuer deine Situation:</p>
+        <p>Wähle das passende Szenario für deine Situation:</p>
     </div>
     """, unsafe_allow_html=True)
     
     scenario_options = [
-        ("vergleich", "Vergleichsangebot - Verschiedene Reifenoptionen zur Auswahl fuer ein Fahrzeug"),
-        ("separate", "Separate Fahrzeuge - Jede Position ist fuer ein anderes Fahrzeug")
+        ("vergleich", "Vergleichsangebot - Verschiedene Reifenoptionen zur Auswahl für ein Fahrzeug"),
+        ("separate", "Separate Fahrzeuge - Jede Position ist für ein anderes Fahrzeug")
     ]
     
     selected_scenario = st.radio(
@@ -709,14 +695,14 @@ def render_scenario_selection():
         st.markdown("""
         <div class="info-box">
             <strong>Vergleichsangebot:</strong> Der Kunde bekommt mehrere Reifenoptionen 
-            zur Auswahl praesentiert und kann sich fuer eine davon entscheiden.
+            zur Auswahl präsentiert und kann sich für eine davon entscheiden.
         </div>
         """, unsafe_allow_html=True)
     else:
         st.markdown("""
         <div class="info-box">
             <strong>Separate Fahrzeuge:</strong> Jede Position wird als separates Fahrzeug 
-            behandelt mit eigenstaendiger Berechnung.
+            behandelt mit eigenständiger Berechnung.
         </div>
         """, unsafe_allow_html=True)
 
@@ -738,7 +724,7 @@ def render_actions(total, breakdown):
             # Angebot anzeigen
             st.markdown("---")
             st.markdown("### Ihr Angebot")
-            st.markdown("*Das folgende Angebot koennen Sie kopieren und in Ihre E-Mail einfuegen:*")
+            st.markdown("*Das folgende Angebot können Sie kopieren und in Ihre E-Mail einfügen:*")
             
             # Text in breiter Text-Area
             st.text_area(
@@ -798,7 +784,7 @@ def main():
     st.markdown("""
     <div class="main-header">
         <h1>Warenkorb & Angebotserstellung</h1>
-        <p>Erstelle professionelle Angebote fuer deine Kunden</p>
+        <p>Erstelle professionelle Angebote für deine Kunden</p>
     </div>
     """, unsafe_allow_html=True)
     
