@@ -112,6 +112,25 @@ MAIN_CSS = """
         box-shadow: var(--shadow-sm);
     }
     
+    .scenario-box {
+        background: linear-gradient(135deg, #f3f4f6, #e5e7eb);
+        padding: 1rem;
+        border-radius: var(--border-radius);
+        border-left: 4px solid var(--secondary-color);
+        margin: 1rem 0;
+        box-shadow: var(--shadow-sm);
+    }
+    
+    .position-total {
+        background: linear-gradient(135deg, #dbeafe, #bfdbfe);
+        padding: 0.75rem;
+        border-radius: var(--border-radius);
+        margin: 0.5rem 0;
+        border: 1px solid var(--primary-color);
+        font-weight: 600;
+        text-align: center;
+    }
+    
     .stButton > button {
         border-radius: var(--border-radius);
         border: none;
@@ -159,25 +178,26 @@ def get_stock_display(stock_value):
     except:
         return "unbekannt"
 
-def init_sample_data():
-    """Initialisiert Beispiel-Daten wenn keine vorhanden"""
-    if 'services_config' not in st.session_state:
-        services_data = {
-            'service_name': ['montage_bis_17', 'montage_18_19', 'montage_ab_20', 
-                           'radwechsel_1_rad', 'radwechsel_2_raeder', 'radwechsel_3_raeder', 
-                           'radwechsel_4_raeder', 'nur_einlagerung'],
-            'service_label': ['Montage bis 17 Zoll', 'Montage 18-19 Zoll', 'Montage ab 20 Zoll',
-                            'Radwechsel 1 Rad', 'Radwechsel 2 Raeder', 'Radwechsel 3 Raeder',
-                            'Radwechsel 4 Raeder', 'Nur Einlagerung'],
-            'price': [25.0, 30.0, 40.0, 9.95, 19.95, 29.95, 39.90, 55.00],
-            'unit': ['pro Reifen', 'pro Reifen', 'pro Reifen', 
-                    'pauschal', 'pauschal', 'pauschal', 'pauschal', 'pauschal']
-        }
-        st.session_state.services_config = pd.DataFrame(services_data)
+def init_default_services():
+    """Initialisiert Standard Service-Konfiguration"""
+    services_data = {
+        'service_name': ['montage_bis_17', 'montage_18_19', 'montage_ab_20', 
+                       'radwechsel_1_rad', 'radwechsel_2_raeder', 'radwechsel_3_raeder', 
+                       'radwechsel_4_raeder', 'nur_einlagerung'],
+        'service_label': ['Montage bis 17 Zoll', 'Montage 18-19 Zoll', 'Montage ab 20 Zoll',
+                        'Radwechsel 1 Rad', 'Radwechsel 2 Raeder', 'Radwechsel 3 Raeder',
+                        'Radwechsel 4 Raeder', 'Nur Einlagerung'],
+        'price': [25.0, 30.0, 40.0, 9.95, 19.95, 29.95, 39.90, 55.00],
+        'unit': ['pro Reifen', 'pro Reifen', 'pro Reifen', 
+                'pauschal', 'pauschal', 'pauschal', 'pauschal', 'pauschal']
+    }
+    return pd.DataFrame(services_data)
 
 def get_service_prices():
     """Gibt aktuelle Service-Preise zurück"""
-    init_sample_data()
+    if 'services_config' not in st.session_state:
+        st.session_state.services_config = init_default_services()
+    
     services_config = st.session_state.services_config
     prices = {}
     for _, row in services_config.iterrows():
@@ -185,7 +205,7 @@ def get_service_prices():
     return prices
 
 # ================================================================================================
-# CART MANAGEMENT - DIREKT EINGEBETTET
+# CART MANAGEMENT - ERWEITERT MIT POSITION-PREISEN
 # ================================================================================================
 def remove_from_cart(tire_id):
     """Entfernt einen Reifen aus dem Warenkorb"""
@@ -203,28 +223,64 @@ def clear_cart():
     st.session_state.cart_services = {}
     st.session_state.cart_count = 0
 
+def calculate_position_total(item):
+    """Berechnet Gesamtpreis für eine Position (Reifen + Services)"""
+    tire_id = item['id']
+    quantity = st.session_state.cart_quantities.get(tire_id, 4)
+    service_prices = get_service_prices()
+    
+    # Reifen-Kosten
+    reifen_kosten = item['Preis_EUR'] * quantity
+    
+    # Services für diesen Reifen
+    item_services = st.session_state.cart_services.get(tire_id, {})
+    service_kosten = 0.0
+    
+    # Montage-Kosten
+    if item_services.get('montage', False):
+        zoll_size = item['Zoll']
+        if zoll_size <= 17:
+            montage_preis = service_prices.get('montage_bis_17', 25.0)
+        elif zoll_size <= 19:
+            montage_preis = service_prices.get('montage_18_19', 30.0)
+        else:
+            montage_preis = service_prices.get('montage_ab_20', 40.0)
+        service_kosten += montage_preis * quantity
+    
+    # Radwechsel-Kosten
+    if item_services.get('radwechsel', False):
+        radwechsel_type = item_services.get('radwechsel_type', '4_raeder')
+        if radwechsel_type == '1_rad':
+            service_kosten += service_prices.get('radwechsel_1_rad', 9.95)
+        elif radwechsel_type == '2_raeder':
+            service_kosten += service_prices.get('radwechsel_2_raeder', 19.95)
+        elif radwechsel_type == '3_raeder':
+            service_kosten += service_prices.get('radwechsel_3_raeder', 29.95)
+        else:  # '4_raeder'
+            service_kosten += service_prices.get('radwechsel_4_raeder', 39.90)
+    
+    # Einlagerungs-Kosten
+    if item_services.get('einlagerung', False):
+        service_kosten += service_prices.get('nur_einlagerung', 55.00)
+    
+    return reifen_kosten, service_kosten, reifen_kosten + service_kosten
+
 def get_cart_total():
     """Berechnet Warenkorb-Gesamtsumme"""
-    if not st.session_state.cart_items:
-        return 0.0, {}
-    
-    service_prices = get_service_prices()
     total = 0.0
     breakdown = {'reifen': 0.0, 'montage': 0.0, 'radwechsel': 0.0, 'einlagerung': 0.0}
     
     for item in st.session_state.cart_items:
-        tire_id = item['id']
-        quantity = st.session_state.cart_quantities.get(tire_id, 4)
-        
-        # Reifen-Kosten
-        reifen_kosten = item['Preis_EUR'] * quantity
-        total += reifen_kosten
+        reifen_kosten, service_kosten, position_total = calculate_position_total(item)
+        total += position_total
         breakdown['reifen'] += reifen_kosten
         
-        # Services für diesen Reifen
+        # Service-Breakdown für Gesamtübersicht
+        tire_id = item['id']
         item_services = st.session_state.cart_services.get(tire_id, {})
+        service_prices = get_service_prices()
+        quantity = st.session_state.cart_quantities.get(tire_id, 4)
         
-        # Montage-Kosten
         if item_services.get('montage', False):
             zoll_size = item['Zoll']
             if zoll_size <= 17:
@@ -233,37 +289,26 @@ def get_cart_total():
                 montage_preis = service_prices.get('montage_18_19', 30.0)
             else:
                 montage_preis = service_prices.get('montage_ab_20', 40.0)
-            
-            montage_kosten = montage_preis * quantity
-            total += montage_kosten
-            breakdown['montage'] += montage_kosten
+            breakdown['montage'] += montage_preis * quantity
         
-        # Radwechsel-Kosten
         if item_services.get('radwechsel', False):
             radwechsel_type = item_services.get('radwechsel_type', '4_raeder')
-            
             if radwechsel_type == '1_rad':
-                radwechsel_kosten = service_prices.get('radwechsel_1_rad', 9.95)
+                breakdown['radwechsel'] += service_prices.get('radwechsel_1_rad', 9.95)
             elif radwechsel_type == '2_raeder':
-                radwechsel_kosten = service_prices.get('radwechsel_2_raeder', 19.95)
+                breakdown['radwechsel'] += service_prices.get('radwechsel_2_raeder', 19.95)
             elif radwechsel_type == '3_raeder':
-                radwechsel_kosten = service_prices.get('radwechsel_3_raeder', 29.95)
-            else:  # '4_raeder'
-                radwechsel_kosten = service_prices.get('radwechsel_4_raeder', 39.90)
-            
-            total += radwechsel_kosten
-            breakdown['radwechsel'] += radwechsel_kosten
+                breakdown['radwechsel'] += service_prices.get('radwechsel_3_raeder', 29.95)
+            else:
+                breakdown['radwechsel'] += service_prices.get('radwechsel_4_raeder', 39.90)
         
-        # Einlagerungs-Kosten
         if item_services.get('einlagerung', False):
-            einlagerungs_kosten = service_prices.get('nur_einlagerung', 55.00)
-            total += einlagerungs_kosten
-            breakdown['einlagerung'] += einlagerungs_kosten
+            breakdown['einlagerung'] += service_prices.get('nur_einlagerung', 55.00)
     
     return total, breakdown
 
-def create_professional_offer(customer_data=None):
-    """Erstellt professionelles Angebot"""
+def create_professional_offer(customer_data=None, offer_scenario="vergleich"):
+    """Erstellt professionelles Angebot mit Szenario-Unterstützung"""
     if not st.session_state.cart_items:
         return "Warenkorb ist leer"
     
@@ -293,108 +338,100 @@ def create_professional_offer(customer_data=None):
             content.append(f"Fahrgestellnummer: {customer_data['fahrgestellnummer']}")
         content.append("")
     
-    # Anrede
+    # Anrede je nach Szenario
     content.append("Sehr geehrter Kunde,")
     content.append("")
-    content.append("der Sommer geht langsam zu Ende und die Zeichen stehen auf Winter.")
-    content.append("Jetzt wird es auch Zeit fuer Ihre Winterreifen von Ihrem Auto.")
-    content.append("Gerne stelle ich Ihnen hochwertige Reifenmodelle vor, die perfekt")
-    content.append("zu Ihren Anforderungen passen:")
+    
+    if offer_scenario == "vergleich":
+        content.append("der Sommer geht langsam zu Ende und die Zeichen stehen auf Winter.")
+        content.append("Jetzt wird es auch Zeit fuer Ihre Winterreifen von Ihrem Auto.")
+        content.append("Gerne stelle ich Ihnen verschiedene hochwertige Reifenmodelle vor,")
+        content.append("aus denen Sie die fuer Sie beste Option waehlen koennen:")
+    else:  # separate fahrzeuge
+        content.append("der Sommer geht langsam zu Ende und die Zeichen stehen auf Winter.")
+        content.append("Jetzt wird es auch Zeit fuer Ihre Winterreifen.")
+        content.append("Gerne erstelle ich Ihnen ein Angebot fuer Ihre beiden Fahrzeuge:")
+    
     content.append("")
     
-    # Reifen-Details
-    content.append("IHRE REIFENAUSWAHL:")
-    content.append("=" * 60)
+    # Reifen-Details je nach Szenario
+    if offer_scenario == "vergleich":
+        content.append("IHRE REIFENOPTIONEN ZUR AUSWAHL:")
+        content.append("=" * 60)
+        
+        for i, item in enumerate(st.session_state.cart_items, 1):
+            reifen_kosten, service_kosten, position_total = calculate_position_total(item)
+            quantity = st.session_state.cart_quantities.get(item['id'], 4)
+            
+            content.append(f"OPTION {i}:")
+            content.append("-" * 20)
+            content.append(f"Groesse: {item['Reifengroesse']}")
+            content.append(f"Marke: {item['Fabrikat']} {item['Profil']}")
+            content.append(f"Teilenummer: {item['Teilenummer']}")
+            
+            # EU-Label
+            if item.get('Kraftstoffeffizienz') or item.get('Nasshaftung'):
+                label_info = []
+                if item.get('Kraftstoffeffizienz'):
+                    label_info.append(f"Kraftstoff: {item['Kraftstoffeffizienz']}")
+                if item.get('Nasshaftung'):
+                    label_info.append(f"Nasshaftung: {item['Nasshaftung']}")
+                content.append(f"EU-Label: {' | '.join(label_info)}")
+            
+            content.append(f"Anzahl: {quantity} Reifen")
+            content.append(f"Reifenpreis: {reifen_kosten:.2f}EUR")
+            if service_kosten > 0:
+                content.append(f"Service-Leistungen: {service_kosten:.2f}EUR")
+            content.append(f"OPTION {i} GESAMT: {position_total:.2f}EUR")
+            content.append("")
     
-    for i, item in enumerate(st.session_state.cart_items, 1):
-        tire_id = item['id']
-        qty = st.session_state.cart_quantities.get(tire_id, 4)
-        einzelpreis = item['Preis_EUR']
-        reifen_gesamtpreis = einzelpreis * qty
+    else:  # separate fahrzeuge
+        content.append("ANGEBOT FUER IHRE FAHRZEUGE:")
+        content.append("=" * 60)
         
-        content.append(f"REIFEN {i}:")
-        content.append("-" * 30)
-        content.append(f"Groesse: {item['Reifengroesse']}")
-        content.append(f"Marke: {item['Fabrikat']} {item['Profil']}")
-        content.append(f"Teilenummer: {item['Teilenummer']}")
-        
-        # EU-Label
-        if item.get('Kraftstoffeffizienz') or item.get('Nasshaftung'):
-            label_info = []
-            if item.get('Kraftstoffeffizienz'):
-                label_info.append(f"Kraftstoff: {item['Kraftstoffeffizienz']}")
-            if item.get('Nasshaftung'):
-                label_info.append(f"Nasshaftung: {item['Nasshaftung']}")
-            content.append(f"EU-Label: {' | '.join(label_info)}")
-        
-        content.append(f"Stueckzahl: {qty} Reifen")
-        content.append(f"Einzelpreis: {einzelpreis:.2f}EUR")
-        content.append(f"Reifen-Summe: {reifen_gesamtpreis:.2f}EUR")
-        content.append("")
-        
-        # Services für diesen Reifen
-        item_services = st.session_state.cart_services.get(tire_id, {})
-        service_kosten = 0.0
-        
-        if item_services.get('montage', False):
-            zoll_size = item['Zoll']
-            if zoll_size <= 17:
-                montage_price = service_prices.get('montage_bis_17', 25.0)
-                montage_text = "Reifenservice bis 17 Zoll"
-            elif zoll_size <= 19:
-                montage_price = service_prices.get('montage_18_19', 30.0)
-                montage_text = "Reifenservice 18-19 Zoll"
-            else:
-                montage_price = service_prices.get('montage_ab_20', 40.0)
-                montage_text = "Reifenservice ab 20 Zoll"
+        for i, item in enumerate(st.session_state.cart_items, 1):
+            reifen_kosten, service_kosten, position_total = calculate_position_total(item)
+            quantity = st.session_state.cart_quantities.get(item['id'], 4)
             
-            montage_gesamt = montage_price * qty
-            service_kosten += montage_gesamt
-            content.append(f"+ {montage_text}: {qty}x {montage_price:.2f}EUR = {montage_gesamt:.2f}EUR")
-        
-        if item_services.get('radwechsel', False):
-            radwechsel_type = item_services.get('radwechsel_type', '4_raeder')
+            content.append(f"FAHRZEUG {i}:")
+            content.append("-" * 20)
+            content.append(f"Groesse: {item['Reifengroesse']}")
+            content.append(f"Marke: {item['Fabrikat']} {item['Profil']}")
+            content.append(f"Teilenummer: {item['Teilenummer']}")
             
-            if radwechsel_type == '1_rad':
-                radwechsel_preis = service_prices.get('radwechsel_1_rad', 9.95)
-                radwechsel_text = "Radwechsel 1 Rad"
-            elif radwechsel_type == '2_raeder':
-                radwechsel_preis = service_prices.get('radwechsel_2_raeder', 19.95)
-                radwechsel_text = "Radwechsel 2 Raeder"
-            elif radwechsel_type == '3_raeder':
-                radwechsel_preis = service_prices.get('radwechsel_3_raeder', 29.95)
-                radwechsel_text = "Radwechsel 3 Raeder"
-            else:
-                radwechsel_preis = service_prices.get('radwechsel_4_raeder', 39.90)
-                radwechsel_text = "Radwechsel 4 Raeder"
+            # EU-Label
+            if item.get('Kraftstoffeffizienz') or item.get('Nasshaftung'):
+                label_info = []
+                if item.get('Kraftstoffeffizienz'):
+                    label_info.append(f"Kraftstoff: {item['Kraftstoffeffizienz']}")
+                if item.get('Nasshaftung'):
+                    label_info.append(f"Nasshaftung: {item['Nasshaftung']}")
+                content.append(f"EU-Label: {' | '.join(label_info)}")
             
-            service_kosten += radwechsel_preis
-            content.append(f"+ {radwechsel_text}: {radwechsel_preis:.2f}EUR")
-        
-        if item_services.get('einlagerung', False):
-            einlagerung_preis = service_prices.get('nur_einlagerung', 55.00)
-            service_kosten += einlagerung_preis
-            content.append(f"+ Einlagerung: {einlagerung_preis:.2f}EUR")
-        
-        # Zwischensumme
-        reifen_total = reifen_gesamtpreis + service_kosten
-        content.append("")
-        content.append(f"ZWISCHENSUMME REIFEN {i}: {reifen_total:.2f}EUR")
-        content.append("=" * 30)
-        content.append("")
+            content.append(f"Anzahl: {quantity} Reifen")
+            content.append(f"Reifenpreis: {reifen_kosten:.2f}EUR")
+            if service_kosten > 0:
+                content.append(f"Service-Leistungen: {service_kosten:.2f}EUR")
+            content.append(f"FAHRZEUG {i} GESAMT: {position_total:.2f}EUR")
+            content.append("")
     
     # Gesamtübersicht
     content.append("GESAMTUEBERSICHT:")
     content.append("=" * 30)
-    content.append(f"Reifen-Kosten gesamt: {breakdown['reifen']:.2f}EUR")
     
-    if breakdown['montage'] > 0:
-        content.append(f"Service-Leistungen gesamt: {breakdown['montage'] + breakdown['radwechsel'] + breakdown['einlagerung']:.2f}EUR")
+    if offer_scenario == "vergleich":
+        content.append("Sie koennen zwischen den oben genannten Optionen waehlen.")
+        content.append("Die Preise verstehen sich als Komplettpreis inkl. aller")
+        content.append("gewaehlten Service-Leistungen.")
+    else:
+        content.append(f"Reifen-Kosten gesamt: {breakdown['reifen']:.2f}EUR")
+        if breakdown['montage'] + breakdown['radwechsel'] + breakdown['einlagerung'] > 0:
+            content.append(f"Service-Leistungen gesamt: {breakdown['montage'] + breakdown['radwechsel'] + breakdown['einlagerung']:.2f}EUR")
+        content.append("")
+        content.append("*" * 60)
+        content.append(f"GESAMTSUMME BEIDE FAHRZEUGE: {total:.2f}EUR")
+        content.append("*" * 60)
     
-    content.append("")
-    content.append("*" * 60)
-    content.append(f"GESAMTSUMME: {total:.2f}EUR")
-    content.append("*" * 60)
     content.append("")
     
     # Abschluss
@@ -428,6 +465,10 @@ def init_session_state():
         st.session_state.cart_services = {}
     if 'cart_count' not in st.session_state:
         st.session_state.cart_count = 0
+    
+    # Angebot-Szenario
+    if 'offer_scenario' not in st.session_state:
+        st.session_state.offer_scenario = "vergleich"
 
 # ================================================================================================
 # RENDER FUNCTIONS
@@ -445,15 +486,18 @@ def render_empty_cart():
         st.switch_page("pages/01_Reifen_Suche.py")
 
 def render_cart_content():
-    """Rendert Warenkorb-Inhalt"""
+    """Rendert Warenkorb-Inhalt mit verbesserten Position-Preisen"""
     st.markdown("#### Reifen im Warenkorb")
     
-    for item in st.session_state.cart_items:
-        render_cart_item(item)
+    for i, item in enumerate(st.session_state.cart_items, 1):
+        render_cart_item(item, i)
 
-def render_cart_item(item):
-    """Rendert ein einzelnes Warenkorb-Item"""
+def render_cart_item(item, position_number):
+    """Rendert ein einzelnes Warenkorb-Item mit Position-Preis"""
     st.markdown('<div class="cart-item">', unsafe_allow_html=True)
+    
+    # Header mit Position
+    st.markdown(f"### Position {position_number}")
     
     col_info, col_qty, col_services, col_remove = st.columns([3, 1, 2, 1])
     
@@ -480,9 +524,6 @@ def render_cart_item(item):
             key=f"qty_{item['id']}"
         )
         st.session_state.cart_quantities[item['id']] = new_qty
-        
-        subtotal = item['Preis_EUR'] * new_qty
-        st.markdown(f"**Summe: {subtotal:.2f}EUR**")
     
     with col_services:
         render_item_services(item)
@@ -491,6 +532,16 @@ def render_cart_item(item):
         if st.button("Entfernen", key=f"remove_{item['id']}", help="Aus Warenkorb entfernen"):
             remove_from_cart(item['id'])
             st.rerun()
+    
+    # Position-Gesamtpreis prominent anzeigen
+    reifen_kosten, service_kosten, position_total = calculate_position_total(item)
+    
+    st.markdown(f"""
+    <div class="position-total">
+        <strong>Position {position_number} Gesamt: {position_total:.2f} EUR</strong><br>
+        <small>Reifen: {reifen_kosten:.2f}EUR + Services: {service_kosten:.2f}EUR</small>
+    </div>
+    """, unsafe_allow_html=True)
     
     st.markdown('</div>', unsafe_allow_html=True)
 
@@ -587,48 +638,6 @@ def render_price_summary(total, breakdown):
         st.markdown(f"### **GESAMT: {total:.2f}EUR**")
     
     st.markdown('</div>', unsafe_allow_html=True)
-    
-    # Service-Zusammenfassung anzeigen
-    if any(st.session_state.cart_services.values()):
-        render_service_summary()
-
-def render_service_summary():
-    """Rendert Service-Zusammenfassung"""
-    st.markdown("---")
-    st.markdown("#### Service-Zusammenfassung")
-    
-    service_summary = {}
-    for item in st.session_state.cart_items:
-        item_services = st.session_state.cart_services.get(item['id'], {})
-        
-        if item_services.get('montage', False):
-            service_summary['montage'] = service_summary.get('montage', 0) + 1
-        
-        if item_services.get('radwechsel', False):
-            radwechsel_type = item_services.get('radwechsel_type', '4_raeder')
-            service_summary[f'radwechsel_{radwechsel_type}'] = service_summary.get(f'radwechsel_{radwechsel_type}', 0) + 1
-        
-        if item_services.get('einlagerung', False):
-            service_summary['einlagerung'] = service_summary.get('einlagerung', 0) + 1
-    
-    summary_text = []
-    if service_summary.get('montage', 0) > 0:
-        summary_text.append(f"- Montage fuer {service_summary['montage']} Reifen-Typ(en)")
-    
-    for key, count in service_summary.items():
-        if key.startswith('radwechsel_') and count > 0:
-            radwechsel_type = key.replace('radwechsel_', '')
-            radwechsel_label = {
-                '1_rad': '1 Rad', '2_raeder': '2 Raeder', '3_raeder': '3 Raeder', '4_raeder': '4 Raeder'
-            }.get(radwechsel_type, '4 Raeder')
-            summary_text.append(f"- Radwechsel {radwechsel_label} fuer {count} Reifen-Typ(en)")
-    
-    if service_summary.get('einlagerung', 0) > 0:
-        summary_text.append(f"- Einlagerung fuer {service_summary['einlagerung']} Reifen-Typ(en)")
-    
-    if summary_text:
-        for line in summary_text:
-            st.markdown(line)
 
 def render_customer_data():
     """Rendert Kundendaten-Eingabe"""
@@ -668,6 +677,49 @@ def render_customer_data():
             key="customer_fahrgestell"
         )
 
+def render_scenario_selection():
+    """Rendert Szenario-Auswahl für Angebotserstellung"""
+    st.markdown("---")
+    st.markdown("#### Angebot-Typ auswaehlen")
+    
+    st.markdown("""
+    <div class="scenario-box">
+        <h4>Wie soll das Angebot erstellt werden?</h4>
+        <p>Waehle das passende Szenario fuer deine Situation:</p>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    scenario_options = [
+        ("vergleich", "Vergleichsangebot - Verschiedene Reifenoptionen zur Auswahl fuer ein Fahrzeug"),
+        ("separate", "Separate Fahrzeuge - Jede Position ist fuer ein anderes Fahrzeug")
+    ]
+    
+    selected_scenario = st.radio(
+        "Angebot-Szenario:",
+        options=[opt[0] for opt in scenario_options],
+        format_func=lambda x: next(opt[1] for opt in scenario_options if opt[0] == x),
+        index=0 if st.session_state.offer_scenario == "vergleich" else 1,
+        key="scenario_selection"
+    )
+    
+    st.session_state.offer_scenario = selected_scenario
+    
+    # Erklärung je nach Szenario
+    if selected_scenario == "vergleich":
+        st.markdown("""
+        <div class="info-box">
+            <strong>Vergleichsangebot:</strong> Der Kunde bekommt mehrere Reifenoptionen 
+            zur Auswahl praesentiert und kann sich fuer eine davon entscheiden.
+        </div>
+        """, unsafe_allow_html=True)
+    else:
+        st.markdown("""
+        <div class="info-box">
+            <strong>Separate Fahrzeuge:</strong> Jede Position wird als separates Fahrzeug 
+            behandelt mit eigenstaendiger Berechnung.
+        </div>
+        """, unsafe_allow_html=True)
+
 def render_actions(total, breakdown):
     """Rendert Export & Aktionen"""
     st.markdown("---")
@@ -678,7 +730,10 @@ def render_actions(total, breakdown):
     with col1:
         # Professionelles Angebot erstellen
         if st.button("Angebot erstellen", use_container_width=True, type="primary"):
-            professional_offer = create_professional_offer(st.session_state.customer_data)
+            professional_offer = create_professional_offer(
+                st.session_state.customer_data, 
+                st.session_state.offer_scenario
+            )
             
             # Angebot anzeigen
             st.markdown("---")
@@ -752,7 +807,7 @@ def main():
         render_empty_cart()
         return
     
-    # Warenkorb Inhalt
+    # Warenkorb Inhalt mit verbesserten Position-Preisen
     render_cart_content()
     
     # Preisberechnung
@@ -761,6 +816,9 @@ def main():
     
     # Kundendaten
     render_customer_data()
+    
+    # Szenario-Auswahl für Angebotserstellung
+    render_scenario_selection()
     
     # Export & Aktionen
     render_actions(total, breakdown)
