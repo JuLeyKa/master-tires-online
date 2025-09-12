@@ -266,7 +266,7 @@ def load_reifen_data():
     
     try:
         if csv_path.exists():
-            df = pd.read_csv(csv_path)
+            df = pd.read_csv(csv_path, encoding='utf-8')
             df_clean = clean_dataframe(df)
             return df_clean
         else:

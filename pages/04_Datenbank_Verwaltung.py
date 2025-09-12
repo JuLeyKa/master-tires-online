@@ -216,7 +216,7 @@ def load_master_database():
         return pd.DataFrame()
     
     try:
-        df = pd.read_csv(MASTER_CSV)
+        df = pd.read_csv(MASTER_CSV, encoding='utf-8')
         return clean_dataframe(df)
     except Exception as e:
         st.error(f"Fehler beim Laden der Datenbank: {e}")
