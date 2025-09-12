@@ -13,11 +13,11 @@ Breite,Hoehe,Zoll,Loadindex,Speedindex,Fabrikat,Profil,Teilenummer,Preis_EUR,Bes
 165,65,15,81,T,Semperit,Speed-Grip 5,ZTW165655TSZ00,"77,82",,D,C,71
 165,65,15,81,T,Continental,WinterContact TS 870,ZTW165655TCZ00,"121,9",,C,C,69
 185,65,15,88,T,Continental,WinterContact TS 870,ZTW185655TC870,"96,43",,C,B,70
-185,65,15,88,T,Semperit,Speed-Grip 5,ZTW185655TSZ00,71.78,18.0,D,B,71
+185,65,15,88,T,Semperit,Speed-Grip 5,ZTW185655TSZ00,"71,78",20,D,B,71
 185,65,15,92,T,Continental,WinterContact TS 870,ZTW186655TC870,"116,23",,C,B,70
 185,65,15,92,T,Semperit,Speed-Grip 5,ZTW186655TSZ00,"83,54",,C,B,71
 195,65,15,91,T,Continental,WinterContact TS 830 P MO,ZTW195655TCP3M,"86,57",,D,C,72
-195,65,15,91,T,Continental,WinterContact TS 870,ZTW195655TC870,"85,72",20.0,C,B,70
+195,65,15,91,T,Continental,WinterContact TS 870,ZTW195655TC870,"85,72",20,C,B,70
 195,65,15,91,T,Semperit,Speed-Grip 5,ZTW195655TSZ00,"69,64",,C,B,72
 195,65,15,95,T,Continental,WinterContact TS 850,ZTW196655TC850,"117,74",,C,C,72
 195,65,15,95,T,Continental,WinterContact TS 870,ZTW196655TC870,"117,74",,C,B,70
@@ -122,7 +122,7 @@ Breite,Hoehe,Zoll,Loadindex,Speedindex,Fabrikat,Profil,Teilenummer,Preis_EUR,Bes
 205,55,16,91,T,Firestone,Winterhawk 4,ZTW205556TFW40,"123,03",,C,B,71
 205,55,16,91,T,Semperit,Speed-Grip 5,ZTW205556TSZ00,"101,21",,C,B,72
 205,55,16,91,H,Continental,WinterContact TS 830 P AO,ZTW205556HCP3A,"115,54",,D,C,72
-205,55,16,91,H,Continental,WinterContact TS 870,ZTW205556HC870,"115,72",20.0,C,B,70
+205,55,16,91,H,Continental,WinterContact TS 870,ZTW205556HC870,"115,72",20,C,B,70
 205,55,16,91,H,Firestone,Winterhawk 4,ZTW205556HFW40,"118,44",,C,B,71
 205,55,16,91,H,Semperit,Speed-Grip 5,ZTW205556HSZ00,"99,64",,C,B,72
 205,55,16,91,H,Pirelli,Powergy Winter,ZTW205556HPZ04,"123,95",,C,C,71
