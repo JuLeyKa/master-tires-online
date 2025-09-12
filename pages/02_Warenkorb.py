@@ -435,7 +435,7 @@ def create_professional_offer(customer_data=None, offer_scenario="vergleich", de
             
             content.append(f"OPTION {i}:")
             content.append("-" * 20)
-            content.append(f"Größe: {item['Reifengroesse']}")
+            content.append(f"Größe: {item['Reifengröße']}")
             content.append(f"Marke: {item['Fabrikat']} {item['Profil']}")
             content.append(f"Teilenummer: {item['Teilenummer']}")
             
@@ -465,7 +465,7 @@ def create_professional_offer(customer_data=None, offer_scenario="vergleich", de
             
             content.append(f"FAHRZEUG {i}:")
             content.append("-" * 20)
-            content.append(f"Größe: {item['Reifengroesse']}")
+            content.append(f"Größe: {item['Reifengröße']}")
             content.append(f"Marke: {item['Fabrikat']} {item['Profil']}")
             content.append(f"Teilenummer: {item['Teilenummer']}")
             
@@ -495,7 +495,7 @@ def create_professional_offer(customer_data=None, offer_scenario="vergleich", de
             
             content.append(f"POSITION {i}:")
             content.append("-" * 20)
-            content.append(f"Größe: {item['Reifengroesse']}")
+            content.append(f"Größe: {item['Reifengröße']}")
             content.append(f"Marke: {item['Fabrikat']} {item['Profil']}")
             content.append(f"Teilenummer: {item['Teilenummer']}")
             
@@ -624,7 +624,7 @@ def render_cart_item(item, position_number):
     col_info, col_qty, col_services, col_remove = st.columns([3, 1, 2, 1])
     
     with col_info:
-        st.markdown(f"**{item['Reifengroesse']}** - {item['Fabrikat']} {item['Profil']}")
+        st.markdown(f"**{item['Reifengröße']}** - {item['Fabrikat']} {item['Profil']}")
         st.markdown(f"Teilenummer: {item['Teilenummer']} | Einzelpreis: **{item['Preis_EUR']:.2f}EUR**")
         
         # EU-Label, Bestand und Saison

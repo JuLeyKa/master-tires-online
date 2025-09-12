@@ -301,7 +301,7 @@ def load_services_config():
         default_services.to_csv(SERVICES_CONFIG_CSV, index=False, encoding='utf-8')
         return default_services
     else:
-        return pd.read_csv(SERVICES_CONFIG_CSV)
+        return pd.read_csv(SERVICES_CONFIG_CSV, encoding='utf-8')
 
 def save_services_config(services_df):
     """Speichert die Service-Konfiguration"""
@@ -362,7 +362,7 @@ def load_master_csv() -> pd.DataFrame:
     if not MASTER_CSV.exists():
         return pd.DataFrame()
 
-    df = pd.read_csv(MASTER_CSV)
+    df = pd.read_csv(MASTER_CSV, encoding='utf-8')
     return clean_dataframe(df)
 
 def save_to_master_csv(df):
