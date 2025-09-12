@@ -76,6 +76,30 @@ MAIN_CSS = """
         box-shadow: var(--shadow-md);
     }
     
+    .saison-badge {
+        display: inline-block;
+        padding: 0.25rem 0.5rem;
+        border-radius: 4px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        margin-left: 0.5rem;
+    }
+    
+    .saison-winter {
+        background-color: #dbeafe;
+        color: #1e40af;
+    }
+    
+    .saison-sommer {
+        background-color: #fef3c7;
+        color: #92400e;
+    }
+    
+    .saison-ganzjahres {
+        background-color: #d1fae5;
+        color: #065f46;
+    }
+    
     [data-testid="metric-container"] {
         background: var(--background-white);
         border: 1px solid var(--border-color);
@@ -130,6 +154,33 @@ def get_stock_display(stock_value):
             return f"VERFUEGBAR ({int(stock_num)})"
     except:
         return "unbekannt"
+
+def get_saison_from_teilenummer(teilenummer):
+    """Ermittelt Saison basierend auf Teilenummer"""
+    if pd.isna(teilenummer) or teilenummer == '':
+        return "Unbekannt"
+    
+    teilenummer_str = str(teilenummer).strip().upper()
+    
+    if teilenummer_str.startswith('ZTW'):
+        return "Winter"
+    elif teilenummer_str.startswith('ZTR'):
+        return "Ganzjahres"
+    elif teilenummer_str.startswith('ZTS'):
+        return "Sommer"
+    else:
+        return "Unbekannt"
+
+def get_saison_badge_html(saison):
+    """Erstellt HTML Badge für Saison-Anzeige"""
+    if saison == "Winter":
+        return '<span class="saison-badge saison-winter">Winter</span>'
+    elif saison == "Sommer":
+        return '<span class="saison-badge saison-sommer">Sommer</span>'
+    elif saison == "Ganzjahres":
+        return '<span class="saison-badge saison-ganzjahres">Ganzjahres</span>'
+    else:
+        return '<span class="saison-badge">Unbekannt</span>'
 
 def create_metric_card(title, value, delta=None, help_text=None):
     """Erstellt eine ansprechende Metrik-Karte"""
@@ -191,6 +242,10 @@ def clean_dataframe(df):
         if col not in df.columns:
             df[col] = pd.NA
     
+    # Saison-Spalte hinzufügen wenn nicht vorhanden
+    if "Saison" not in df.columns:
+        df["Saison"] = df["Teilenummer"].apply(get_saison_from_teilenummer)
+    
     # Leere Zeilen entfernen
     df = df.dropna(subset=["Preis_EUR", "Breite", "Hoehe", "Zoll"], how="any")
     
@@ -227,7 +282,7 @@ def create_fallback_data():
         'Zoll': [15, 16, 16, 17, 16, 17, 17, 18],
         'Fabrikat': ['Continental', 'Michelin', 'Bridgestone', 'Pirelli', 'Continental', 'Michelin', 'Bridgestone', 'Pirelli'],
         'Profil': ['WinterContact TS850', 'Alpin 6', 'Blizzak LM005', 'Winter Sottozero 3', 'WinterContact TS860', 'Alpin 5', 'Blizzak WS90', 'Winter Sottozero Serie II'],
-        'Teilenummer': ['15494940000', '03528700000', '19394', '8019227308853', '15495040000', '03528800000', '19395', '8019227308854'],
+        'Teilenummer': ['ZTW15494940000', 'ZTW03528700000', 'ZTW19394', 'ZTW8019227308853', 'ZTS15495040000', 'ZTS03528800000', 'ZTR19395', 'ZTR8019227308854'],
         'Preis_EUR': [89.90, 95.50, 87.20, 99.90, 92.90, 98.50, 89.20, 103.90],
         'Loadindex': [91, 91, 94, 94, 88, 91, 94, 97],
         'Speedindex': ['T', 'H', 'H', 'V', 'H', 'H', 'H', 'V'],
@@ -236,7 +291,9 @@ def create_fallback_data():
         'Bestand': [25, 12, 8, 15, 30, 0, -5, 20],
         'Geräuschklasse': [68, 69, 67, 70, 68, 69, 67, 71]
     }
-    return pd.DataFrame(sample_data)
+    df = pd.DataFrame(sample_data)
+    df["Saison"] = df["Teilenummer"].apply(get_saison_from_teilenummer)
+    return df
 
 def get_reifen_data():
     """Hauptfunktion - lädt Reifen-Daten"""
@@ -295,7 +352,8 @@ def add_to_cart_with_config(tire_data, quantity, services):
         'Zoll': tire_data['Zoll'],
         'Bestand': tire_data.get('Bestand', '-'),
         'Kraftstoffeffizienz': tire_data.get('Kraftstoffeffizienz', ''),
-        'Nasshaftung': tire_data.get('Nasshaftung', '')
+        'Nasshaftung': tire_data.get('Nasshaftung', ''),
+        'Saison': tire_data.get('Saison', 'Unbekannt')
     }
     
     # Zum Warenkorb hinzufügen
@@ -319,6 +377,8 @@ def init_session_state():
         st.session_state.opened_tire_cards = set()
     if 'mit_bestand_filter' not in st.session_state:
         st.session_state.mit_bestand_filter = True
+    if 'saison_filter' not in st.session_state:
+        st.session_state.saison_filter = "Alle"
     
     # Warenkorb initialisieren
     if 'cart_items' not in st.session_state:
@@ -339,7 +399,8 @@ def render_config_card(row, idx, filtered_df):
     <div class="config-card">
     """, unsafe_allow_html=True)
     
-    st.markdown(f"**Konfiguration fuer {row['Reifengroesse']} - {row['Fabrikat']} {row['Profil']}**")
+    saison_badge = get_saison_badge_html(row.get('Saison', 'Unbekannt'))
+    st.markdown(f"**Konfiguration fuer {row['Reifengroesse']} - {row['Fabrikat']} {row['Profil']}** {saison_badge}", unsafe_allow_html=True)
     
     col_config1, col_config2 = st.columns(2)
     
@@ -495,8 +556,9 @@ def render_tire_list(filtered_df):
         col_info, col_button = st.columns([5, 1])
         
         with col_info:
-            # Hauptzeile: Reifengröße und Hersteller/Modell
-            st.markdown(f"**{row['Reifengroesse']}** - {row['Fabrikat']} {row['Profil']}")
+            # Hauptzeile: Reifengröße, Hersteller/Modell und Saison-Badge
+            saison_badge = get_saison_badge_html(row.get('Saison', 'Unbekannt'))
+            st.markdown(f"**{row['Reifengroesse']}** - {row['Fabrikat']} {row['Profil']} {saison_badge}", unsafe_allow_html=True)
             
             # Zweite Zeile: Preis, Bestand, Tragfähigkeit
             preis_display = f"**{float(row['Preis_EUR']):.2f} EUR**"
@@ -569,7 +631,7 @@ def render_statistics(filtered_df):
         unique_sizes = len(filtered_df[["Breite", "Hoehe", "Zoll"]].drop_duplicates())
         st.markdown(create_metric_card("Verfuegbare Groessen", str(unique_sizes)), unsafe_allow_html=True)
 
-def render_legend(mit_bestand):
+def render_legend(mit_bestand, saison_filter):
     """Rendert die Legende"""
     st.markdown("---")
     st.markdown("**Legende:**")
@@ -579,13 +641,23 @@ def render_legend(mit_bestand):
     with col1:
         st.markdown("**Speedindex (max. zulaessige Geschwindigkeit):**")
         st.markdown("R = 170 km/h | S = 180 km/h | T = 190 km/h | H = 210 km/h | V = 240 km/h")
+        
+        st.markdown("**Saison-Kennzeichnung:**")
+        st.markdown("ZTW = Winter | ZTR = Ganzjahres | ZTS = Sommer")
     
     with col2:
         st.markdown("**Reifengroesse:** Breite/Hoehe R Zoll")
         st.markdown("**Loadindex:** Tragfaehigkeit pro Reifen in kg")
         st.markdown("**Bestand:** NACHBESTELLEN | AUSVERKAUFT | VERFUEGBAR | unbekannt")
+        
+        filter_info = []
         if mit_bestand:
-            st.markdown("**Bestandsfilter aktiv** - Nur Reifen mit Lagerbestand angezeigt")
+            filter_info.append("Bestandsfilter aktiv")
+        if saison_filter != "Alle":
+            filter_info.append(f"Saison: {saison_filter}")
+        
+        if filter_info:
+            st.markdown(f"**Aktive Filter:** {' | '.join(filter_info)}")
 
 # ================================================================================================
 # MAIN FUNCTION
@@ -618,6 +690,16 @@ def main():
             help="Nur Reifen mit positivem Lagerbestand anzeigen"
         )
         st.session_state.mit_bestand_filter = mit_bestand
+        
+        # NEUER SAISON-FILTER
+        saison_options = ["Alle", "Winter", "Sommer", "Ganzjahres"]
+        saison_filter = st.selectbox(
+            "Saison-Typ:",
+            options=saison_options,
+            index=saison_options.index(st.session_state.saison_filter),
+            help="Filtere nach Reifen-Saison basierend auf Teilenummer"
+        )
+        st.session_state.saison_filter = saison_filter
         
         st.markdown("---")
         
@@ -652,7 +734,7 @@ def main():
         # Sortierung
         sortierung = st.selectbox(
             "Sortieren nach",
-            options=["Preis aufsteigend", "Preis absteigend", "Fabrikat", "Reifengroesse"],
+            options=["Preis aufsteigend", "Preis absteigend", "Fabrikat", "Reifengroesse", "Saison"],
         )
         
         # Statistiken
@@ -694,6 +776,10 @@ def main():
             (filtered['Bestand'].notna()) & 
             (filtered['Bestand'] > 0)
         ]
+    
+    # SAISON-FILTER anwenden
+    if saison_filter != "Alle":
+        filtered = filtered[filtered['Saison'] == saison_filter]
     
     # Schnellauswahl
     if st.session_state.selected_size:
@@ -738,16 +824,25 @@ def main():
         filtered = filtered.sort_values(["Fabrikat", "Preis_EUR"])
     elif sortierung == "Reifengroesse":
         filtered = filtered.sort_values(["Zoll", "Breite", "Hoehe", "Preis_EUR"])
+    elif sortierung == "Saison":
+        filtered = filtered.sort_values(["Saison", "Preis_EUR"])
     
     # Gefundene Reifen anzeigen
     if len(filtered) > 0:
         st.markdown("---")
         
-        # Einfache Überschrift OHNE zusätzliche Info-Boxen
+        # Überschrift mit Saison-Info
+        filter_info = []
         if mit_bestand:
-            st.subheader(f"Gefundene Reifen mit Bestand: {len(filtered)}")
-        else:
-            st.subheader(f"Gefundene Reifen: {len(filtered)}")
+            filter_info.append("mit Bestand")
+        if saison_filter != "Alle":
+            filter_info.append(f"({saison_filter})")
+        
+        header_text = f"Gefundene Reifen: {len(filtered)}"
+        if filter_info:
+            header_text += f" {' '.join(filter_info)}"
+        
+        st.subheader(header_text)
         
         # Reifen-Liste
         render_tire_list(filtered)
@@ -756,13 +851,19 @@ def main():
         if show_stats:
             render_statistics(filtered)
     else:
+        filter_info = []
         if mit_bestand:
-            st.warning("Keine Reifen mit Bestand gefunden. Bitte Filter anpassen oder Bestandsfilter deaktivieren.")
+            filter_info.append("mit Bestand")
+        if saison_filter != "Alle":
+            filter_info.append(f"Saison: {saison_filter}")
+        
+        if filter_info:
+            st.warning(f"Keine Reifen {' und '.join(filter_info)} gefunden. Bitte Filter anpassen.")
         else:
             st.warning("Keine Reifen gefunden. Bitte Filter anpassen oder andere Reifengroesse waehlen.")
     
     # Legende
-    render_legend(mit_bestand)
+    render_legend(mit_bestand, saison_filter)
 
 if __name__ == "__main__":
     main()
