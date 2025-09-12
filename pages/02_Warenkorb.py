@@ -121,6 +121,15 @@ MAIN_CSS = """
         box-shadow: var(--shadow-sm);
     }
     
+    .saison-info-box {
+        background: linear-gradient(135deg, #e0f2fe, #bae6fd);
+        padding: 1rem;
+        border-radius: var(--border-radius);
+        border-left: 4px solid var(--primary-color);
+        margin: 1rem 0;
+        box-shadow: var(--shadow-sm);
+    }
+    
     .stButton > button {
         border-radius: var(--border-radius);
         border: none;
@@ -193,6 +202,72 @@ def get_service_prices():
     for _, row in services_config.iterrows():
         prices[row['service_name']] = row['price']
     return prices
+
+# ================================================================================================
+# SAISON-ERKENNUNG FUNKTIONEN - NEU
+# ================================================================================================
+def detect_cart_season():
+    """Erkennt die dominante Saison aus dem Warenkorb"""
+    if not st.session_state.cart_items:
+        return "neutral"
+    
+    saison_counts = {"Winter": 0, "Sommer": 0, "Ganzjahres": 0, "Unbekannt": 0}
+    
+    # Saison aus jedem Item zählen
+    for item in st.session_state.cart_items:
+        item_saison = item.get('Saison', 'Unbekannt')
+        if item_saison in saison_counts:
+            saison_counts[item_saison] += 1
+        else:
+            saison_counts['Unbekannt'] += 1
+    
+    # Dominante Saison finden
+    total_items = sum(saison_counts.values())
+    if total_items == 0:
+        return "neutral"
+    
+    # Sortiere nach Anzahl
+    sorted_seasons = sorted(saison_counts.items(), key=lambda x: x[1], reverse=True)
+    dominant_season, dominant_count = sorted_seasons[0]
+    
+    # Wenn mehr als 70% eine Saison ist, verwende diese
+    if dominant_count / total_items >= 0.7:
+        return dominant_season.lower()
+    # Sonst gemischt/neutral
+    else:
+        return "gemischt"
+
+def get_season_greeting_text(detected_season):
+    """Gibt saison-spezifischen Einleitungstext zurück"""
+    season_texts = {
+        "winter": {
+            "greeting": "der Winter steht vor der Tür und die Zeichen stehen auf kälter werdende Temperaturen.",
+            "transition": "Jetzt wird es auch Zeit für Ihre Winterreifen von Ihrem Auto.",
+            "season_name": "Winter"
+        },
+        "sommer": {
+            "greeting": "die warme Jahreszeit kommt und die Temperaturen steigen wieder.",
+            "transition": "Jetzt wird es auch Zeit für Ihre Sommerreifen von Ihrem Auto.", 
+            "season_name": "Sommer"
+        },
+        "ganzjahres": {
+            "greeting": "Sie denken über Ganzjahresreifen nach - eine praktische Lösung für das ganze Jahr.",
+            "transition": "Jetzt wird es Zeit für Ihre neuen Allwetter-Reifen von Ihrem Auto.",
+            "season_name": "Ganzjahres"
+        },
+        "gemischt": {
+            "greeting": "Sie haben verschiedene Reifen-Optionen für unterschiedliche Anforderungen.",
+            "transition": "Gerne stelle ich Ihnen die verschiedenen Möglichkeiten vor.",
+            "season_name": "verschiedene"
+        },
+        "neutral": {
+            "greeting": "Sie interessieren sich für neue Reifen für Ihr Fahrzeug.",
+            "transition": "Gerne stelle ich Ihnen die passenden Optionen vor.",
+            "season_name": "neue"
+        }
+    }
+    
+    return season_texts.get(detected_season, season_texts["neutral"])
 
 # ================================================================================================
 # CART MANAGEMENT - OHNE PROBLEMATISCHE CALLBACKS
@@ -297,8 +372,8 @@ def get_cart_total():
     
     return total, breakdown
 
-def create_professional_offer(customer_data=None, offer_scenario="vergleich"):
-    """Erstellt professionelles Angebot mit Szenario-Unterstützung"""
+def create_professional_offer(customer_data=None, offer_scenario="vergleich", detected_season="neutral"):
+    """Erstellt professionelles Angebot mit Szenario- und Saison-Unterstützung"""
     if not st.session_state.cart_items:
         return "Warenkorb ist leer"
     
@@ -309,7 +384,7 @@ def create_professional_offer(customer_data=None, offer_scenario="vergleich"):
     
     # Header
     content.append("AUTOHAUS RAMSPERGER")
-    content.append("Kostenvoranschlag für Winterreifen")
+    content.append("Kostenvoranschlag für Reifen")
     content.append("=" * 60)
     content.append(f"Datum: {datetime.now().strftime('%d.%m.%Y')}")
     content.append("")
@@ -328,19 +403,24 @@ def create_professional_offer(customer_data=None, offer_scenario="vergleich"):
             content.append(f"Fahrgestellnummer: {customer_data['fahrgestellnummer']}")
         content.append("")
     
-    # Anrede je nach Szenario
+    # Saison-spezifische Anrede
+    season_info = get_season_greeting_text(detected_season)
+    
     content.append("Sehr geehrter Kunde,")
     content.append("")
+    content.append(season_info["greeting"])
+    content.append(season_info["transition"])
     
+    # Szenario-spezifische Einleitung
     if offer_scenario == "vergleich":
-        content.append("der Sommer geht langsam zu Ende und die Zeichen stehen auf Winter.")
-        content.append("Jetzt wird es auch Zeit für Ihre Winterreifen von Ihrem Auto.")
-        content.append("Gerne stelle ich Ihnen verschiedene hochwertige Reifenmodelle vor,")
+        content.append(f"Gerne stelle ich Ihnen verschiedene hochwertige {season_info['season_name']}-Reifenmodelle vor,")
         content.append("aus denen Sie die für Sie beste Option wählen können:")
-    else:  # separate fahrzeuge
-        content.append("der Sommer geht langsam zu Ende und die Zeichen stehen auf Winter.")
-        content.append("Jetzt wird es auch Zeit für Ihre Winterreifen.")
-        content.append("Gerne erstelle ich Ihnen ein Angebot für Ihre beiden Fahrzeuge:")
+    elif offer_scenario == "separate":
+        content.append(f"Gerne erstelle ich Ihnen ein Angebot für Ihre verschiedenen Fahrzeuge")
+        content.append(f"mit den passenden {season_info['season_name']}-Reifen:")
+    else:  # einzelangebot
+        content.append(f"Gerne unterbreite ich Ihnen ein spezifisches Angebot")
+        content.append(f"für die von Ihnen gewünschten {season_info['season_name']}-Reifen:")
     
     content.append("")
     
@@ -375,7 +455,7 @@ def create_professional_offer(customer_data=None, offer_scenario="vergleich"):
             content.append(f"OPTION {i} GESAMT: {position_total:.2f}EUR")
             content.append("")
     
-    else:  # separate fahrzeuge
+    elif offer_scenario == "separate":
         content.append("ANGEBOT FÜR IHRE FAHRZEUGE:")
         content.append("=" * 60)
         
@@ -405,6 +485,36 @@ def create_professional_offer(customer_data=None, offer_scenario="vergleich"):
             content.append(f"FAHRZEUG {i} GESAMT: {position_total:.2f}EUR")
             content.append("")
     
+    else:  # einzelangebot
+        content.append("IHR INDIVIDUELLES REIFENANGEBOT:")
+        content.append("=" * 60)
+        
+        for i, item in enumerate(st.session_state.cart_items, 1):
+            reifen_kosten, service_kosten, position_total = calculate_position_total(item)
+            quantity = st.session_state.cart_quantities.get(item['id'], 4)
+            
+            content.append(f"POSITION {i}:")
+            content.append("-" * 20)
+            content.append(f"Größe: {item['Reifengroesse']}")
+            content.append(f"Marke: {item['Fabrikat']} {item['Profil']}")
+            content.append(f"Teilenummer: {item['Teilenummer']}")
+            
+            # EU-Label
+            if item.get('Kraftstoffeffizienz') or item.get('Nasshaftung'):
+                label_info = []
+                if item.get('Kraftstoffeffizienz'):
+                    label_info.append(f"Kraftstoff: {item['Kraftstoffeffizienz']}")
+                if item.get('Nasshaftung'):
+                    label_info.append(f"Nasshaftung: {item['Nasshaftung']}")
+                content.append(f"EU-Label: {' | '.join(label_info)}")
+            
+            content.append(f"Anzahl: {quantity} Reifen")
+            content.append(f"Reifenpreis: {reifen_kosten:.2f}EUR")
+            if service_kosten > 0:
+                content.append(f"Service-Leistungen: {service_kosten:.2f}EUR")
+            content.append(f"POSITION {i} GESAMT: {position_total:.2f}EUR")
+            content.append("")
+    
     # Gesamtübersicht
     content.append("GESAMTÜBERSICHT:")
     content.append("=" * 30)
@@ -413,18 +523,40 @@ def create_professional_offer(customer_data=None, offer_scenario="vergleich"):
         content.append("Sie können zwischen den oben genannten Optionen wählen.")
         content.append("Die Preise verstehen sich als Komplettpreis inkl. aller")
         content.append("gewählten Service-Leistungen.")
-    else:
+    elif offer_scenario == "einzelangebot":
         content.append(f"Reifen-Kosten gesamt: {breakdown['reifen']:.2f}EUR")
         if breakdown['montage'] + breakdown['radwechsel'] + breakdown['einlagerung'] > 0:
             content.append(f"Service-Leistungen gesamt: {breakdown['montage'] + breakdown['radwechsel'] + breakdown['einlagerung']:.2f}EUR")
         content.append("")
         content.append("*" * 60)
-        content.append(f"GESAMTSUMME BEIDE FAHRZEUGE: {total:.2f}EUR")
+        content.append(f"GESAMTSUMME: {total:.2f}EUR")
+        content.append("*" * 60)
+    else:  # separate
+        content.append(f"Reifen-Kosten gesamt: {breakdown['reifen']:.2f}EUR")
+        if breakdown['montage'] + breakdown['radwechsel'] + breakdown['einlagerung'] > 0:
+            content.append(f"Service-Leistungen gesamt: {breakdown['montage'] + breakdown['radwechsel'] + breakdown['einlagerung']:.2f}EUR")
+        content.append("")
+        content.append("*" * 60)
+        content.append(f"GESAMTSUMME ALLE FAHRZEUGE: {total:.2f}EUR")
         content.append("*" * 60)
     
     content.append("")
     
-    # Abschluss
+    # Saison-spezifischer Abschluss
+    if detected_season == "winter":
+        content.append("Wir empfehlen den rechtzeitigen Wechsel auf Winterreifen")
+        content.append("für optimale Sicherheit bei winterlichen Bedingungen.")
+    elif detected_season == "sommer":
+        content.append("Sommerreifen bieten optimalen Grip und Fahrkomfort")
+        content.append("bei warmen Temperaturen und trockenen Straßen.")
+    elif detected_season == "ganzjahres":
+        content.append("Ganzjahresreifen bieten eine praktische Lösung")
+        content.append("für den ganzjährigen Einsatz ohne saisonalen Wechsel.")
+    else:
+        content.append("Die gewählten Reifen bieten optimale Leistung")
+        content.append("für Ihre individuellen Anforderungen.")
+    
+    content.append("")
     content.append("Gerne stehen wir Ihnen für Rückfragen zur Verfügung.")
     content.append("Wir freuen uns auf Ihren Auftrag!")
     content.append("")
@@ -456,7 +588,7 @@ def init_session_state():
     if 'cart_count' not in st.session_state:
         st.session_state.cart_count = 0
     
-    # Angebot-Szenario
+    # Angebot-Szenario - ERWEITERT UM 3. OPTION
     if 'offer_scenario' not in st.session_state:
         st.session_state.offer_scenario = "vergleich"
 
@@ -495,13 +627,14 @@ def render_cart_item(item, position_number):
         st.markdown(f"**{item['Reifengroesse']}** - {item['Fabrikat']} {item['Profil']}")
         st.markdown(f"Teilenummer: {item['Teilenummer']} | Einzelpreis: **{item['Preis_EUR']:.2f}EUR**")
         
-        # EU-Label und Bestand
+        # EU-Label, Bestand und Saison
         effi_display = f" {get_efficiency_emoji(item['Kraftstoffeffizienz'])}{item['Kraftstoffeffizienz']}" if item['Kraftstoffeffizienz'] else ""
         nasshaft_display = f" {get_efficiency_emoji(item['Nasshaftung'])}{item['Nasshaftung']}" if item['Nasshaftung'] else ""
         bestand_display = f" | {get_stock_display(item['Bestand'])}"
+        saison_display = f" | Saison: {item.get('Saison', 'Unbekannt')}"
         
-        if effi_display or nasshaft_display or bestand_display:
-            st.markdown(f"EU-Label:{effi_display}{nasshaft_display}{bestand_display}")
+        if effi_display or nasshaft_display or bestand_display or saison_display:
+            st.markdown(f"EU-Label:{effi_display}{nasshaft_display}{bestand_display}{saison_display}")
     
     with col_qty:
         current_qty = st.session_state.cart_quantities.get(item['id'], 4)
@@ -686,9 +819,30 @@ def render_customer_data():
             st.session_state.customer_data['fahrgestellnummer'] = fahrgestell_value
 
 def render_scenario_selection():
-    """Rendert Szenario-Auswahl für Angebotserstellung OHNE problematische Callbacks"""
+    """Rendert Szenario-Auswahl für Angebotserstellung mit Saison-Erkennung"""
     st.markdown("---")
     st.markdown("#### Angebot-Typ auswählen")
+    
+    # Automatische Saison-Erkennung
+    detected_season = detect_cart_season()
+    season_info = get_season_greeting_text(detected_season)
+    
+    # Saison-Info anzeigen
+    season_display = {
+        "winter": "❄️ Winter-Reifen erkannt",
+        "sommer": "☀️ Sommer-Reifen erkannt", 
+        "ganzjahres": "🌍 Ganzjahres-Reifen erkannt",
+        "gemischt": "🔄 Verschiedene Reifen-Typen",
+        "neutral": "🔍 Reifen-Typ wird analysiert"
+    }
+    
+    st.markdown(f"""
+    <div class="saison-info-box">
+        <h4>🎯 Automatische Saison-Erkennung</h4>
+        <p><strong>{season_display.get(detected_season, "🔍 Analysiere Reifen...")}</strong></p>
+        <p>Das Angebot wird automatisch an die erkannte Saison angepasst.</p>
+    </div>
+    """, unsafe_allow_html=True)
     
     st.markdown("""
     <div class="scenario-box">
@@ -697,16 +851,25 @@ def render_scenario_selection():
     </div>
     """, unsafe_allow_html=True)
     
+    # ERWEITERTE Szenario-Optionen - 3 STATT 2
     scenario_options = [
         ("vergleich", "Vergleichsangebot - Verschiedene Reifenoptionen zur Auswahl für ein Fahrzeug"),
-        ("separate", "Separate Fahrzeuge - Jede Position ist für ein anderes Fahrzeug")
+        ("separate", "Separate Fahrzeuge - Jede Position ist für ein anderes Fahrzeug"),
+        ("einzelangebot", "Einzelangebot - Spezifisches Angebot für die gewählten Reifen")
     ]
+    
+    # Aktuellen Index finden
+    current_index = 0
+    for i, (key, _) in enumerate(scenario_options):
+        if key == st.session_state.offer_scenario:
+            current_index = i
+            break
     
     selected_scenario = st.radio(
         "Angebot-Szenario:",
         options=[opt[0] for opt in scenario_options],
         format_func=lambda x: next(opt[1] for opt in scenario_options if opt[0] == x),
-        index=0 if st.session_state.offer_scenario == "vergleich" else 1,
+        index=current_index,
         key="scenario_selection"
     )
     
@@ -716,17 +879,24 @@ def render_scenario_selection():
     
     # Erklärung je nach Szenario
     if selected_scenario == "vergleich":
-        st.markdown("""
+        st.markdown(f"""
         <div class="info-box">
-            <strong>Vergleichsangebot:</strong> Der Kunde bekommt mehrere Reifenoptionen 
+            <strong>Vergleichsangebot:</strong> Der Kunde bekommt mehrere {season_info['season_name']}-Reifenoptionen 
             zur Auswahl präsentiert und kann sich für eine davon entscheiden.
         </div>
         """, unsafe_allow_html=True)
-    else:
-        st.markdown("""
+    elif selected_scenario == "separate":
+        st.markdown(f"""
         <div class="info-box">
             <strong>Separate Fahrzeuge:</strong> Jede Position wird als separates Fahrzeug 
-            behandelt mit eigenständiger Berechnung.
+            behandelt mit eigenständiger {season_info['season_name']}-Reifen-Berechnung.
+        </div>
+        """, unsafe_allow_html=True)
+    else:  # einzelangebot
+        st.markdown(f"""
+        <div class="info-box">
+            <strong>Einzelangebot:</strong> Direktes, spezifisches Angebot für die ausgewählten 
+            {season_info['season_name']}-Reifen ohne Vergleichsoptionen.
         </div>
         """, unsafe_allow_html=True)
 
@@ -738,11 +908,14 @@ def render_actions(total, breakdown):
     col1, col2, col3, col4, col5 = st.columns(5)
     
     with col1:
-        # Professionelles Angebot erstellen
+        # Professionelles Angebot erstellen - MIT SAISON-ERKENNUNG
         if st.button("Angebot erstellen", use_container_width=True, type="primary"):
+            detected_season = detect_cart_season()
+            
             professional_offer = create_professional_offer(
                 st.session_state.customer_data, 
-                st.session_state.offer_scenario
+                st.session_state.offer_scenario,
+                detected_season  # NEUE Parameter
             )
             
             # Angebot anzeigen
@@ -761,7 +934,8 @@ def render_actions(total, breakdown):
             
             # Download-Option
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            filename = f"Angebot_Ramsperger_{timestamp}.txt"
+            season_info = get_season_greeting_text(detected_season)
+            filename = f"Angebot_Ramsperger_{season_info['season_name']}_{timestamp}.txt"
             
             st.download_button(
                 label="Angebot als Datei herunterladen",
@@ -808,7 +982,7 @@ def main():
     st.markdown("""
     <div class="main-header">
         <h1>Warenkorb & Angebotserstellung</h1>
-        <p>Erstelle professionelle Angebote für deine Kunden</p>
+        <p>Erstelle professionelle Angebote mit automatischer Saison-Erkennung</p>
     </div>
     """, unsafe_allow_html=True)
     
@@ -827,7 +1001,7 @@ def main():
     # Kundendaten
     render_customer_data()
     
-    # Szenario-Auswahl für Angebotserstellung
+    # Szenario-Auswahl für Angebotserstellung - MIT SAISON-ERKENNUNG
     render_scenario_selection()
     
     # Export & Aktionen
