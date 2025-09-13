@@ -510,7 +510,7 @@ def create_professional_pdf(customer_data=None, offer_scenario="vergleich", dete
     story.append(KeepTogether(cost_tbl))
     story.append(Spacer(1, 10))
 
-    # Hinweise
+    # Hinweise - kompakter
     bullets = []
     if detected_season == "winter":
         bullets.append("Wir empfehlen den rechtzeitigen Wechsel auf Winterreifen für optimale Sicherheit bei winterlichen Bedingungen.")
@@ -524,8 +524,8 @@ def create_professional_pdf(customer_data=None, offer_scenario="vergleich", dete
         "Für Rückfragen stehen wir Ihnen gerne zur Verfügung."
     ])
     for b in bullets:
-        story.append(_p(f"• {b}", normal))
-    story.append(Spacer(1, 10))
+        story.append(_p(f"• {b}", small))
+    story.append(Spacer(1, 4))
 
     story.append(_p("Vielen Dank für Ihr Vertrauen!", h2))
     story.append(_p("Ihr Team vom Autohaus Ramsperger", normal))
