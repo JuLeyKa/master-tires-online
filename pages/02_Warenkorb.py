@@ -550,7 +550,7 @@ def create_mailto_link(customer_email, email_text, detected_season):
     return f"mailto:{to_addr}?subject={subject_encoded}&body={body_encoded}"
 
 # ================================================================================================
-# TD-ANFRAGE FUNKTIONEN (NEU)
+# TD-ANFRAGE FUNKTIONEN
 # ================================================================================================
 def create_td_email_text(customer_data=None, detected_season="neutral"):
     """Erstellt den E-Mail-Text für die TD-Anfrage"""
@@ -559,8 +559,8 @@ def create_td_email_text(customer_data=None, detected_season="neutral"):
     
     # Kopf der E-Mail
     email_content = (
-        "Sehr geehrte Damen und Herren,\r\n\r\n"
-        "hiermit möchten wir eine Anfrage zu den folgenden Reifen stellen:\r\n\r\n"
+        "Liebe Kollegen,\r\n\r\n"
+        "wollten mal anfragen ob die folgenden Reifen verfügbar sind:\r\n\r\n"
     )
     
     # Kundendaten falls vorhanden
@@ -608,38 +608,17 @@ def create_td_email_text(customer_data=None, detected_season="neutral"):
         
         email_content += "\r\n"
     
-    # Anfragepunkte
-    email_content += "UNSERE ANFRAGE:\r\n"
-    email_content += "="*30 + "\r\n"
-    email_content += "1. Sind alle Reifen verfügbar und lieferbar?\r\n"
-    email_content += "2. Welche Lieferzeiten haben die einzelnen Positionen?\r\n"
-    email_content += "3. Stimmen die angegebenen Preise noch?\r\n"
-    email_content += "4. Gibt es bessere Konditionen bei größeren Mengen?\r\n"
-    email_content += "5. Wann könnten wir mit der Lieferung rechnen?\r\n\r\n"
-    
-    # Abschluss
-    total, _ = get_cart_total()
-    email_content += f"Gesamtwert der Anfrage: {total:.2f} EUR\r\n\r\n"
-    email_content += "Bitte senden Sie uns eine Rückmeldung zu Verfügbarkeit, Lieferzeiten und Preisen.\r\n\r\n"
-    email_content += "Vielen Dank für Ihre Unterstützung!\r\n\r\n"
-    email_content += "Mit freundlichen Grüßen\r\n"
-    email_content += "Autohaus Ramsperger\r\n"
-    email_content += "Einkauf & Disposition"
-    
     return email_content
 
-def create_td_mailto_link(td_email, td_email_text):
-    """Erstellt den mailto-Link für die TD-Anfrage"""
-    if not td_email or not _valid_email(td_email):
-        return None
-    
+def create_td_mailto_link(td_email_text):
+    """Erstellt den mailto-Link für die TD-Anfrage - KEIN Empfänger vorgefüllt"""
     subject = f"Reifenanfrage Autohaus Ramsperger - {len(st.session_state.cart_items)} Position(en)"
     body_crlf = _normalize_crlf(td_email_text)
     subject_encoded = urllib.parse.quote(subject, safe="")
     body_encoded = _urlencode_mail_body(body_crlf)
-    to_addr = td_email.strip()
     
-    return f"mailto:{to_addr}?subject={subject_encoded}&body={body_encoded}"
+    # WICHTIG: mailto: ohne E-Mail-Adresse = leeres An-Feld in Outlook
+    return f"mailto:?subject={subject_encoded}&body={body_encoded}"
 
 # ================================================================================================
 # SESSION STATE INITIALISIERUNG
@@ -662,10 +641,6 @@ def init_session_state():
 
     if 'pdf_created' not in st.session_state:
         st.session_state.pdf_created = False
-
-    # TD-Anfrage Einstellungen
-    if 'td_email' not in st.session_state:
-        st.session_state.td_email = ""  # Leer - keine Default-Adresse
 
     st.session_state.setdefault('customer_name', st.session_state.customer_data.get('name',''))
     st.session_state.setdefault('customer_email', st.session_state.customer_data.get('email',''))
@@ -866,17 +841,6 @@ def render_scenario_selection():
 
     return detected
 
-def render_td_settings():
-    """Rendert die TD-Einstellungen"""
-    st.markdown("---")
-    st.markdown("#### TD-Anfrage Einstellungen")
-    st.text_input(
-        "E-Mail-Adresse Teiledienst:",
-        key="td_email",
-        placeholder="z.B. teile@teiledienst.de",
-        help="E-Mail-Adresse für Reifenanfragen an den Teiledienst"
-    )
-
 def render_actions(total, breakdown, detected_season):
     st.markdown("---")
     st.markdown("#### PDF-Angebot erstellen")
@@ -912,7 +876,7 @@ def render_actions(total, breakdown, detected_season):
                 st.error("Fehler beim Erstellen der PDF-Datei")
 
     with col2:
-        # Direkter mailto-Flow (kein 2-Schritte-Dialog mehr)
+        # Direkter mailto-Flow für Kundenangebot (mit Kunden-E-Mail)
         customer_email = st.session_state.customer_data.get('email', '').strip()
         if not customer_email:
             st.button("📧 E-Mail fehlt", use_container_width=True, disabled=True,
@@ -935,22 +899,13 @@ def render_actions(total, breakdown, detected_season):
                           help="Bitte E-Mail-Adresse prüfen")
 
     with col3:
-        # Neuer TD-Anfrage Button
-        td_email = st.session_state.get('td_email', '').strip()
-        if not td_email:
-            st.button("🔍 TD E-Mail fehlt", use_container_width=True, disabled=True,
-                      help="Bitte TD E-Mail-Adresse in den Einstellungen eingeben")
-        else:
-            td_email_text = create_td_email_text(st.session_state.customer_data, detected_season)
-            td_mailto_link = create_td_mailto_link(td_email, td_email_text)
-            
-            if td_mailto_link:
-                st.link_button("🔍 Reifen über TD anfragen", td_mailto_link,
-                               use_container_width=True, type="secondary",
-                               help="Anfrage an Teiledienst - Öffnet Ihren Standard-Mailclient")
-            else:
-                st.button("🔍 Ungültige TD E-Mail", use_container_width=True, disabled=True,
-                          help="Bitte TD E-Mail-Adresse prüfen")
+        # TD-Anfrage Button - IMMER AKTIV, KEIN Empfänger vorgefüllt
+        td_email_text = create_td_email_text(st.session_state.customer_data, detected_season)
+        td_mailto_link = create_td_mailto_link(td_email_text)
+        
+        st.link_button("🔍 Reifen über TD anfragen", td_mailto_link,
+                       use_container_width=True, type="secondary",
+                       help="Anfrage an Teiledienst - Öffnet Outlook mit leerem An-Feld")
 
     with col4:
         if st.button("Warenkorb leeren", use_container_width=True, type="secondary"):
