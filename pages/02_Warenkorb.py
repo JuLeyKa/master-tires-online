@@ -998,7 +998,6 @@ def main():
     render_price_summary(total, breakdown)
     render_customer_data()
     detected = render_scenario_selection()
-    render_td_settings()
     render_actions(total, breakdown, detected)
 
 if __name__ == "__main__":
