@@ -130,6 +130,12 @@ MAIN_CSS = """
         transform: translateY(-1px);
         box-shadow: var(--shadow-md);
     }
+    
+    .cart-indicator {
+        color: #16a34a;
+        font-weight: bold;
+        margin-left: 0.5rem;
+    }
 </style>
 """
 st.markdown(MAIN_CSS, unsafe_allow_html=True)
@@ -186,6 +192,31 @@ def get_saison_badge_html(saison):
         return '<span class="saison-badge saison-ganzjahres">Ganzjahres</span>'
     else:
         return '<span class="saison-badge">Unbekannt</span>'
+
+def is_tire_in_cart(tire_data):
+    """Prüft ob ein Reifen bereits im Warenkorb ist"""
+    tire_id = f"{tire_data['Teilenummer']}_{tire_data['Preis_EUR']}"
+    return any(item['id'] == tire_id for item in st.session_state.cart_items)
+
+def get_dynamic_tire_sizes(filtered_df, max_sizes=12):
+    """Erstellt dynamische Liste der häufigsten Reifengrößen aus gefilterten Daten"""
+    if filtered_df.empty:
+        return []
+    
+    # Reifengrößen mit Häufigkeit
+    size_counts = filtered_df.groupby(['Breite', 'Hoehe', 'Zoll']).size().reset_index(name='count')
+    size_counts['size_str'] = (size_counts['Breite'].astype(str) + '/' + 
+                              size_counts['Hoehe'].astype(str) + ' R' + 
+                              size_counts['Zoll'].astype(str))
+    
+    # Nach Häufigkeit sortieren (häufigste zuerst)
+    size_counts = size_counts.sort_values('count', ascending=False)
+    
+    # Begrenzen auf max_sizes, aber alle anzeigen wenn weniger verfügbar
+    num_sizes = min(max_sizes, len(size_counts))
+    top_sizes = size_counts.head(num_sizes)['size_str'].tolist()
+    
+    return top_sizes
 
 def create_metric_card(title, value, delta=None, help_text=None):
     """Erstellt eine ansprechende Metrik-Karte"""
@@ -512,7 +543,7 @@ def render_config_card(row, idx, filtered_df):
     st.markdown("</div>", unsafe_allow_html=True)
 
 def render_tire_list(filtered_df):
-    """Rendert die Reifen-Liste mit verbesserter Darstellung"""
+    """Rendert die Reifen-Liste mit verbesserter Darstellung und Warenkorb-Anzeige"""
     display = filtered_df.copy().reset_index(drop=True)
     display["Reifengröße"] = (
         display["Breite"].astype(str) + "/" + display["Hoehe"].astype(str) + " R" + display["Zoll"].astype(str)
@@ -525,7 +556,13 @@ def render_tire_list(filtered_df):
 
         with col_info:
             saison_badge = get_saison_badge_html(row.get('Saison', 'Unbekannt'))
-            st.markdown(f"**{row['Reifengröße']}** - {row['Fabrikat']} {row['Profil']} {saison_badge}", unsafe_allow_html=True)
+            
+            # Warenkorb-Indikator hinzufügen
+            cart_indicator = ""
+            if is_tire_in_cart(row):
+                cart_indicator = '<span class="cart-indicator">🛒 Im Warenkorb</span>'
+            
+            st.markdown(f"**{row['Reifengröße']}** - {row['Fabrikat']} {row['Profil']} {saison_badge} {cart_indicator}", unsafe_allow_html=True)
 
             preis_display = f"**{float(row['Preis_EUR']):.2f} EUR**"
             bestand_display = get_stock_display(row['Bestand'])
@@ -599,6 +636,7 @@ def render_legend(mit_bestand, saison_filter, zoll_filter):
         st.markdown("**Reifengröße:** Breite/Höhe R Zoll")
         st.markdown("**Loadindex:** Tragfähigkeit pro Reifen in kg")
         st.markdown("**Bestand:** NACHBESTELLEN | AUSVERKAUFT | VERFÜGBAR | unbekannt")
+        st.markdown("**🛒 Im Warenkorb:** Reifen bereits im Warenkorb hinzugefügt")
         filter_info = []
         if mit_bestand:
             filter_info.append("Bestandsfilter aktiv")
@@ -672,20 +710,37 @@ def main():
     zoll_filter   = st.session_state.top_zoll_filter
     mit_bestand   = st.session_state.top_bestand_filter
 
-    # AUFKLAPPBARE REIFENGRÖSSEN MIT RESET BUTTON
-    with st.expander("Gängige Reifengrößen", expanded=False):
-        top_sizes = [
-            "195/65 R15", "195/60 R16", "205/55 R16", "205/60 R16",
-            "205/65 R16", "215/55 R16", "215/60 R16", "215/65 R16",
-            "205/50 R17", "215/55 R17", "215/60 R17", "215/65 R17",
-        ]
-        cols = st.columns(4)
-        for i, size in enumerate(top_sizes):
-            with cols[i % 4]:
-                button_type = "primary" if st.session_state.selected_size == size else "secondary"
-                if st.button(size, key=f"size_btn_{size}", use_container_width=True, type=button_type):
-                    st.session_state.selected_size = size
-                    st.rerun()
+    # FILTER BEREITS HIER ANWENDEN FÜR DYNAMISCHE REIFENGRÖSSEN
+    filtered_for_sizes = df.copy()
+
+    # Bestandsfilter
+    if mit_bestand:
+        filtered_for_sizes = filtered_for_sizes[(filtered_for_sizes['Bestand'].notna()) & (filtered_for_sizes['Bestand'] > 0)]
+
+    # SAISON-FILTER anwenden
+    if saison_filter != "Alle":
+        filtered_for_sizes = filtered_for_sizes[filtered_for_sizes['Saison'] == saison_filter]
+
+    # ZOLL-FILTER anwenden
+    if zoll_filter != "Alle":
+        filtered_for_sizes = filtered_for_sizes[filtered_for_sizes["Zoll"] == int(zoll_filter)]
+
+    # AUFKLAPPBARE REIFENGRÖSSEN MIT DYNAMISCHER LISTE
+    with st.expander("Gängige Reifengrößen (aus aktueller Auswahl)", expanded=False):
+        # Dynamische Reifengrößen basierend auf gefilterterten Daten
+        dynamic_sizes = get_dynamic_tire_sizes(filtered_for_sizes, max_sizes=12)
+        
+        if dynamic_sizes:
+            st.markdown(f"**Häufigste Reifengrößen aus {len(filtered_for_sizes)} verfügbaren Reifen:**")
+            cols = st.columns(4)
+            for i, size in enumerate(dynamic_sizes):
+                with cols[i % 4]:
+                    button_type = "primary" if st.session_state.selected_size == size else "secondary"
+                    if st.button(size, key=f"size_btn_{size}", use_container_width=True, type=button_type):
+                        st.session_state.selected_size = size
+                        st.rerun()
+        else:
+            st.info("Keine Reifengrößen für die aktuelle Filterauswahl verfügbar.")
 
         st.markdown("---")
         col_reset1, col_reset2, col_reset3 = st.columns([1, 1, 1])
@@ -732,7 +787,7 @@ def main():
         # Statistiken
         show_stats = st.checkbox("Statistiken anzeigen", value=False)
 
-    # Filter anwenden
+    # Filter anwenden (komplette Filterung)
     filtered = df.copy()
 
     # Bestandsfilter
