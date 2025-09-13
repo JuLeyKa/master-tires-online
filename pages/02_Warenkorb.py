@@ -743,9 +743,17 @@ def render_email_options(offer_text, detected_season):
         if st.button("📧 Mit Outlook senden", use_container_width=True, type="secondary", help="Öffnet Ihren Standard-E-Mail-Client (meist Outlook)"):
             mailto_link = create_mailto_link(customer_email, offer_text, detected_season)
             if mailto_link:
-                st.success("Standard-E-Mail-Client wird geöffnet!")
-                st.markdown(f'**[📧 E-Mail-Client öffnen - Klicken Sie hier]({mailto_link})**', unsafe_allow_html=True)
-                st.info("Der Link öffnet Ihren Standard-E-Mail-Client mit dem fertigen Angebot.")
+                st.markdown(f'<a href="{mailto_link}" target="_blank" style="display: none;" id="outlook-email-link"></a>', unsafe_allow_html=True)
+                st.markdown("""
+                <script>
+                    document.getElementById('outlook-email-link').click();
+                </script>
+                """, unsafe_allow_html=True)
+                st.success(f"Outlook wird automatisch geöffnet mit E-Mail an {customer_email}")
+                st.info("Falls sich Outlook nicht automatisch öffnet, klicken Sie hier:")
+                st.markdown(f'[📧 Outlook öffnen]({mailto_link})')
+            else:
+                st.error("Fehler beim Erstellen der E-Mail")
     
     with col2:
         if st.button("📧 Mit Gmail senden", use_container_width=True, type="secondary", help="Öffnet Gmail.com direkt im Browser"):
