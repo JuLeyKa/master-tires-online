@@ -708,17 +708,11 @@ def render_actions(total, breakdown, detected_season):
                     st.session_state.offer_scenario,
                     detected_season
                 )
-                mailto_link = create_email_mailto_link(customer_email, offer, detected_season)
-                if mailto_link:
-                    st.markdown(f'<a href="{mailto_link}" target="_blank" style="display: none;" id="email-link"></a>', unsafe_allow_html=True)
-                    st.markdown("""
-                    <script>
-                        document.getElementById('email-link').click();
-                    </script>
-                    """, unsafe_allow_html=True)
-                    st.success(f"Gmail wird geöffnet mit E-Mail an {customer_email}")
-                    st.info("Falls sich Gmail nicht automatisch öffnet, klicken Sie hier:")
-                    st.markdown(f'[📧 Gmail öffnen]({mailto_link})')
+                gmail_link = create_gmail_compose_link(customer_email, offer, detected_season)
+                if gmail_link:
+                    st.success(f"Gmail wird mit E-Mail an {customer_email} geöffnet!")
+                    st.markdown(f'**[📧 Gmail öffnen - Klicken Sie hier]({gmail_link})**', unsafe_allow_html=True)
+                    st.info("Der Link öffnet Gmail.com mit dem fertigen Angebot. Sie müssen nur noch auf 'Senden' klicken.")
                 else:
                     st.error("Fehler beim Erstellen der E-Mail")
         else:
