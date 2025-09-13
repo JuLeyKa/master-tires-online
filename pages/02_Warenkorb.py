@@ -443,13 +443,13 @@ def create_professional_pdf(customer_data=None, offer_scenario="vergleich", dete
             ('TOPPADDING',(0,0),(-1,-1),0),
         ]))
 
-        # Rechte Spalte (nur Stückzahl und Gesamtpreis)
+        # Rechte Spalte (neues Layout: Stückzahl mittig, dann Reifen/Services/Gesamt)
         right_rows = [
-            [_p("<b>Stückzahl</b>", cell_c)],
-            [_p(f"{quantity}×", cell_c)],
+            [_p(f"<b>{quantity}×</b>", cell_c)],  # Stückzahl mittig
             [_p(" ", cell_c)],  # Spacer
-            [_p("<b>Position Gesamt</b>", cell_c)],
-            [_p(f"<b>{format_eur(position_total)}</b>", cell_c)],
+            [_p(f"Reifen: {format_eur(reifen_kosten)}", cell_r)],
+            [_p(f"Services: {format_eur(service_kosten)}", cell_r)],
+            [_p(f"<b>Gesamt: {format_eur(position_total)}</b>", cell_r)],
         ]
 
         right_tbl = Table(right_rows, colWidths=[5.6*cm])
@@ -484,8 +484,33 @@ def create_professional_pdf(customer_data=None, offer_scenario="vergleich", dete
             ]))
         story.append(Spacer(1, 2))
 
-    # Kostenaufstellung nur bei NICHT-Vergleichsangeboten
-    if offer_scenario != "vergleich":
+    # Spezielle grüne Box für Vergleichsangebote ODER normale Kostenaufstellung
+    if offer_scenario == "vergleich":
+        # Grüne Box mit einzelnen Reifen und Gesamtpreisen
+        tire_comparison_rows = []
+        for item in st.session_state.cart_items:
+            reifen_kosten, service_kosten, position_total = calculate_position_total(item)
+            tire_name = f"{item['Fabrikat']} {item['Profil']}"
+            tire_comparison_rows.append([tire_name, format_eur(position_total)])
+
+        tire_tbl = Table(tire_comparison_rows, colWidths=[12*cm, 5*cm])
+        tire_tbl.setStyle(TableStyle([
+            ('FONTNAME',(0,0),(-1,-1),'Helvetica-Bold'),
+            ('FONTSIZE',(0,0),(-1,-1),11),
+            ('BACKGROUND',(0,0),(-1,-1), colors.HexColor('#f0fdf4')),
+            ('TEXTCOLOR',(0,0),(-1,-1), colors.HexColor('#166534')),
+            ('ALIGN',(0,0),(0,-1),'LEFT'),
+            ('ALIGN',(1,0),(1,-1),'RIGHT'),
+
+            ('TOPPADDING',(0,0),(-1,-1),6),
+            ('BOTTOMPADDING',(0,0),(-1,-1),6),
+            ('LEFTPADDING',(0,0),(-1,-1),6),
+            ('RIGHTPADDING',(0,0),(-1,-1),6),
+        ]))
+        story.append(KeepTogether(tire_tbl))
+        story.append(Spacer(1, 4))
+    else:
+        # Normale Kostenaufstellung für andere Szenarien
         story.append(_p("Kostenaufstellung", h2))
         cost_rows = [['Reifen-Kosten', format_eur(breakdown['reifen'])]]
         if breakdown['montage'] > 0:
