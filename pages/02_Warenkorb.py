@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 from datetime import datetime
 from pathlib import Path
+import urllib.parse
 
 # Page Config
 st.set_page_config(
@@ -310,6 +311,7 @@ def create_professional_offer(customer_data=None, offer_scenario="vergleich", de
         content.append("KUNDENDATEN:")
         content.append("-" * 30)
         if customer_data.get('name'): content.append(f"Kunde: {customer_data['name']}")
+        if customer_data.get('email'): content.append(f"E-Mail: {customer_data['email']}")
         if customer_data.get('kennzeichen'): content.append(f"Kennzeichen: {customer_data['kennzeichen']}")
         if customer_data.get('modell'): content.append(f"Fahrzeug: {customer_data['modell']}")
         if customer_data.get('fahrgestellnummer'): content.append(f"Fahrgestellnummer: {customer_data['fahrgestellnummer']}")
@@ -394,12 +396,44 @@ def create_professional_offer(customer_data=None, offer_scenario="vergleich", de
 
     return "\n".join(content)
 
+# ---------------------- E-MAIL FUNCTIONS (NEU) ----------------------
+def create_email_mailto_link(customer_email, offer_text, detected_season):
+    """Erstellt einen mailto: Link für Gmail"""
+    if not customer_email or not customer_email.strip():
+        return None
+    
+    season_info = get_season_greeting_text(detected_season)
+    
+    # E-Mail Betreff
+    subject = f"Ihr Reifenangebot von Autohaus Ramsperger - {season_info['season_name']}-Reifen"
+    
+    # E-Mail Body
+    email_body = f"""Sehr geehrte Damen und Herren,
+
+anbei erhalten Sie Ihr persönliches Reifenangebot von Autohaus Ramsperger.
+
+{offer_text}
+
+Bei Fragen stehen wir Ihnen gerne zur Verfügung.
+
+Mit freundlichen Grüßen
+Ihr Team vom Autohaus Ramsperger
+"""
+    
+    # URL-Encoding für mailto: Link
+    subject_encoded = urllib.parse.quote(subject)
+    body_encoded = urllib.parse.quote(email_body)
+    
+    mailto_link = f"mailto:{customer_email}?subject={subject_encoded}&body={body_encoded}"
+    
+    return mailto_link
+
 # ================================================================================================
 # SESSION STATE INITIALISIERUNG (Single Source of Truth)
 # ================================================================================================
 def init_session_state():
     if 'customer_data' not in st.session_state:
-        st.session_state.customer_data = {'name':'','kennzeichen':'','modell':'','fahrgestellnummer':''}
+        st.session_state.customer_data = {'name':'','email':'','kennzeichen':'','modell':'','fahrgestellnummer':''}
 
     if 'cart_items' not in st.session_state: st.session_state.cart_items = []
     if 'cart_quantities' not in st.session_state: st.session_state.cart_quantities = {}
@@ -412,6 +446,7 @@ def init_session_state():
 
     # Kundendaten-Feld-Keys (damit Textfelder ohne value= auskommen)
     st.session_state.setdefault('customer_name', st.session_state.customer_data.get('name',''))
+    st.session_state.setdefault('customer_email', st.session_state.customer_data.get('email',''))
     st.session_state.setdefault('customer_kennzeichen', st.session_state.customer_data.get('kennzeichen',''))
     st.session_state.setdefault('customer_modell', st.session_state.customer_data.get('modell',''))
     st.session_state.setdefault('customer_fahrgestell', st.session_state.customer_data.get('fahrgestellnummer',''))
@@ -561,6 +596,7 @@ def render_customer_data():
     col1, col2 = st.columns(2)
     with col1:
         st.text_input("Kundenname:", key="customer_name", placeholder="z.B. Max Mustermann")
+        st.text_input("E-Mail-Adresse:", key="customer_email", placeholder="z.B. max@mustermann.de", help="Für den E-Mail-Versand des Angebots")
         st.text_input("Kennzeichen:", key="customer_kennzeichen", placeholder="z.B. GP-AB 123")
     with col2:
         st.text_input("Fahrzeugmodell:", key="customer_modell", placeholder="z.B. BMW 3er E90")
@@ -569,6 +605,7 @@ def render_customer_data():
     # Sync in dict (eine Quelle für Offer)
     st.session_state.customer_data = {
         'name': st.session_state.get('customer_name',''),
+        'email': st.session_state.get('customer_email',''),
         'kennzeichen': st.session_state.get('customer_kennzeichen',''),
         'modell': st.session_state.get('customer_modell',''),
         'fahrgestellnummer': st.session_state.get('customer_fahrgestell','')
@@ -662,18 +699,41 @@ def render_actions(total, breakdown, detected_season):
             st.download_button("Angebot als Datei herunterladen", data=offer, file_name=filename, mime="text/plain")
 
     with col2:
+        # NEU: E-Mail versenden Button
+        customer_email = st.session_state.customer_data.get('email', '').strip()
+        if customer_email:
+            if st.button("📧 Per E-Mail senden", use_container_width=True, type="secondary", help="Öffnet Gmail mit fertigem Angebot"):
+                offer = create_professional_offer(
+                    st.session_state.customer_data,
+                    st.session_state.offer_scenario,
+                    detected_season
+                )
+                mailto_link = create_email_mailto_link(customer_email, offer, detected_season)
+                if mailto_link:
+                    st.markdown(f'<a href="{mailto_link}" target="_blank" style="display: none;" id="email-link"></a>', unsafe_allow_html=True)
+                    st.markdown("""
+                    <script>
+                        document.getElementById('email-link').click();
+                    </script>
+                    """, unsafe_allow_html=True)
+                    st.success(f"Gmail wird geöffnet mit E-Mail an {customer_email}")
+                    st.info("Falls sich Gmail nicht automatisch öffnet, klicken Sie hier:")
+                    st.markdown(f'[📧 Gmail öffnen]({mailto_link})')
+                else:
+                    st.error("Fehler beim Erstellen der E-Mail")
+        else:
+            if st.button("📧 E-Mail fehlt", use_container_width=True, disabled=True, help="Bitte E-Mail-Adresse bei Kundendaten eingeben"):
+                st.warning("Bitte geben Sie eine E-Mail-Adresse bei den Kundendaten ein.")
+
+    with col3:
         if st.button("Warenkorb leeren", use_container_width=True, type="secondary"):
             clear_cart()
             st.success("Warenkorb geleert!")
             st.rerun()
 
-    with col3:
+    with col4:
         if st.button("Weitere Reifen", use_container_width=True):
             st.switch_page("pages/01_Reifen_Suche.py")
-
-    with col4:
-        if st.button("Service-Preise", use_container_width=True):
-            st.switch_page("pages/03_Reifen_Verwaltung.py")
 
     with col5:
         if st.button("Reifen ausbuchen", use_container_width=True, type="primary"):
@@ -694,7 +754,7 @@ def main():
     st.markdown("""
     <div class="main-header">
         <h1>Warenkorb & Angebotserstellung</h1>
-        <p>Erstelle professionelle Angebote mit automatischer Saison-Erkennung</p>
+        <p>Erstelle professionelle Angebote mit automatischer Saison-Erkennung und E-Mail-Versand</p>
     </div>
     """, unsafe_allow_html=True)
 
