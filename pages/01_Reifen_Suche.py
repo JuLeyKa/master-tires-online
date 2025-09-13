@@ -13,7 +13,7 @@ st.set_page_config(
 )
 
 # ================================================================================================
-# CSS STYLES - DIREKT EINGEBETTET
+# CSS STYLES - ERWEITERT FÜR STICKY NAVIGATION
 # ================================================================================================
 MAIN_CSS = """
 <style>
@@ -98,6 +98,123 @@ MAIN_CSS = """
     .saison-ganzjahres {
         background-color: #d1fae5;
         color: #065f46;
+    }
+    
+    /* NEUE STICKY NAVIGATION CSS - RESPONSIVE */
+    .schnellauswahl-container {
+        background: var(--background-white);
+        padding: 1.5rem;
+        border-radius: 12px;
+        margin: 1rem 0;
+        border: 2px solid var(--primary-color);
+        box-shadow: var(--shadow-md);
+    }
+    
+    /* Mobile-First: Normal positioning */
+    .schnellauswahl-container {
+        position: relative;
+        z-index: 10;
+    }
+    
+    /* Desktop: Sticky positioning */
+    @media (min-width: 768px) {
+        .schnellauswahl-container {
+            position: sticky;
+            top: 1rem;
+            z-index: 100;
+            margin-bottom: 2rem;
+        }
+    }
+    
+    .navigation-buttons {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 0.5rem;
+        margin-bottom: 1rem;
+        padding-bottom: 1rem;
+        border-bottom: 2px solid var(--border-color);
+    }
+    
+    .navigation-btn {
+        background: linear-gradient(135deg, var(--primary-color), var(--primary-dark));
+        color: white;
+        border: none;
+        padding: 0.75rem 1rem;
+        border-radius: var(--border-radius);
+        font-weight: 600;
+        font-family: 'Inter', sans-serif;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        text-align: center;
+        font-size: 0.9rem;
+    }
+    
+    .navigation-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: var(--shadow-lg);
+        opacity: 0.9;
+    }
+    
+    .navigation-btn.cart-btn {
+        background: linear-gradient(135deg, var(--success-color), #15803d);
+    }
+    
+    .size-buttons-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+        gap: 0.5rem;
+    }
+    
+    .size-btn {
+        background: linear-gradient(135deg, #f8fafc, #f1f5f9);
+        border: 2px solid var(--border-color);
+        padding: 0.75rem 1rem;
+        border-radius: var(--border-radius);
+        font-weight: 500;
+        font-family: 'Inter', sans-serif;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        text-align: center;
+    }
+    
+    .size-btn:hover {
+        border-color: var(--primary-color);
+        background: linear-gradient(135deg, #f0f9ff, #e0f2fe);
+        transform: translateY(-1px);
+    }
+    
+    /* SCROLLBARE REIFEN-LISTE - NUR DESKTOP */
+    .reifen-content-container {
+        position: relative;
+    }
+    
+    @media (min-width: 768px) {
+        .reifen-liste-container {
+            max-height: 70vh;
+            overflow-y: auto;
+            padding-right: 0.5rem;
+            border: 1px solid var(--border-color);
+            border-radius: var(--border-radius);
+            background: var(--background-white);
+        }
+        
+        .reifen-liste-container::-webkit-scrollbar {
+            width: 8px;
+        }
+        
+        .reifen-liste-container::-webkit-scrollbar-track {
+            background: var(--background-light);
+            border-radius: 4px;
+        }
+        
+        .reifen-liste-container::-webkit-scrollbar-thumb {
+            background: var(--secondary-color);
+            border-radius: 4px;
+        }
+        
+        .reifen-liste-container::-webkit-scrollbar-thumb:hover {
+            background: var(--primary-color);
+        }
     }
     
     [data-testid="metric-container"] {
@@ -391,6 +508,68 @@ def init_session_state():
         st.session_state.cart_count = 0
 
 # ================================================================================================
+# NEUE STICKY NAVIGATION FUNCTIONS
+# ================================================================================================
+def render_sticky_schnellauswahl():
+    """Rendert die erweiterte sticky Schnellauswahl mit Navigation"""
+    
+    st.markdown("""
+    <div class="schnellauswahl-container">
+    """, unsafe_allow_html=True)
+    
+    # Navigation Buttons
+    st.markdown("### Navigation & Schnellauswahl")
+    
+    # Navigation Buttons Grid
+    cart_count = st.session_state.cart_count
+    cart_text = f"Warenkorb ({cart_count})" if cart_count > 0 else "Warenkorb"
+    
+    col1, col2, col3, col4 = st.columns(4)
+    
+    with col1:
+        if st.button(cart_text, key="nav_cart", help="Zum Warenkorb wechseln"):
+            st.switch_page("pages/02_Warenkorb.py")
+    
+    with col2:
+        if st.button("Reifen Verwaltung", key="nav_verwaltung", help="Reifen verwalten und bearbeiten"):
+            st.switch_page("pages/03_Reifen_Verwaltung.py")
+    
+    with col3:
+        if st.button("Datenbank Verwaltung", key="nav_db", help="Datenbank administrieren"):
+            st.switch_page("pages/04_Datenbank_Verwaltung.py")
+    
+    with col4:
+        if st.button("Schnellauswahl zurücksetzen", key="reset_selection", help="Reifengrößen-Auswahl aufheben"):
+            if st.session_state.selected_size:
+                st.session_state.selected_size = None
+                st.rerun()
+    
+    st.markdown("---")
+    
+    # Reifengrößen Schnellauswahl
+    st.markdown("**Gängige Reifengrößen:**")
+    
+    top_sizes = [
+        "195/65 R15", "195/60 R16", "205/55 R16", "205/60 R16",
+        "205/65 R16", "215/55 R16", "215/60 R16", "215/65 R16",
+        "205/50 R17", "215/55 R17", "215/60 R17", "215/65 R17",
+    ]
+    
+    cols = st.columns(4)
+    for i, size in enumerate(top_sizes):
+        with cols[i % 4]:
+            button_type = "primary" if st.session_state.selected_size == size else "secondary"
+            if st.button(size, key=f"size_btn_{size}", use_container_width=True, type=button_type):
+                st.session_state.selected_size = size
+                st.rerun()
+    
+    # Aktive Auswahl anzeigen
+    if st.session_state.selected_size:
+        st.success(f"Aktive Auswahl: {st.session_state.selected_size}")
+    
+    st.markdown("</div>", unsafe_allow_html=True)
+
+# ================================================================================================
 # RENDER FUNCTIONS
 # ================================================================================================
 def render_config_card(row, idx, filtered_df):
@@ -660,7 +839,7 @@ def render_legend(mit_bestand, saison_filter):
             st.markdown(f"**Aktive Filter:** {' | '.join(filter_info)}")
 
 # ================================================================================================
-# MAIN FUNCTION
+# MAIN FUNCTION - MIT STICKY NAVIGATION
 # ================================================================================================
 def main():
     init_session_state()
@@ -679,6 +858,9 @@ def main():
         st.warning("Keine Reifen-Daten verfügbar. Bitte prüfe die CSV-Datei.")
         st.stop()
     
+    # STICKY SCHNELLAUSWAHL MIT NAVIGATION
+    render_sticky_schnellauswahl()
+    
     # Sidebar Filter
     with st.sidebar:
         st.header("Detailfilter")
@@ -691,7 +873,7 @@ def main():
         )
         st.session_state.mit_bestand_filter = mit_bestand
         
-        # NEUER SAISON-FILTER
+        # SAISON-FILTER
         saison_options = ["Alle", "Winter", "Sommer", "Ganzjahres"]
         saison_filter = st.selectbox(
             "Saison-Typ:",
@@ -739,33 +921,9 @@ def main():
         
         # Statistiken
         show_stats = st.checkbox("Statistiken anzeigen", value=False)
-        
-        # Navigation zu anderen Bereichen
-        st.markdown("---")
-        
-        if st.button("Zum Warenkorb", use_container_width=True, type="primary"):
-            st.switch_page("pages/02_Warenkorb.py")
-        
-        if st.button("Reifen Verwaltung", use_container_width=True, type="secondary"):
-            st.switch_page("pages/03_Reifen_Verwaltung.py")
-        
-        if st.button("Datenbank Verwaltung", use_container_width=True, type="secondary"):
-            st.switch_page("pages/04_Datenbank_Verwaltung.py")
     
-    # Schnellauswahl für gängige Reifengrößen
-    st.subheader("Schnellauswahl - gängige Reifengrößen")
-    top_sizes = [
-        "195/65 R15", "195/60 R16", "205/55 R16", "205/60 R16",
-        "205/65 R16", "215/55 R16", "215/60 R16", "215/65 R16",
-        "205/50 R17", "215/55 R17", "215/60 R17", "215/65 R17",
-    ]
-    
-    cols = st.columns(4)
-    for i, size in enumerate(top_sizes):
-        with cols[i % 4]:
-            if st.button(size, key=f"btn_{size}", use_container_width=True):
-                st.session_state.selected_size = size
-                st.rerun()
+    # REIFEN CONTENT CONTAINER - SCROLLBAR NUR DESKTOP
+    st.markdown('<div class="reifen-content-container">', unsafe_allow_html=True)
     
     # Filter anwenden
     filtered = df.copy()
@@ -794,10 +952,6 @@ def main():
             <h4>Schnellauswahl aktiv: {st.session_state.selected_size}</h4>
         </div>
         """, unsafe_allow_html=True)
-        
-        if st.button("Schnellauswahl zurücksetzen"):
-            st.session_state.selected_size = None
-            st.rerun()
     
     # Detailfilter anwenden
     if zoll_filter != "Alle":
@@ -826,6 +980,9 @@ def main():
         filtered = filtered.sort_values(["Zoll", "Breite", "Hoehe", "Preis_EUR"])
     elif sortierung == "Saison":
         filtered = filtered.sort_values(["Saison", "Preis_EUR"])
+    
+    # SCROLLABLE CONTAINER FÜR REIFEN-LISTE (NUR DESKTOP)
+    st.markdown('<div class="reifen-liste-container">', unsafe_allow_html=True)
     
     # Gefundene Reifen anzeigen
     if len(filtered) > 0:
@@ -861,6 +1018,10 @@ def main():
             st.warning(f"Keine Reifen {' und '.join(filter_info)} gefunden. Bitte Filter anpassen.")
         else:
             st.warning("Keine Reifen gefunden. Bitte Filter anpassen oder andere Reifengröße wählen.")
+    
+    # Container schließen
+    st.markdown('</div>', unsafe_allow_html=True)  # reifen-liste-container
+    st.markdown('</div>', unsafe_allow_html=True)  # reifen-content-container
     
     # Legende
     render_legend(mit_bestand, saison_filter)
