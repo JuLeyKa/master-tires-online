@@ -13,7 +13,7 @@ st.set_page_config(
 )
 
 # ================================================================================================
-# CSS STYLES - ERWEITERT FÜR STICKY NAVIGATION
+# CSS STYLES - KORREKTE STICKY STRUCTURE
 # ================================================================================================
 MAIN_CSS = """
 <style>
@@ -100,30 +100,37 @@ MAIN_CSS = """
         color: #065f46;
     }
     
-    /* NEUE STICKY NAVIGATION CSS - RESPONSIVE */
-    .schnellauswahl-container {
+    /* NEUE KORREKTE STICKY STRUKTUR */
+    
+    /* Mobile-First: Normal positioning */
+    .sticky-header-section {
+        position: relative;
+        z-index: 10;
+        background: var(--background-light);
+        padding-bottom: 1rem;
+    }
+    
+    /* Desktop: KOMPLETT STICKY bis Reifengrößen */
+    @media (min-width: 768px) {
+        .sticky-header-section {
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            background: var(--background-light);
+            padding-bottom: 1rem;
+            border-bottom: 2px solid var(--border-color);
+            box-shadow: var(--shadow-md);
+        }
+    }
+    
+    /* Navigation & Schnellauswahl Container */
+    .navigation-container {
         background: var(--background-white);
         padding: 1.5rem;
         border-radius: 12px;
         margin: 1rem 0;
         border: 2px solid var(--primary-color);
         box-shadow: var(--shadow-md);
-    }
-    
-    /* Mobile-First: Normal positioning */
-    .schnellauswahl-container {
-        position: relative;
-        z-index: 10;
-    }
-    
-    /* Desktop: Sticky positioning */
-    @media (min-width: 768px) {
-        .schnellauswahl-container {
-            position: sticky;
-            top: 1rem;
-            z-index: 100;
-            margin-bottom: 2rem;
-        }
     }
     
     .navigation-buttons {
@@ -183,36 +190,37 @@ MAIN_CSS = """
         transform: translateY(-1px);
     }
     
-    /* SCROLLBARE REIFEN-LISTE - NUR DESKTOP */
-    .reifen-content-container {
+    /* SCROLLBARE REIFEN CONTENT SECTION - NUR DESKTOP */
+    .scrollable-content-section {
         position: relative;
     }
     
     @media (min-width: 768px) {
-        .reifen-liste-container {
+        .scrollable-content-section {
             max-height: 70vh;
             overflow-y: auto;
-            padding-right: 0.5rem;
+            padding: 1rem;
             border: 1px solid var(--border-color);
             border-radius: var(--border-radius);
             background: var(--background-white);
+            margin-top: 1rem;
         }
         
-        .reifen-liste-container::-webkit-scrollbar {
+        .scrollable-content-section::-webkit-scrollbar {
             width: 8px;
         }
         
-        .reifen-liste-container::-webkit-scrollbar-track {
+        .scrollable-content-section::-webkit-scrollbar-track {
             background: var(--background-light);
             border-radius: 4px;
         }
         
-        .reifen-liste-container::-webkit-scrollbar-thumb {
+        .scrollable-content-section::-webkit-scrollbar-thumb {
             background: var(--secondary-color);
             border-radius: 4px;
         }
         
-        .reifen-liste-container::-webkit-scrollbar-thumb:hover {
+        .scrollable-content-section::-webkit-scrollbar-thumb:hover {
             background: var(--primary-color);
         }
     }
@@ -508,68 +516,6 @@ def init_session_state():
         st.session_state.cart_count = 0
 
 # ================================================================================================
-# NEUE STICKY NAVIGATION FUNCTIONS
-# ================================================================================================
-def render_sticky_schnellauswahl():
-    """Rendert die erweiterte sticky Schnellauswahl mit Navigation"""
-    
-    st.markdown("""
-    <div class="schnellauswahl-container">
-    """, unsafe_allow_html=True)
-    
-    # Navigation Buttons
-    st.markdown("### Navigation & Schnellauswahl")
-    
-    # Navigation Buttons Grid
-    cart_count = st.session_state.cart_count
-    cart_text = f"Warenkorb ({cart_count})" if cart_count > 0 else "Warenkorb"
-    
-    col1, col2, col3, col4 = st.columns(4)
-    
-    with col1:
-        if st.button(cart_text, key="nav_cart", help="Zum Warenkorb wechseln"):
-            st.switch_page("pages/02_Warenkorb.py")
-    
-    with col2:
-        if st.button("Reifen Verwaltung", key="nav_verwaltung", help="Reifen verwalten und bearbeiten"):
-            st.switch_page("pages/03_Reifen_Verwaltung.py")
-    
-    with col3:
-        if st.button("Datenbank Verwaltung", key="nav_db", help="Datenbank administrieren"):
-            st.switch_page("pages/04_Datenbank_Verwaltung.py")
-    
-    with col4:
-        if st.button("Schnellauswahl zurücksetzen", key="reset_selection", help="Reifengrößen-Auswahl aufheben"):
-            if st.session_state.selected_size:
-                st.session_state.selected_size = None
-                st.rerun()
-    
-    st.markdown("---")
-    
-    # Reifengrößen Schnellauswahl
-    st.markdown("**Gängige Reifengrößen:**")
-    
-    top_sizes = [
-        "195/65 R15", "195/60 R16", "205/55 R16", "205/60 R16",
-        "205/65 R16", "215/55 R16", "215/60 R16", "215/65 R16",
-        "205/50 R17", "215/55 R17", "215/60 R17", "215/65 R17",
-    ]
-    
-    cols = st.columns(4)
-    for i, size in enumerate(top_sizes):
-        with cols[i % 4]:
-            button_type = "primary" if st.session_state.selected_size == size else "secondary"
-            if st.button(size, key=f"size_btn_{size}", use_container_width=True, type=button_type):
-                st.session_state.selected_size = size
-                st.rerun()
-    
-    # Aktive Auswahl anzeigen
-    if st.session_state.selected_size:
-        st.success(f"Aktive Auswahl: {st.session_state.selected_size}")
-    
-    st.markdown("</div>", unsafe_allow_html=True)
-
-# ================================================================================================
 # RENDER FUNCTIONS
 # ================================================================================================
 def render_config_card(row, idx, filtered_df):
@@ -839,27 +785,84 @@ def render_legend(mit_bestand, saison_filter):
             st.markdown(f"**Aktive Filter:** {' | '.join(filter_info)}")
 
 # ================================================================================================
-# MAIN FUNCTION - MIT STICKY NAVIGATION
+# MAIN FUNCTION - MIT KORREKTER STICKY STRUKTUR
 # ================================================================================================
 def main():
     init_session_state()
     
-    # Header - OHNE Untertitel
-    st.markdown("""
-    <div class="main-header">
-        <h1>Reifen Suche</h1>
-    </div>
-    """, unsafe_allow_html=True)
-    
-    # Daten laden - OHNE Info-Box
+    # Daten laden
     df = get_reifen_data()
     
     if df.empty:
         st.warning("Keine Reifen-Daten verfügbar. Bitte prüfe die CSV-Datei.")
         st.stop()
     
-    # STICKY SCHNELLAUSWAHL MIT NAVIGATION
-    render_sticky_schnellauswahl()
+    # ===== STICKY HEADER SECTION BEGINNT =====
+    st.markdown('<div class="sticky-header-section">', unsafe_allow_html=True)
+    
+    # Header
+    st.markdown("""
+    <div class="main-header">
+        <h1>Reifen Suche</h1>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    # Navigation & Schnellauswahl Container
+    st.markdown('<div class="navigation-container">', unsafe_allow_html=True)
+    
+    st.markdown("### Navigation & Schnellauswahl")
+    
+    # Navigation Buttons
+    cart_count = st.session_state.cart_count
+    cart_text = f"Warenkorb ({cart_count})" if cart_count > 0 else "Warenkorb"
+    
+    col1, col2, col3, col4 = st.columns(4)
+    
+    with col1:
+        if st.button(cart_text, key="nav_cart", help="Zum Warenkorb wechseln"):
+            st.switch_page("pages/02_Warenkorb.py")
+    
+    with col2:
+        if st.button("Reifen Verwaltung", key="nav_verwaltung", help="Reifen verwalten und bearbeiten"):
+            st.switch_page("pages/03_Reifen_Verwaltung.py")
+    
+    with col3:
+        if st.button("Datenbank Verwaltung", key="nav_db", help="Datenbank administrieren"):
+            st.switch_page("pages/04_Datenbank_Verwaltung.py")
+    
+    with col4:
+        if st.button("Schnellauswahl zurücksetzen", key="reset_selection", help="Reifengrößen-Auswahl aufheben"):
+            if st.session_state.selected_size:
+                st.session_state.selected_size = None
+                st.rerun()
+    
+    st.markdown("---")
+    
+    # Reifengrößen Schnellauswahl
+    st.markdown("**Gängige Reifengrößen:**")
+    
+    top_sizes = [
+        "195/65 R15", "195/60 R16", "205/55 R16", "205/60 R16",
+        "205/65 R16", "215/55 R16", "215/60 R16", "215/65 R16",
+        "205/50 R17", "215/55 R17", "215/60 R17", "215/65 R17",
+    ]
+    
+    cols = st.columns(4)
+    for i, size in enumerate(top_sizes):
+        with cols[i % 4]:
+            button_type = "primary" if st.session_state.selected_size == size else "secondary"
+            if st.button(size, key=f"size_btn_{size}", use_container_width=True, type=button_type):
+                st.session_state.selected_size = size
+                st.rerun()
+    
+    # Aktive Auswahl anzeigen
+    if st.session_state.selected_size:
+        st.success(f"Aktive Auswahl: {st.session_state.selected_size}")
+    
+    st.markdown('</div>', unsafe_allow_html=True)  # navigation-container
+    st.markdown('</div>', unsafe_allow_html=True)  # sticky-header-section
+    
+    # ===== STICKY HEADER SECTION ENDET =====
     
     # Sidebar Filter
     with st.sidebar:
@@ -922,8 +925,8 @@ def main():
         # Statistiken
         show_stats = st.checkbox("Statistiken anzeigen", value=False)
     
-    # REIFEN CONTENT CONTAINER - SCROLLBAR NUR DESKTOP
-    st.markdown('<div class="reifen-content-container">', unsafe_allow_html=True)
+    # ===== SCROLLBARE CONTENT SECTION BEGINNT =====
+    st.markdown('<div class="scrollable-content-section">', unsafe_allow_html=True)
     
     # Filter anwenden
     filtered = df.copy()
@@ -981,9 +984,6 @@ def main():
     elif sortierung == "Saison":
         filtered = filtered.sort_values(["Saison", "Preis_EUR"])
     
-    # SCROLLABLE CONTAINER FÜR REIFEN-LISTE (NUR DESKTOP)
-    st.markdown('<div class="reifen-liste-container">', unsafe_allow_html=True)
-    
     # Gefundene Reifen anzeigen
     if len(filtered) > 0:
         st.markdown("---")
@@ -1019,12 +1019,12 @@ def main():
         else:
             st.warning("Keine Reifen gefunden. Bitte Filter anpassen oder andere Reifengröße wählen.")
     
-    # Container schließen
-    st.markdown('</div>', unsafe_allow_html=True)  # reifen-liste-container
-    st.markdown('</div>', unsafe_allow_html=True)  # reifen-content-container
-    
     # Legende
     render_legend(mit_bestand, saison_filter)
+    
+    st.markdown('</div>', unsafe_allow_html=True)  # scrollable-content-section
+    
+    # ===== SCROLLBARE CONTENT SECTION ENDET =====
 
 if __name__ == "__main__":
     main()
