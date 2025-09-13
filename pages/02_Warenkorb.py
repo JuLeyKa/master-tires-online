@@ -3,6 +3,13 @@ import pandas as pd
 from datetime import datetime
 from pathlib import Path
 import urllib.parse
+import io
+from reportlab.lib.pagesizes import A4
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib.units import cm
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
+from reportlab.lib import colors
+from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_RIGHT
 
 # Page Config
 st.set_page_config(
@@ -304,110 +311,276 @@ def get_cart_total():
 
     return total, breakdown
 
-def create_professional_offer(customer_data=None, offer_scenario="vergleich", detected_season="neutral"):
+# ---------------------- PDF GENERATION (NEU) ----------------------
+def create_professional_pdf(customer_data=None, offer_scenario="vergleich", detected_season="neutral"):
+    """Erstellt eine professionelle PDF-Angebotsdatei"""
     if not st.session_state.cart_items:
-        return "Warenkorb ist leer"
+        return None
 
     total, breakdown = get_cart_total()
-    content = []
-    content.append("AUTOHAUS RAMSPERGER")
-    content.append("Kostenvoranschlag für Reifen")
-    content.append("=" * 60)
-    content.append(f"Datum: {datetime.now().strftime('%d.%m.%Y')}")
-    content.append("")
-
-    if customer_data and any(customer_data.values()):
-        content.append("KUNDENDATEN:")
-        content.append("-" * 30)
-        if customer_data.get('name'): content.append(f"Kunde: {customer_data['name']}")
-        if customer_data.get('email'): content.append(f"E-Mail: {customer_data['email']}")
-        if customer_data.get('kennzeichen'): content.append(f"Kennzeichen: {customer_data['kennzeichen']}")
-        if customer_data.get('modell'): content.append(f"Fahrzeug: {customer_data['modell']}")
-        if customer_data.get('fahrgestellnummer'): content.append(f"Fahrgestellnummer: {customer_data['fahrgestellnummer']}")
-        content.append("")
-
     season_info = get_season_greeting_text(detected_season)
-    content.append("Sehr geehrter Kunde,")
-    content.append("")
-    content.append(season_info["greeting"])
-    content.append(season_info["transition"])
-
-    if offer_scenario == "vergleich":
-        content.append(f"Gerne stelle ich Ihnen verschiedene hochwertige {season_info['season_name']}-Reifenmodelle vor,")
-        content.append("aus denen Sie die für Sie beste Option wählen können:")
-    elif offer_scenario == "separate":
-        content.append("Gerne erstelle ich Ihnen ein Angebot für Ihre verschiedenen Fahrzeuge")
-        content.append(f"mit den passenden {season_info['season_name']}-Reifen:")
-    else:
-        content.append("Gerne unterbreite ich Ihnen ein spezifisches Angebot")
-        content.append(f"für die von Ihnen gewünschten {season_info['season_name']}-Reifen:")
-    content.append("")
-
-    if offer_scenario in ("vergleich","separate","einzelangebot"):
-        header_map = {"vergleich":"IHRE REIFENOPTIONEN ZUR AUSWAHL:",
-                      "separate":"ANGEBOT FÜR IHRE FAHRZEUGE:",
-                      "einzelangebot":"IHR INDIVIDUELLES REIFENANGEBOT:"}
-        content.append(header_map[offer_scenario])
-        content.append("=" * 60)
-
-        for i, item in enumerate(st.session_state.cart_items, 1):
-            reifen_kosten, service_kosten, position_total = calculate_position_total(item)
-            quantity = st.session_state.cart_quantities.get(item['id'], 4)
-            label = {"vergleich":"OPTION","separate":"FAHRZEUG","einzelangebot":"POSITION"}[offer_scenario]
-            content.append(f"{label} {i}:")
-            content.append("-" * 20)
-            content.append(f"Größe: {item['Reifengröße']}")
-            content.append(f"Marke: {item['Fabrikat']} {item['Profil']}")
-            content.append(f"Teilenummer: {item['Teilenummer']}")
-            if item.get('Kraftstoffeffizienz') or item.get('Nasshaftung'):
-                lab = []
-                if item.get('Kraftstoffeffizienz'): lab.append(f"Kraftstoff: {item['Kraftstoffeffizienz']}")
-                if item.get('Nasshaftung'): lab.append(f"Nasshaftung: {item['Nasshaftung']}")
-                content.append(f"EU-Label: {' | '.join(lab)}")
-            content.append(f"Anzahl: {quantity} Reifen")
-            content.append(f"Reifenpreis: {reifen_kosten:.2f}EUR")
-            if service_kosten > 0: content.append(f"Service-Leistungen: {service_kosten:.2f}EUR")
-            content.append(f"{label} {i} GESAMT: {position_total:.2f}EUR")
-            content.append("")
-
-    content.append("GESAMTÜBERSICHT:")
-    content.append("=" * 30)
-    if offer_scenario == "vergleich":
-        content.append("Sie können zwischen den oben genannten Optionen wählen.")
-        content.append("Die Preise verstehen sich als Komplettpreis inkl. aller")
-        content.append("gewählten Service-Leistungen.")
-    else:
-        content.append(f"Reifen-Kosten gesamt: {breakdown['reifen']:.2f}EUR")
-        services_sum = breakdown['montage'] + breakdown['radwechsel'] + breakdown['einlagerung']
-        if services_sum > 0:
-            content.append(f"Service-Leistungen gesamt: {services_sum:.2f}EUR")
-        content.append("")
-        content.append("*" * 60)
-        content.append(("GESAMTSUMME ALLE FAHRZEUGE: " if offer_scenario=="separate" else "GESAMTSUMME: ") + f"{total:.2f}EUR")
-        content.append("*" * 60)
-
-    content.append("")
+    
+    # PDF Buffer
+    buffer = io.BytesIO()
+    
+    # PDF Document
+    doc = SimpleDocTemplate(
+        buffer,
+        pagesize=A4,
+        rightMargin=2*cm,
+        leftMargin=2*cm,
+        topMargin=2*cm,
+        bottomMargin=2*cm
+    )
+    
+    # Styles
+    styles = getSampleStyleSheet()
+    title_style = ParagraphStyle(
+        'CustomTitle',
+        parent=styles['Heading1'],
+        fontSize=24,
+        spaceAfter=30,
+        textColor=colors.HexColor('#0ea5e9'),
+        alignment=TA_CENTER,
+        fontName='Helvetica-Bold'
+    )
+    
+    heading_style = ParagraphStyle(
+        'CustomHeading',
+        parent=styles['Heading2'],
+        fontSize=16,
+        spaceAfter=12,
+        textColor=colors.HexColor('#1e293b'),
+        fontName='Helvetica-Bold'
+    )
+    
+    normal_style = ParagraphStyle(
+        'CustomNormal',
+        parent=styles['Normal'],
+        fontSize=11,
+        spaceAfter=6,
+        textColor=colors.HexColor('#1e293b')
+    )
+    
+    # Story (PDF Inhalt)
+    story = []
+    
+    # Header
+    story.append(Paragraph("AUTOHAUS RAMSPERGER", title_style))
+    story.append(Paragraph("Professionelles Reifenangebot", styles['Heading3']))
+    story.append(Spacer(1, 20))
+    
+    # Datum und Angebotsnummer
+    date_str = datetime.now().strftime('%d.%m.%Y')
+    offer_number = f"RRS-{datetime.now().strftime('%Y%m%d')}-{len(st.session_state.cart_items):03d}"
+    
+    info_data = [
+        ['Datum:', date_str],
+        ['Angebotsnummer:', offer_number],
+        ['Saison-Typ:', season_info['season_name']]
+    ]
+    
+    info_table = Table(info_data, colWidths=[4*cm, 8*cm])
+    info_table.setStyle(TableStyle([
+        ('FONTNAME', (0, 0), (-1, -1), 'Helvetica'),
+        ('FONTSIZE', (0, 0), (-1, -1), 10),
+        ('ALIGN', (0, 0), (0, -1), 'RIGHT'),
+        ('ALIGN', (1, 0), (1, -1), 'LEFT'),
+        ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+    ]))
+    
+    story.append(info_table)
+    story.append(Spacer(1, 20))
+    
+    # Kundendaten
+    if customer_data and any(customer_data.values()):
+        story.append(Paragraph("KUNDENDATEN", heading_style))
+        
+        customer_table_data = []
+        if customer_data.get('name'): customer_table_data.append(['Kunde:', customer_data['name']])
+        if customer_data.get('email'): customer_table_data.append(['E-Mail:', customer_data['email']])
+        if customer_data.get('kennzeichen'): customer_table_data.append(['Kennzeichen:', customer_data['kennzeichen']])
+        if customer_data.get('modell'): customer_table_data.append(['Fahrzeug:', customer_data['modell']])
+        if customer_data.get('fahrgestellnummer'): customer_table_data.append(['Fahrgestellnummer:', customer_data['fahrgestellnummer']])
+        
+        if customer_table_data:
+            customer_table = Table(customer_table_data, colWidths=[4*cm, 10*cm])
+            customer_table.setStyle(TableStyle([
+                ('FONTNAME', (0, 0), (-1, -1), 'Helvetica'),
+                ('FONTSIZE', (0, 0), (-1, -1), 10),
+                ('ALIGN', (0, 0), (0, -1), 'RIGHT'),
+                ('ALIGN', (1, 0), (1, -1), 'LEFT'),
+                ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+                ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
+            ]))
+            story.append(customer_table)
+            story.append(Spacer(1, 20))
+    
+    # Angebot Header
+    scenario_headers = {
+        "vergleich": "IHRE REIFENOPTIONEN ZUR AUSWAHL",
+        "separate": "ANGEBOT FÜR IHRE FAHRZEUGE", 
+        "einzelangebot": "IHR INDIVIDUELLES REIFENANGEBOT"
+    }
+    
+    story.append(Paragraph(scenario_headers.get(offer_scenario, "IHR REIFENANGEBOT"), heading_style))
+    story.append(Spacer(1, 10))
+    
+    # Reifen-Tabelle
+    table_data = [['Pos.', 'Reifengröße', 'Marke', 'Profil', 'Stück', 'Einzelpreis', 'Services', 'Gesamtpreis']]
+    
+    for i, item in enumerate(st.session_state.cart_items, 1):
+        reifen_kosten, service_kosten, position_total = calculate_position_total(item)
+        quantity = st.session_state.cart_quantities.get(item['id'], 4)
+        
+        # Service-Text aufbauen
+        services_text = ""
+        item_services = st.session_state.cart_services.get(item['id'], {})
+        service_parts = []
+        
+        if item_services.get('montage', False):
+            service_parts.append("Montage")
+        if item_services.get('radwechsel', False):
+            radwechsel_type = item_services.get('radwechsel_type', '4_raeder')
+            type_map = {'1_rad': '1 Rad', '2_raeder': '2 Räder', '3_raeder': '3 Räder', '4_raeder': '4 Räder'}
+            service_parts.append(f"Radwechsel {type_map.get(radwechsel_type, '4 Räder')}")
+        if item_services.get('einlagerung', False):
+            service_parts.append("Einlagerung")
+        
+        if service_parts:
+            services_text = ", ".join(service_parts)
+        else:
+            services_text = "Keine"
+        
+        table_data.append([
+            str(i),
+            item['Reifengröße'],
+            item['Fabrikat'],
+            item['Profil'],
+            f"{quantity}x",
+            f"{item['Preis_EUR']:.2f} EUR",
+            services_text,
+            f"{position_total:.2f} EUR"
+        ])
+    
+    # Reifen-Tabelle erstellen
+    reifen_table = Table(table_data, colWidths=[1*cm, 3*cm, 2.5*cm, 4*cm, 1.5*cm, 2.5*cm, 3*cm, 2.5*cm])
+    reifen_table.setStyle(TableStyle([
+        # Header
+        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#0ea5e9')),
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('FONTSIZE', (0, 0), (-1, 0), 10),
+        ('ALIGN', (0, 0), (-1, 0), 'CENTER'),
+        # Data rows
+        ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
+        ('FONTSIZE', (0, 1), (-1, -1), 9),
+        ('ALIGN', (0, 1), (0, -1), 'CENTER'),  # Position
+        ('ALIGN', (4, 1), (4, -1), 'CENTER'),  # Stück
+        ('ALIGN', (5, 1), (5, -1), 'RIGHT'),   # Einzelpreis
+        ('ALIGN', (7, 1), (7, -1), 'RIGHT'),   # Gesamtpreis
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        # Borders
+        ('GRID', (0, 0), (-1, -1), 1, colors.black),
+        ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#f8fafc')]),
+        # Padding
+        ('TOPPADDING', (0, 0), (-1, -1), 8),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 8),
+        ('LEFTPADDING', (0, 0), (-1, -1), 6),
+        ('RIGHTPADDING', (0, 0), (-1, -1), 6),
+    ]))
+    
+    story.append(reifen_table)
+    story.append(Spacer(1, 20))
+    
+    # Kostenaufstellung
+    story.append(Paragraph("KOSTENAUFSTELLUNG", heading_style))
+    
+    cost_data = [
+        ['Reifen-Kosten:', f"{breakdown['reifen']:.2f} EUR"],
+    ]
+    
+    if breakdown['montage'] > 0:
+        cost_data.append(['Montage-Service:', f"{breakdown['montage']:.2f} EUR"])
+    if breakdown['radwechsel'] > 0:
+        cost_data.append(['Radwechsel-Service:', f"{breakdown['radwechsel']:.2f} EUR"])
+    if breakdown['einlagerung'] > 0:
+        cost_data.append(['Einlagerung:', f"{breakdown['einlagerung']:.2f} EUR"])
+    
+    # Gesamtsumme
+    cost_data.append(['', ''])  # Leerzeile
+    cost_data.append(['GESAMTSUMME:', f"{total:.2f} EUR"])
+    
+    cost_table = Table(cost_data, colWidths=[10*cm, 4*cm])
+    cost_table.setStyle(TableStyle([
+        ('FONTNAME', (0, 0), (-1, -2), 'Helvetica'),
+        ('FONTSIZE', (0, 0), (-1, -2), 11),
+        ('FONTNAME', (0, -1), (-1, -1), 'Helvetica-Bold'),
+        ('FONTSIZE', (0, -1), (-1, -1), 14),
+        ('ALIGN', (0, 0), (0, -1), 'RIGHT'),
+        ('ALIGN', (1, 0), (1, -1), 'RIGHT'),
+        ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+        ('LINEBELOW', (0, -2), (-1, -2), 2, colors.black),
+        ('BACKGROUND', (0, -1), (-1, -1), colors.HexColor('#f0fdf4')),
+        ('TOPPADDING', (0, 0), (-1, -1), 6),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
+    ]))
+    
+    story.append(cost_table)
+    story.append(Spacer(1, 30))
+    
+    # Zusatzinformationen
+    additional_info = []
     if detected_season == "winter":
-        content.append("Wir empfehlen den rechtzeitigen Wechsel auf Winterreifen für optimale Sicherheit bei winterlichen Bedingungen.")
+        additional_info.append("• Wir empfehlen den rechtzeitigen Wechsel auf Winterreifen für optimale Sicherheit bei winterlichen Bedingungen.")
     elif detected_season == "sommer":
-        content.append("Sommerreifen bieten optimalen Grip und Fahrkomfort bei warmen Temperaturen und trockenen Straßen.")
+        additional_info.append("• Sommerreifen bieten optimalen Grip und Fahrkomfort bei warmen Temperaturen und trockenen Straßen.")
     elif detected_season == "ganzjahres":
-        content.append("Ganzjahresreifen bieten eine praktische Lösung für den ganzjährigen Einsatz ohne saisonalen Wechsel.")
-    else:
-        content.append("Die gewählten Reifen bieten optimale Leistung für Ihre individuellen Anforderungen.")
+        additional_info.append("• Ganzjahresreifen bieten eine praktische Lösung für den ganzjährigen Einsatz ohne saisonalen Wechsel.")
+    
+    additional_info.extend([
+        "• Alle Preise verstehen sich inklusive der gewählten Service-Leistungen.",
+        "• Montage und Service werden von unseren Fachkräften durchgeführt.",
+        "• Bei Fragen stehen wir Ihnen gerne zur Verfügung."
+    ])
+    
+    for info in additional_info:
+        story.append(Paragraph(info, normal_style))
+    
+    story.append(Spacer(1, 30))
+    
+    # Footer
+    story.append(Paragraph("Vielen Dank für Ihr Vertrauen!", styles['Heading3']))
+    story.append(Paragraph("Ihr Team vom Autohaus Ramsperger", normal_style))
+    
+    # PDF generieren
+    doc.build(story)
+    buffer.seek(0)
+    return buffer.getvalue()
 
-    content.append("")
-    content.append("Gerne stehen wir Ihnen für Rückfragen zur Verfügung.")
-    content.append("Wir freuen uns auf Ihren Auftrag!")
-    content.append("")
-    content.append("Mit freundlichen Grüßen")
-    content.append("Autohaus Ramsperger")
+# ---------------------- E-MAIL TEXT FUNCTIONS (VERKÜRZT) ----------------------
+def create_email_text(customer_data=None, detected_season="neutral"):
+    """Erstellt verkürzten E-Mail-Text mit Verweis auf PDF-Anhang"""
+    season_info = get_season_greeting_text(detected_season)
+    
+    email_content = f"""Sehr geehrte Damen und Herren,
 
-    return "\n".join(content)
+{season_info["greeting"]}
+{season_info["transition"]}
 
-# ---------------------- E-MAIL FUNCTIONS (NEU) ----------------------
-def create_mailto_link(customer_email, offer_text, detected_season):
-    """Erstellt einen mailto: Link für Standard-E-Mail-Client (Outlook)"""
+Gerne sende ich Ihnen anbei Ihr persönliches Reifenangebot von Autohaus Ramsperger.
+
+Das detaillierte Angebot mit allen Reifenspezifikationen, Preisberechnungen und Service-Leistungen finden Sie im angehängten PDF-Dokument.
+
+Bei Fragen oder für die Terminvereinbarung stehen wir Ihnen gerne zur Verfügung.
+
+Mit freundlichen Grüßen
+Ihr Team vom Autohaus Ramsperger"""
+
+    return email_content
+
+def create_mailto_link(customer_email, email_text, detected_season):
+    """Erstellt einen mailto: Link mit verkürztem Text"""
     if not customer_email or not customer_email.strip():
         return None
     
@@ -416,28 +589,15 @@ def create_mailto_link(customer_email, offer_text, detected_season):
     # E-Mail Betreff
     subject = f"Ihr Reifenangebot von Autohaus Ramsperger - {season_info['season_name']}-Reifen"
     
-    # E-Mail Body
-    email_body = f"""Sehr geehrte Damen und Herren,
-
-anbei erhalten Sie Ihr persönliches Reifenangebot von Autohaus Ramsperger.
-
-{offer_text}
-
-Bei Fragen stehen wir Ihnen gerne zur Verfügung.
-
-Mit freundlichen Grüßen
-Ihr Team vom Autohaus Ramsperger
-"""
-    
     # URL-Encoding für mailto: Link
     subject_encoded = urllib.parse.quote(subject)
-    body_encoded = urllib.parse.quote(email_body)
+    body_encoded = urllib.parse.quote(email_text)
     
     mailto_link = f"mailto:{customer_email}?subject={subject_encoded}&body={body_encoded}"
     
     return mailto_link
 
-def create_gmail_link(customer_email, offer_text, detected_season):
+def create_gmail_link(customer_email, email_text, detected_season):
     """Erstellt einen direkten Gmail Compose Link"""
     if not customer_email or not customer_email.strip():
         return None
@@ -447,23 +607,10 @@ def create_gmail_link(customer_email, offer_text, detected_season):
     # E-Mail Betreff
     subject = f"Ihr Reifenangebot von Autohaus Ramsperger - {season_info['season_name']}-Reifen"
     
-    # E-Mail Body
-    email_body = f"""Sehr geehrte Damen und Herren,
-
-anbei erhalten Sie Ihr persönliches Reifenangebot von Autohaus Ramsperger.
-
-{offer_text}
-
-Bei Fragen stehen wir Ihnen gerne zur Verfügung.
-
-Mit freundlichen Grüßen
-Ihr Team vom Autohaus Ramsperger
-"""
-    
     # URL-Encoding für Gmail compose Link
     to_encoded = urllib.parse.quote(customer_email)
     subject_encoded = urllib.parse.quote(subject)
-    body_encoded = urllib.parse.quote(email_body)
+    body_encoded = urllib.parse.quote(email_text)
     
     # Gmail compose URL
     gmail_url = f"https://mail.google.com/mail/u/0/?view=cm&to={to_encoded}&su={subject_encoded}&body={body_encoded}"
@@ -489,6 +636,10 @@ def init_session_state():
     # E-Mail-Optionen Anzeige
     if 'show_email_options' not in st.session_state:
         st.session_state.show_email_options = False
+
+    # PDF wurde erstellt
+    if 'pdf_created' not in st.session_state:
+        st.session_state.pdf_created = False
 
     # Kundendaten-Feld-Keys (damit Textfelder ohne value= auskommen)
     st.session_state.setdefault('customer_name', st.session_state.customer_data.get('name',''))
@@ -722,7 +873,7 @@ def render_scenario_selection():
 
     return detected  # für spätere Nutzung
 
-def render_email_options(offer_text, detected_season):
+def render_email_options(email_text, detected_season):
     """Rendert die E-Mail-Optionen Box"""
     customer_email = st.session_state.customer_data.get('email', '').strip()
     
@@ -734,6 +885,7 @@ def render_email_options(offer_text, detected_season):
     <div class="email-options-box">
         <h4>📧 E-Mail-Versand Optionen</h4>
         <p>Wählen Sie Ihren bevorzugten E-Mail-Client zum Versenden des Angebots an <strong>{customer_email}</strong>:</p>
+        <p><strong>Wichtig:</strong> Bitte fügen Sie die heruntergeladene PDF-Datei manuell als Anhang zur E-Mail hinzu.</p>
     </div>
     """, unsafe_allow_html=True)
     
@@ -741,7 +893,7 @@ def render_email_options(offer_text, detected_season):
     
     with col1:
         if st.button("📧 Mit Outlook senden", use_container_width=True, type="secondary", help="Öffnet Ihren Standard-E-Mail-Client (meist Outlook)"):
-            mailto_link = create_mailto_link(customer_email, offer_text, detected_season)
+            mailto_link = create_mailto_link(customer_email, email_text, detected_season)
             if mailto_link:
                 st.markdown(f'<a href="{mailto_link}" target="_blank" style="display: none;" id="outlook-email-link"></a>', unsafe_allow_html=True)
                 st.markdown("""
@@ -750,18 +902,15 @@ def render_email_options(offer_text, detected_season):
                 </script>
                 """, unsafe_allow_html=True)
                 st.success(f"Outlook wird automatisch geöffnet mit E-Mail an {customer_email}")
-                st.info("Falls sich Outlook nicht automatisch öffnet, klicken Sie hier:")
-                st.markdown(f'[📧 Outlook öffnen]({mailto_link})')
-            else:
-                st.error("Fehler beim Erstellen der E-Mail")
+                st.info("Die E-Mail ist vorbereitet. Fügen Sie jetzt die PDF-Datei als Anhang hinzu und senden Sie die E-Mail ab.")
     
     with col2:
         if st.button("📧 Mit Gmail senden", use_container_width=True, type="secondary", help="Öffnet Gmail.com direkt im Browser"):
-            gmail_link = create_gmail_link(customer_email, offer_text, detected_season)
+            gmail_link = create_gmail_link(customer_email, email_text, detected_season)
             if gmail_link:
                 st.success("Gmail wird im Browser geöffnet!")
                 st.markdown(f'**[📧 Gmail öffnen - Klicken Sie hier]({gmail_link})**', unsafe_allow_html=True)
-                st.info("Der Link öffnet Gmail.com mit dem fertigen Angebot. Sie müssen nur noch auf 'Senden' klicken.")
+                st.info("Der Link öffnet Gmail.com mit der vorbereiteten E-Mail. Fügen Sie die PDF-Datei als Anhang hinzu.")
     
     # Schließen Button
     if st.button("❌ E-Mail-Optionen schließen", use_container_width=True):
@@ -770,46 +919,61 @@ def render_email_options(offer_text, detected_season):
 
 def render_actions(total, breakdown, detected_season):
     st.markdown("---")
-    st.markdown("#### Angebot erstellen")
+    st.markdown("#### Professionelles PDF-Angebot erstellen")
 
     col1, col2, col3, col4, col5 = st.columns(5)
 
     with col1:
-        if st.button("Angebot erstellen", use_container_width=True, type="primary"):
-            offer = create_professional_offer(
+        if st.button("📄 PDF-Angebot erstellen", use_container_width=True, type="primary"):
+            # PDF erstellen
+            pdf_data = create_professional_pdf(
                 st.session_state.customer_data,
                 st.session_state.offer_scenario,
                 detected_season
             )
-            st.markdown("---")
-            st.markdown("### Ihr Angebot")
-            st.markdown("*Das folgende Angebot können Sie kopieren und in Ihre E-Mail einfügen:*")
-            st.text_area("Angebot:", value=offer, height=600, max_chars=None, label_visibility="collapsed")
-            ts = datetime.now().strftime("%Y%m%d_%H%M%S")
-            season_info = get_season_greeting_text(detected_season)
-            filename = f"Angebot_Ramsperger_{season_info['season_name']}_{ts}.txt"
-            st.download_button("Angebot als Datei herunterladen", data=offer, file_name=filename, mime="text/plain")
-
-    with col2:
-        # NEU: E-Mail versenden Button mit Optionen
-        customer_email = st.session_state.customer_data.get('email', '').strip()
-        if customer_email:
-            if st.button("📧 Per E-Mail senden", use_container_width=True, type="secondary", help="Zeigt E-Mail-Optionen an"):
-                # Angebot erstellen für E-Mail
-                st.session_state.current_offer = create_professional_offer(
+            
+            if pdf_data:
+                # E-Mail-Text für E-Mail erstellen
+                st.session_state.current_email_text = create_email_text(
                     st.session_state.customer_data,
-                    st.session_state.offer_scenario,
                     detected_season
                 )
+                
+                # PDF Download anbieten
+                ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+                season_info = get_season_greeting_text(detected_season)
+                filename = f"Angebot_Ramsperger_{season_info['season_name']}_{ts}.pdf"
+                
+                st.success("✅ PDF-Angebot erfolgreich erstellt!")
+                st.download_button(
+                    label="📥 PDF-Angebot herunterladen",
+                    data=pdf_data,
+                    file_name=filename,
+                    mime="application/pdf",
+                    use_container_width=True
+                )
+                st.session_state.pdf_created = True
+            else:
+                st.error("Fehler beim Erstellen der PDF-Datei")
+
+    with col2:
+        # E-Mail versenden Button (nur wenn PDF erstellt wurde)
+        customer_email = st.session_state.customer_data.get('email', '').strip()
+        if customer_email and st.session_state.pdf_created:
+            if st.button("📧 Per E-Mail senden", use_container_width=True, type="secondary", help="Zeigt E-Mail-Optionen an"):
                 st.session_state.show_email_options = True
                 st.rerun()
-        else:
+        elif not customer_email:
             if st.button("📧 E-Mail fehlt", use_container_width=True, disabled=True, help="Bitte E-Mail-Adresse bei Kundendaten eingeben"):
                 st.warning("Bitte geben Sie eine E-Mail-Adresse bei den Kundendaten ein.")
+        else:
+            if st.button("📧 Erst PDF erstellen", use_container_width=True, disabled=True, help="Bitte zuerst PDF-Angebot erstellen"):
+                st.info("Bitte erstellen Sie zuerst das PDF-Angebot.")
 
     with col3:
         if st.button("Warenkorb leeren", use_container_width=True, type="secondary"):
             clear_cart()
+            st.session_state.pdf_created = False
             st.success("Warenkorb geleert!")
             st.rerun()
 
@@ -823,14 +987,15 @@ def render_actions(total, breakdown, detected_season):
                 # hier würde real die Bestandsreduktion passieren
                 st.success("Reifen erfolgreich ausgebucht!")
                 clear_cart()
+                st.session_state.pdf_created = False
                 st.rerun()
             else:
                 st.warning("Warenkorb ist leer!")
 
     # E-Mail-Optionen anzeigen (falls aktiviert)
-    if st.session_state.show_email_options and hasattr(st.session_state, 'current_offer'):
+    if st.session_state.show_email_options and hasattr(st.session_state, 'current_email_text'):
         st.markdown("---")
-        render_email_options(st.session_state.current_offer, detected_season)
+        render_email_options(st.session_state.current_email_text, detected_season)
 
 # ================================================================================================
 # MAIN
@@ -841,7 +1006,7 @@ def main():
     st.markdown("""
     <div class="main-header">
         <h1>Warenkorb & Angebotserstellung</h1>
-        <p>Erstelle professionelle Angebote mit automatischer Saison-Erkennung und flexiblem E-Mail-Versand</p>
+        <p>Erstelle professionelle PDF-Angebote mit automatischer Saison-Erkennung und flexiblem E-Mail-Versand</p>
     </div>
     """, unsafe_allow_html=True)
 
