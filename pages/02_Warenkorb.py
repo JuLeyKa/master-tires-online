@@ -131,6 +131,15 @@ MAIN_CSS = """
         box-shadow: var(--shadow-sm);
     }
     
+    .email-options-box {
+        background: linear-gradient(135deg, #f8fafc, #e2e8f0);
+        padding: 1.5rem;
+        border-radius: 12px;
+        margin: 1rem 0;
+        border: 2px solid var(--secondary-color);
+        box-shadow: var(--shadow-md);
+    }
+    
     .stButton > button {
         border-radius: var(--border-radius);
         border: none;
@@ -397,8 +406,8 @@ def create_professional_offer(customer_data=None, offer_scenario="vergleich", de
     return "\n".join(content)
 
 # ---------------------- E-MAIL FUNCTIONS (NEU) ----------------------
-def create_email_mailto_link(customer_email, offer_text, detected_season):
-    """Erstellt einen mailto: Link für Gmail"""
+def create_mailto_link(customer_email, offer_text, detected_season):
+    """Erstellt einen mailto: Link für Standard-E-Mail-Client (Outlook)"""
     if not customer_email or not customer_email.strip():
         return None
     
@@ -428,6 +437,39 @@ Ihr Team vom Autohaus Ramsperger
     
     return mailto_link
 
+def create_gmail_link(customer_email, offer_text, detected_season):
+    """Erstellt einen direkten Gmail Compose Link"""
+    if not customer_email or not customer_email.strip():
+        return None
+    
+    season_info = get_season_greeting_text(detected_season)
+    
+    # E-Mail Betreff
+    subject = f"Ihr Reifenangebot von Autohaus Ramsperger - {season_info['season_name']}-Reifen"
+    
+    # E-Mail Body
+    email_body = f"""Sehr geehrte Damen und Herren,
+
+anbei erhalten Sie Ihr persönliches Reifenangebot von Autohaus Ramsperger.
+
+{offer_text}
+
+Bei Fragen stehen wir Ihnen gerne zur Verfügung.
+
+Mit freundlichen Grüßen
+Ihr Team vom Autohaus Ramsperger
+"""
+    
+    # URL-Encoding für Gmail compose Link
+    to_encoded = urllib.parse.quote(customer_email)
+    subject_encoded = urllib.parse.quote(subject)
+    body_encoded = urllib.parse.quote(email_body)
+    
+    # Gmail compose URL
+    gmail_url = f"https://mail.google.com/mail/u/0/?view=cm&to={to_encoded}&su={subject_encoded}&body={body_encoded}"
+    
+    return gmail_url
+
 # ================================================================================================
 # SESSION STATE INITIALISIERUNG (Single Source of Truth)
 # ================================================================================================
@@ -443,6 +485,10 @@ def init_session_state():
     # Angebot-Szenario – direkt als Widget-Quelle
     if 'offer_scenario' not in st.session_state:
         st.session_state.offer_scenario = "vergleich"
+
+    # E-Mail-Optionen Anzeige
+    if 'show_email_options' not in st.session_state:
+        st.session_state.show_email_options = False
 
     # Kundendaten-Feld-Keys (damit Textfelder ohne value= auskommen)
     st.session_state.setdefault('customer_name', st.session_state.customer_data.get('name',''))
@@ -676,6 +722,44 @@ def render_scenario_selection():
 
     return detected  # für spätere Nutzung
 
+def render_email_options(offer_text, detected_season):
+    """Rendert die E-Mail-Optionen Box"""
+    customer_email = st.session_state.customer_data.get('email', '').strip()
+    
+    if not customer_email:
+        st.warning("Bitte geben Sie eine E-Mail-Adresse bei den Kundendaten ein.")
+        return
+    
+    st.markdown(f"""
+    <div class="email-options-box">
+        <h4>📧 E-Mail-Versand Optionen</h4>
+        <p>Wählen Sie Ihren bevorzugten E-Mail-Client zum Versenden des Angebots an <strong>{customer_email}</strong>:</p>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        if st.button("📧 Mit Outlook senden", use_container_width=True, type="secondary", help="Öffnet Ihren Standard-E-Mail-Client (meist Outlook)"):
+            mailto_link = create_mailto_link(customer_email, offer_text, detected_season)
+            if mailto_link:
+                st.success("Standard-E-Mail-Client wird geöffnet!")
+                st.markdown(f'**[📧 E-Mail-Client öffnen - Klicken Sie hier]({mailto_link})**', unsafe_allow_html=True)
+                st.info("Der Link öffnet Ihren Standard-E-Mail-Client mit dem fertigen Angebot.")
+    
+    with col2:
+        if st.button("📧 Mit Gmail senden", use_container_width=True, type="secondary", help="Öffnet Gmail.com direkt im Browser"):
+            gmail_link = create_gmail_link(customer_email, offer_text, detected_season)
+            if gmail_link:
+                st.success("Gmail wird im Browser geöffnet!")
+                st.markdown(f'**[📧 Gmail öffnen - Klicken Sie hier]({gmail_link})**', unsafe_allow_html=True)
+                st.info("Der Link öffnet Gmail.com mit dem fertigen Angebot. Sie müssen nur noch auf 'Senden' klicken.")
+    
+    # Schließen Button
+    if st.button("❌ E-Mail-Optionen schließen", use_container_width=True):
+        st.session_state.show_email_options = False
+        st.rerun()
+
 def render_actions(total, breakdown, detected_season):
     st.markdown("---")
     st.markdown("#### Angebot erstellen")
@@ -699,22 +783,18 @@ def render_actions(total, breakdown, detected_season):
             st.download_button("Angebot als Datei herunterladen", data=offer, file_name=filename, mime="text/plain")
 
     with col2:
-        # NEU: E-Mail versenden Button
+        # NEU: E-Mail versenden Button mit Optionen
         customer_email = st.session_state.customer_data.get('email', '').strip()
         if customer_email:
-            if st.button("📧 Per E-Mail senden", use_container_width=True, type="secondary", help="Öffnet Gmail mit fertigem Angebot"):
-                offer = create_professional_offer(
+            if st.button("📧 Per E-Mail senden", use_container_width=True, type="secondary", help="Zeigt E-Mail-Optionen an"):
+                # Angebot erstellen für E-Mail
+                st.session_state.current_offer = create_professional_offer(
                     st.session_state.customer_data,
                     st.session_state.offer_scenario,
                     detected_season
                 )
-                gmail_link = create_gmail_link(customer_email, offer, detected_season)
-                if gmail_link:
-                    st.success(f"Gmail wird mit E-Mail an {customer_email} geöffnet!")
-                    st.markdown(f'**[📧 Gmail öffnen - Klicken Sie hier]({gmail_link})**', unsafe_allow_html=True)
-                    st.info("Der Link öffnet Gmail.com mit dem fertigen Angebot. Sie müssen nur noch auf 'Senden' klicken.")
-                else:
-                    st.error("Fehler beim Erstellen der E-Mail")
+                st.session_state.show_email_options = True
+                st.rerun()
         else:
             if st.button("📧 E-Mail fehlt", use_container_width=True, disabled=True, help="Bitte E-Mail-Adresse bei Kundendaten eingeben"):
                 st.warning("Bitte geben Sie eine E-Mail-Adresse bei den Kundendaten ein.")
@@ -739,6 +819,11 @@ def render_actions(total, breakdown, detected_season):
             else:
                 st.warning("Warenkorb ist leer!")
 
+    # E-Mail-Optionen anzeigen (falls aktiviert)
+    if st.session_state.show_email_options and hasattr(st.session_state, 'current_offer'):
+        st.markdown("---")
+        render_email_options(st.session_state.current_offer, detected_season)
+
 # ================================================================================================
 # MAIN
 # ================================================================================================
@@ -748,7 +833,7 @@ def main():
     st.markdown("""
     <div class="main-header">
         <h1>Warenkorb & Angebotserstellung</h1>
-        <p>Erstelle professionelle Angebote mit automatischer Saison-Erkennung und E-Mail-Versand</p>
+        <p>Erstelle professionelle Angebote mit automatischer Saison-Erkennung und flexiblem E-Mail-Versand</p>
     </div>
     """, unsafe_allow_html=True)
 
