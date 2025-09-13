@@ -23,8 +23,7 @@ st.set_page_config(
 )
 
 # ================================================================================================
-# CSS STYLES - DIREKT EINGEBETTET
-# (B/W in der App beibehalten; Primär-UI der App bleibt, PDF ist neu in B/W)
+# CSS STYLES (App-UI bleibt wie gehabt)
 # ================================================================================================
 MAIN_CSS = """
 <style>
@@ -231,7 +230,7 @@ def get_cart_total():
     return total, breakdown
 
 # ================================================================================================
-# PDF GENERATION (B/W MODERN, einzige Farbe: Grün in Gesamtsumme)
+# PDF GENERATION (B/W modern, einzige Farbe: Grün in Gesamtsumme)
 # ================================================================================================
 def format_eur(value: float) -> str:
     s = f"{value:,.2f}"
@@ -248,17 +247,15 @@ def _header_footer(canvas, doc):
     width, height = A4
     margin = 20 * mm
 
-    # Header Text
+    # Header
     canvas.setFont("Helvetica-Bold", 11)
     canvas.setFillColor(colors.black)
     canvas.drawString(margin, height - margin + 6, "AUTOHAUS RAMSPERGER")
-
-    # Dünne schwarze Linie
     canvas.setStrokeColor(colors.black)
     canvas.setLineWidth(0.5)
     canvas.line(margin, height - margin + 2, width - margin, height - margin + 2)
 
-    # Footer: Seitenzahl
+    # Footer
     canvas.setFont("Helvetica", 8.5)
     canvas.setFillColor(colors.black)
     canvas.drawRightString(width - margin, margin - 8, f"Seite {doc.page}")
@@ -287,73 +284,62 @@ def create_professional_pdf(customer_data=None, offer_scenario="vergleich", dete
 
     # Styles (B/W)
     styles = getSampleStyleSheet()
-    h1 = ParagraphStyle(
-        'H1', parent=styles['Heading1'], fontName="Helvetica-Bold",
-        fontSize=20, leading=24, spaceAfter=10, textColor=colors.black, alignment=TA_LEFT
-    )
-    h2 = ParagraphStyle(
-        'H2', parent=styles['Heading2'], fontName="Helvetica-Bold",
-        fontSize=13.5, leading=18, spaceAfter=6, textColor=colors.black, alignment=TA_LEFT
-    )
-    normal = ParagraphStyle(
-        'NormalPlus', parent=styles['Normal'], fontName="Helvetica",
-        fontSize=10.5, leading=14, textColor=colors.black
-    )
-    small = ParagraphStyle(
-        'Small', parent=styles['Normal'], fontName="Helvetica",
-        fontSize=9, leading=12, textColor=colors.black
-    )
-    mono = ParagraphStyle(
-        'Mono', parent=styles['Code'], fontName="Helvetica", fontSize=10, leading=13
-    )
+    h1 = ParagraphStyle('H1', parent=styles['Heading1'], fontName="Helvetica-Bold",
+                        fontSize=20, leading=24, spaceAfter=10, textColor=colors.black, alignment=TA_LEFT)
+    h2 = ParagraphStyle('H2', parent=styles['Heading2'], fontName="Helvetica-Bold",
+                        fontSize=13.5, leading=18, spaceAfter=6, textColor=colors.black, alignment=TA_LEFT)
+    normal = ParagraphStyle('NormalPlus', parent=styles['Normal'], fontName="Helvetica",
+                            fontSize=10.5, leading=14, textColor=colors.black)
+    small = ParagraphStyle('Small', parent=styles['Normal'], fontName="Helvetica",
+                           fontSize=9, leading=12, textColor=colors.black)
+    cell = ParagraphStyle('cell', parent=normal, fontSize=9.6, leading=13)
+    cell_c = ParagraphStyle('cellc', parent=cell, alignment=TA_CENTER)
+    cell_r = ParagraphStyle('cellr', parent=cell, alignment=TA_RIGHT)
 
     story = []
 
-    # Kopfblock
+    # Kopf
     date_str = datetime.now().strftime('%d.%m.%Y')
     offer_number = f"RRS-{datetime.now().strftime('%Y%m%d')}-{len(st.session_state.cart_items):03d}"
 
     story.append(_p("Angebot Reifen & Service", h1))
 
-    meta_tbl = Table(
-        [
-            ["Datum", date_str, "Angebotsnummer", offer_number],
-            ["Saison", season_info['season_name'], "", ""]
-        ],
-        colWidths=[2.5*cm, 6.0*cm, 3.7*cm, 4.3*cm]
-    )
+    meta_tbl = Table([
+        ["Datum", date_str, "Angebotsnummer", offer_number],
+        ["Saison", season_info['season_name'], "", ""]
+    ], colWidths=[2.5*cm, 6.0*cm, 3.7*cm, 4.3*cm])
     meta_tbl.setStyle(TableStyle([
         ('FONTNAME',(0,0),(-1,-1),'Helvetica'),
         ('FONTSIZE',(0,0),(-1,-1),9.8),
         ('TEXTCOLOR',(0,0),(-1,-1),colors.black),
+        ('BOTTOMPADDING',(0,0),(-1,-1),4),
         ('ALIGN',(0,0),(0,-1),'LEFT'),
         ('ALIGN',(2,0),(2,0),'LEFT'),
-        ('BOTTOMPADDING',(0,0),(-1,-1),4),
     ]))
     story.append(meta_tbl)
-    story.append(Spacer(1, 6))
+    story.append(Spacer(1, 4))
 
-    # Kundendaten (ohne Adressen/Telefon)
-    if customer_data and any(customer_data.values()):
-        cust_rows = []
-        if customer_data.get('name'): cust_rows.append(["Kunde", customer_data['name']])
-        if customer_data.get('email'): cust_rows.append(["E-Mail", customer_data['email']])
-        if customer_data.get('kennzeichen'): cust_rows.append(["Kennzeichen", customer_data['kennzeichen']])
-        if customer_data.get('modell'): cust_rows.append(["Fahrzeug", customer_data['modell']])
-        if customer_data.get('fahrgestellnummer'): cust_rows.append(["Fahrgestellnr.", customer_data['fahrgestellnummer']])
-        if cust_rows:
-            story.append(_p("Kundendaten", h2))
-            cust_tbl = Table(cust_rows, colWidths=[3.5*cm, 12.5*cm])
-            cust_tbl.setStyle(TableStyle([
-                ('FONTNAME',(0,0),(-1,-1),'Helvetica'),
-                ('FONTSIZE',(0,0),(-1,-1),9.8),
-                ('TEXTCOLOR',(0,0),(-1,-1),colors.black),
-                ('ALIGN',(0,0),(0,-1),'LEFT'),
-                ('VALIGN',(0,0),(-1,-1),'TOP'),
-                ('BOTTOMPADDING',(0,0),(-1,-1),3),
-            ]))
-            story.append(cust_tbl)
-            story.append(Spacer(1, 8))
+    # Kundendaten (ohne Überschrift; nur vorhandene Felder)
+    cust_lines = []
+    if customer_data:
+        if customer_data.get('name'):
+            cust_lines.append(f"<b>Name:</b> {customer_data['name']}")
+        if customer_data.get('email'):
+            cust_lines.append(f"<b>E-Mail:</b> {customer_data['email']}")
+        if customer_data.get('kennzeichen'):
+            cust_lines.append(f"<b>Kennzeichen:</b> {customer_data['kennzeichen']}")
+        extra = []
+        if customer_data.get('modell'):
+            extra.append(f"Fahrzeug: {customer_data['modell']}")
+        if customer_data.get('fahrgestellnummer'):
+            extra.append(f"FIN: {customer_data['fahrgestellnummer']}")
+        if extra:
+            cust_lines.append(" · ".join(extra))
+
+    if cust_lines:
+        for line in cust_lines:
+            story.append(_p(line, normal))
+        story.append(Spacer(1, 8))
 
     # Einleitung
     intro_text = (
@@ -364,28 +350,20 @@ def create_professional_pdf(customer_data=None, offer_scenario="vergleich", dete
     story.append(_p(intro_text, normal))
     story.append(Spacer(1, 10))
 
-    # Abschnittstitel
-    scenario_headers = {
+    # Positionsdarstellung wie im Warenkorb: Card-Layout (B/W)
+    section_title = {
         "vergleich": "Ihr individuelles Reifenangebot",
         "separate": "Angebot für Ihre Fahrzeuge",
         "einzelangebot": "Ihr individuelles Reifenangebot"
-    }
-    story.append(_p(scenario_headers.get(offer_scenario, "Ihr Reifenangebot"), h2))
+    }.get(offer_scenario, "Ihr Reifenangebot")
+    story.append(_p(section_title, h2))
     story.append(Spacer(1, 4))
-
-    # Positions-Tabelle (stabile Breiten, Wrap, B/W)
-    header = ['Pos.', 'Reifengröße', 'Marke/Profil', 'Stück', 'Einzelpreis', 'Services', 'Gesamtpreis']
-    table_data = [header]
-
-    # Paragraph styles for cells to enable wrapping
-    cell_style = ParagraphStyle('cell', parent=normal, fontSize=9.6, leading=13)
-    cell_style_center = ParagraphStyle('cellc', parent=cell_style, alignment=TA_CENTER)
-    cell_style_right = ParagraphStyle('cellr', parent=cell_style, alignment=TA_RIGHT)
 
     for i, item in enumerate(st.session_state.cart_items, 1):
         reifen_kosten, service_kosten, position_total = calculate_position_total(item)
         quantity = st.session_state.cart_quantities.get(item['id'], 4)
 
+        # Services-Text
         item_services = st.session_state.cart_services.get(item['id'], {})
         svc_parts = []
         if item_services.get('montage', False):
@@ -397,51 +375,79 @@ def create_professional_pdf(customer_data=None, offer_scenario="vergleich", dete
             svc_parts.append("Einlagerung")
         services_text = ", ".join(svc_parts) if svc_parts else "Keine"
 
-        marke_profil = f"{item['Fabrikat']} {item['Profil']}"
-        row = [
-            _p(str(i), cell_style_center),
-            _p(item['Reifengröße'], cell_style),
-            _p(marke_profil, cell_style),
-            _p(f"{quantity}x", cell_style_center),
-            _p(format_eur(item['Preis_EUR']), cell_style_right),
-            _p(services_text, cell_style),
-            _p(format_eur(position_total), cell_style_right)
+        # EU-Label kompakt (falls vorhanden)
+        eu_parts = []
+        if item.get('Kraftstoffeffizienz'): eu_parts.append(f"Kraftstoff: {str(item['Kraftstoffeffizienz']).strip()}")
+        if item.get('Nasshaftung'): eu_parts.append(f"Nass: {str(item['Nasshaftung']).strip()}")
+        if item.get('Geräuschemissionen'): eu_parts.append(f"Geräusch: {str(item['Geräuschemissionen']).strip()}")
+        eu_label = " | ".join(eu_parts) if eu_parts else "EU-Label: –"
+
+        # Linke Spalte (Info)
+        left = [
+            [_p(f"<b>{item['Reifengröße']}</b> – <b>{item['Fabrikat']} {item['Profil']}</b>", cell)],
+            [_p(f"Teilenummer: {item['Teilenummer']} · Einzelpreis: <b>{format_eur(item['Preis_EUR'])}</b>", cell)],
+            [_p(f"{eu_label} · Saison: {item.get('Saison','Unbekannt')}", cell)]
         ]
-        table_data.append(row)
 
-    col_widths = [1.0*cm, 3.2*cm, 5.4*cm, 1.4*cm, 2.8*cm, 4.0*cm, 3.0*cm]
-    reifen_table = Table(table_data, colWidths=col_widths, repeatRows=1)
-    reifen_table.setStyle(TableStyle([
-        # Header (B/W)
-        ('FONTNAME', (0,0), (-1,0), 'Helvetica-Bold'),
-        ('FONTSIZE', (0,0), (-1,0), 10.2),
-        ('TEXTCOLOR', (0,0), (-1,0), colors.black),
-        ('ALIGN', (0,0), (-1,0), 'LEFT'),
-        ('BOTTOMPADDING', (0,0), (-1,0), 6),
-        ('LINEBELOW', (0,0), (-1,0), 0.8, colors.black),
+        left_tbl = Table(left, colWidths=[10.6*cm])
+        left_tbl.setStyle(TableStyle([
+            ('FONTNAME',(0,0),(-1,-1),'Helvetica'),
+            ('FONTSIZE',(0,0),(-1,-1),9.6),
+            ('TEXTCOLOR',(0,0),(-1,-1),colors.black),
+            ('VALIGN',(0,0),(-1,-1),'TOP'),
+            ('BOTTOMPADDING',(0,0),(-1,-1),2),
+            ('TOPPADDING',(0,0),(-1,-1),0),
+        ]))
 
-        # Body
-        ('FONTNAME', (0,1), (-1,-1), 'Helvetica'),
-        ('FONTSIZE', (0,1), (-1,-1), 9.6),
-        ('TEXTCOLOR', (0,1), (-1,-1), colors.black),
-        ('VALIGN', (0,1), (-1,-1), 'MIDDLE'),
-        ('TOPPADDING', (0,1), (-1,-1), 5),
-        ('BOTTOMPADDING', (0,1), (-1,-1), 5),
+        # Rechte Spalte (Services/Preise)
+        right_rows = [
+            [_p("<b>Stückzahl</b>", cell), _p(f"{quantity}×", cell_c)],
+            [_p("<b>Services</b>", cell), _p(services_text, cell)],
+            [_p("<b>Position</b>", cell), _p(f"<b>{format_eur(position_total)}</b>", cell_r)],
+        ]
+        # Zusätzliche Fahrzeuginfo pro Position (falls Szenario 'separate' oder explizit gewünscht)
+        veh_parts = []
+        if st.session_state.customer_data.get('modell'):
+            veh_parts.append(f"Fahrzeug: {st.session_state.customer_data['modell']}")
+        if st.session_state.customer_data.get('kennzeichen'):
+            veh_parts.append(f"Kennzeichen: {st.session_state.customer_data['kennzeichen']}")
+        if veh_parts and offer_scenario == "separate":
+            right_rows.insert(0, [_p("<b>Fahrzeug</b>", cell), _p(" · ".join(veh_parts), cell)])
 
-        # Dezente vertikale Guides (B/W, sehr dünn)
-        ('INNERGRID', (0,0), (-1,-1), 0.25, colors.black),
-        ('BOX', (0,0), (-1,-1), 0.25, colors.black),
+        right_tbl = Table(right_rows, colWidths=[3.4*cm, 4.4*cm])
+        right_tbl.setStyle(TableStyle([
+            ('FONTNAME',(0,0),(-1,-1),'Helvetica'),
+            ('FONTSIZE',(0,0),(-1,-1),9.6),
+            ('TEXTCOLOR',(0,0),(-1,-1),colors.black),
+            ('VALIGN',(0,0),(-1,-1),'TOP'),
+            ('BOTTOMPADDING',(0,0),(-1,-1),2),
+            ('TOPPADDING',(0,0),(-1,-1),0),
+        ]))
 
-        # Alignment einzelner Spalten
-        ('ALIGN', (0,1), (0,-1), 'CENTER'),   # Pos.
-        ('ALIGN', (3,1), (3,-1), 'CENTER'),   # Stück
-        ('ALIGN', (4,1), (4,-1), 'RIGHT'),    # Einzelpreis
-        ('ALIGN', (6,1), (6,-1), 'RIGHT'),    # Gesamtpreis
-    ]))
-    story.append(KeepTogether(reifen_table))
-    story.append(Spacer(1, 12))
+        card = Table([[left_tbl, right_tbl]], colWidths=[10.6*cm, 7.0*cm])
+        card.setStyle(TableStyle([
+            ('VALIGN',(0,0),(-1,-1),'TOP'),
+            ('INNERGRID',(0,0),(-1,-1),0, colors.white),
+            ('BOX',(0,0),(-1,-1),0, colors.white),
+        ]))
 
-    # Kostenaufstellung (wie gehabt, GESAMTSUMME in Grün)
+        # Titelzeile „Position X“
+        story.append(_p(f"Position {i}", h2))
+        story.append(KeepTogether(card))
+        story.append(Spacer(1, 2))
+
+        # Dünne Trennlinie zwischen Cards
+        story.append(Table([[""]], colWidths=[17.6*cm], rowHeights=[0.6]))
+        story[-1].setStyle(TableStyle([
+            ('LINEABOVE',(0,0),(-1,-1),0.4,colors.black),
+            ('LEFTPADDING',(0,0),(-1,-1),0),
+            ('RIGHTPADDING',(0,0),(-1,-1),0),
+            ('TOPPADDING',(0,0),(-1,-1),0),
+            ('BOTTOMPADDING',(0,0),(-1,-1),0),
+        ]))
+        story.append(Spacer(1, 6))
+
+    # Kostenaufstellung (GESAMTSUMME in Grün)
     story.append(_p("Kostenaufstellung", h2))
     cost_rows = [['Reifen-Kosten', format_eur(breakdown['reifen'])]]
     if breakdown['montage'] > 0:
@@ -451,20 +457,19 @@ def create_professional_pdf(customer_data=None, offer_scenario="vergleich", dete
     if breakdown['einlagerung'] > 0:
         cost_rows.append(['Einlagerung', format_eur(breakdown['einlagerung'])])
 
-    # Abstand vor Gesamtsumme
     cost_rows.append(['', ''])
     cost_rows.append(['GESAMTSUMME', format_eur(total)])
 
-    cost_tbl = Table(cost_rows, colWidths=[10.5*cm, 4.0*cm])
+    cost_tbl = Table(cost_rows, colWidths=[10.6*cm, 4.0*cm])
     cost_tbl.setStyle(TableStyle([
-        ('FONTNAME',(0,0),(-1,-1),'Helvetica'),
+        ('FONTNAME',(0,0),(-1,-2),'Helvetica'),
         ('FONTSIZE',(0,0),(-1,-2),10.5),
         ('TEXTCOLOR',(0,0),(-1,-2),colors.black),
         ('ALIGN',(0,0),(0,-2),'LEFT'),
         ('ALIGN',(1,0),(1,-2),'RIGHT'),
         ('LINEBELOW',(0,-2),(-1,-2), 0.6, colors.black),
 
-        # Gesamtsumme (einzige Farbe Grün)
+        # Gesamtsumme (einzige Farbe)
         ('FONTNAME',(0,-1),(-1,-1),'Helvetica-Bold'),
         ('FONTSIZE',(0,-1),(-1,-1),13),
         ('BACKGROUND',(0,-1),(-1,-1), colors.HexColor('#f0fdf4')),
@@ -480,7 +485,7 @@ def create_professional_pdf(customer_data=None, offer_scenario="vergleich", dete
     story.append(KeepTogether(cost_tbl))
     story.append(Spacer(1, 10))
 
-    # Bullets / Hinweise (B/W)
+    # Hinweise
     bullets = []
     if detected_season == "winter":
         bullets.append("Wir empfehlen den rechtzeitigen Wechsel auf Winterreifen für optimale Sicherheit bei winterlichen Bedingungen.")
@@ -495,7 +500,7 @@ def create_professional_pdf(customer_data=None, offer_scenario="vergleich", dete
     ])
     for b in bullets:
         story.append(_p(f"• {b}", normal))
-    story.append(Spacer(1, 12))
+    story.append(Spacer(1, 10))
 
     story.append(_p("Vielen Dank für Ihr Vertrauen!", h2))
     story.append(_p("Ihr Team vom Autohaus Ramsperger", normal))
@@ -505,9 +510,9 @@ def create_professional_pdf(customer_data=None, offer_scenario="vergleich", dete
     return buffer.getvalue()
 
 # ================================================================================================
-# E-MAIL TEXT & MAILTO (direkter Outlook-Flow)
+# E-MAIL TEXT & MAILTO (direkter Flow, Regex FIX)
 # ================================================================================================
-_EMAIL_REGEX = re.compile(r"^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$")
+_EMAIL_REGEX = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")  # FIX: korrekte Whitespaces
 
 def _normalize_crlf(text: str) -> str:
     if text is None:
@@ -519,7 +524,7 @@ def _urlencode_mail_body(text: str) -> str:
     return urllib.parse.quote(text, safe="")
 
 def _valid_email(addr: str) -> bool:
-    return bool(_EMAIL_REGEX.match(addr or ""))
+    return bool(_EMAIL_REGEX.match((addr or "").strip()))
 
 def create_email_text(customer_data=None, detected_season="neutral"):
     season_info = get_season_greeting_text(detected_season)
@@ -534,7 +539,7 @@ def create_email_text(customer_data=None, detected_season="neutral"):
     return email_content
 
 def create_mailto_link(customer_email, email_text, detected_season):
-    if not customer_email or not _valid_email(customer_email.strip()):
+    if not customer_email or not _valid_email(customer_email):
         return None
     season_info = get_season_greeting_text(detected_season)
     subject = f"Ihr Reifenangebot von Autohaus Ramsperger - {season_info['season_name']}-Reifen"
@@ -560,7 +565,7 @@ def init_session_state():
         st.session_state.offer_scenario = "vergleich"
 
     if 'show_email_options' not in st.session_state:
-        # bleibt für Kompatibilität bestehen, wird aber nicht mehr genutzt
+        # bleibt nur der Vollständigkeit halber; wird nicht mehr genutzt
         st.session_state.show_email_options = False
 
     if 'pdf_created' not in st.session_state:
@@ -800,7 +805,7 @@ def render_actions(total, breakdown, detected_season):
                 st.error("Fehler beim Erstellen der PDF-Datei")
 
     with col2:
-        # Direkter Outlook/Desktop-Mailto-Flow (kein 2-Schritte-Dialog)
+        # Direkter mailto-Flow (kein 2-Schritte-Dialog mehr)
         customer_email = st.session_state.customer_data.get('email', '').strip()
         if not customer_email:
             st.button("📧 E-Mail fehlt", use_container_width=True, disabled=True,
@@ -842,8 +847,6 @@ def render_actions(total, breakdown, detected_season):
                 st.rerun()
             else:
                 st.warning("Warenkorb ist leer!")
-
-    # Der alte E-Mail-Optionen-Block entfällt bewusst (Direktversand per mailto:)
 
 # ================================================================================================
 # MAIN
