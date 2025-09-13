@@ -584,30 +584,6 @@ def create_mailto_link(customer_email, email_text, detected_season):
     to_addr = customer_email.strip()
     return f"mailto:{to_addr}?subject={subject_encoded}&body={body_encoded}"
 
-def create_outlook_web_link(customer_email, email_text, detected_season):
-    if not customer_email or not _valid_email(customer_email.strip()):
-        return None
-    season_info = get_season_greeting_text(detected_season)
-    subject = f"Ihr Reifenangebot von Autohaus Ramsperger - {season_info['season_name']}-Reifen"
-    body_crlf = _normalize_crlf(email_text)
-    params = {
-        "to": customer_email.strip(),
-        "subject": subject,
-        "body": body_crlf
-    }
-    q = "&".join([f"{k}={urllib.parse.quote(v, safe='')}" for k, v in params.items()])
-    return f"https://outlook.office.com/mail/deeplink/compose?{q}"
-
-def create_gmail_link(customer_email, email_text, detected_season):
-    if not customer_email or not _valid_email(customer_email.strip()):
-        return None
-    season_info = get_season_greeting_text(detected_season)
-    subject = f"Ihr Reifenangebot von Autohaus Ramsperger - {season_info['season_name']}-Reifen"
-    body_crlf = _normalize_crlf(email_text)
-    params = {"view":"cm","to":customer_email.strip(),"su":subject,"body":body_crlf,"fs":"1"}
-    q = "&".join([f"{k}={urllib.parse.quote(v, safe='')}" for k, v in params.items()])
-    return f"https://mail.google.com/mail/u/0/?{q}"
-
 # ================================================================================================
 # SESSION STATE INITIALISIERUNG
 # ================================================================================================
@@ -792,27 +768,6 @@ def render_scenario_selection():
 
     detected = detect_cart_season()
     season_info = get_season_greeting_text(detected)
-    season_display = {
-        "winter":"❄️ Winter-Reifen erkannt",
-        "sommer":"☀️ Sommer-Reifen erkannt",
-        "ganzjahres":"🌍 Ganzjahres-Reifen erkannt",
-        "gemischt":"🔄 Verschiedene Reifen-Typen",
-        "neutral":"🔍 Reifen-Typ wird analysiert"
-    }
-    st.markdown(f"""
-    <div class="saison-info-box">
-        <h4>🎯 Automatische Saison-Erkennung</h4>
-        <p><strong>{season_display.get(detected,'🔍 Analysiere Reifen...')}</strong></p>
-        <p>Das Angebot wird automatisch an die erkannte Saison angepasst.</p>
-    </div>
-    """, unsafe_allow_html=True)
-
-    st.markdown("""
-    <div class="scenario-box">
-        <h4>Wie soll das Angebot erstellt werden?</h4>
-        <p>Wähle das passende Szenario für deine Situation:</p>
-    </div>
-    """, unsafe_allow_html=True)
 
     st.radio(
         "Angebot-Szenario:",
@@ -861,31 +816,17 @@ def render_email_options(email_text, detected_season):
     st.markdown(f"""
     <div class="email-options-box">
         <h4>📧 E-Mail-Versand Optionen</h4>
-        <p>Wählen Sie Ihren bevorzugten E-Mail-Client zum Versenden des Angebots an <strong>{customer_email}</strong>:</p>
+        <p>Wählen Sie Ihren E-Mail-Client zum Versenden des Angebots an <strong>{customer_email}</strong>:</p>
         <p><strong>Wichtig:</strong> Bitte fügen Sie die heruntergeladene PDF-Datei manuell als Anhang zur E-Mail hinzu.</p>
     </div>
     """, unsafe_allow_html=True)
 
     mailto_link = create_mailto_link(customer_email, email_text, detected_season)
-    owa_link    = create_outlook_web_link(customer_email, email_text, detected_season)
-    gmail_link  = create_gmail_link(customer_email, email_text, detected_season)
 
-    col1, col2, col3 = st.columns(3)
-    with col1:
-        if mailto_link:
-            st.link_button("📧 Outlook (Desktop)", mailto_link,
-                           use_container_width=True, type="secondary",
-                           help="Öffnet Ihren Standard-Mailclient (z. B. Outlook Desktop)")
-    with col2:
-        if owa_link:
-            st.link_button("📧 Outlook Web (OWA)", owa_link,
-                           use_container_width=True, type="secondary",
-                           help="Öffnet Outlook im Browser mit vorbereiteter E-Mail")
-    with col3:
-        if gmail_link:
-            st.link_button("📧 Gmail (Browser)", gmail_link,
-                           use_container_width=True, type="secondary",
-                           help="Öffnet Gmail.com mit vorbereiteter E-Mail")
+    if mailto_link:
+        st.link_button("📧 Outlook (Desktop)", mailto_link,
+                       use_container_width=True, type="secondary",
+                       help="Öffnet Ihren Standard-Mailclient (z. B. Outlook Desktop)")
 
     if st.button("❌ E-Mail-Optionen schließen", use_container_width=True):
         st.session_state.show_email_options = False
@@ -893,7 +834,7 @@ def render_email_options(email_text, detected_season):
 
 def render_actions(total, breakdown, detected_season):
     st.markdown("---")
-    st.markdown("#### Professionelles PDF-Angebot erstellen")
+    st.markdown("#### PDF-Angebot erstellen")
 
     col1, col2, col3, col4, col5 = st.columns(5)
 
