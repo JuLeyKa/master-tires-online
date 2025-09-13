@@ -665,7 +665,7 @@ def init_session_state():
 
     # TD-Anfrage Einstellungen
     if 'td_email' not in st.session_state:
-        st.session_state.td_email = "teile@teiledienst.de"  # Default TD E-Mail
+        st.session_state.td_email = ""  # Leer - keine Default-Adresse
 
     st.session_state.setdefault('customer_name', st.session_state.customer_data.get('name',''))
     st.session_state.setdefault('customer_email', st.session_state.customer_data.get('email',''))
