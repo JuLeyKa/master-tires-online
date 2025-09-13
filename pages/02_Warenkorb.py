@@ -144,755 +144,492 @@ MAIN_CSS = """
     }
 </style>
 """
-
-# CSS anwenden
 st.markdown(MAIN_CSS, unsafe_allow_html=True)
 
 # ================================================================================================
-# HELPER FUNCTIONS - DIREKT EINGEBETTET  
+# HELPER FUNCTIONS
 # ================================================================================================
 def get_efficiency_emoji(rating):
-    """Gibt Text für Effizienz-Rating zurück"""
     if pd.isna(rating):
         return ""
     rating = str(rating).strip().upper()[:1]
-    return {
-        "A": "[A]", "B": "[B]", "C": "[C]", 
-        "D": "[D]", "E": "[E]", "F": "[F]", "G": "[G]"
-    }.get(rating, "")
+    return {"A":"[A]","B":"[B]","C":"[C]","D":"[D]","E":"[E]","F":"[F]","G":"[G]"}.get(rating, "")
 
 def get_stock_display(stock_value):
-    """Formatiert Bestandsanzeige mit Text"""
     if pd.isna(stock_value) or stock_value == '':
         return "unbekannt"
-    
     try:
         stock_num = float(stock_value)
-        if stock_num < 0:
-            return f"NACHBESTELLEN ({int(stock_num)})"
-        elif stock_num == 0:
-            return f"AUSVERKAUFT ({int(stock_num)})"
-        else:
-            return f"VERFÜGBAR ({int(stock_num)})"
+        if stock_num < 0: return f"NACHBESTELLEN ({int(stock_num)})"
+        if stock_num == 0: return f"AUSVERKAUFT ({int(stock_num)})"
+        return f"VERFÜGBAR ({int(stock_num)})"
     except:
         return "unbekannt"
 
 def init_default_services():
-    """Initialisiert Standard Service-Konfiguration"""
     services_data = {
-        'service_name': ['montage_bis_17', 'montage_18_19', 'montage_ab_20', 
-                       'radwechsel_1_rad', 'radwechsel_2_raeder', 'radwechsel_3_raeder', 
-                       'radwechsel_4_raeder', 'nur_einlagerung'],
-        'service_label': ['Montage bis 17 Zoll', 'Montage 18-19 Zoll', 'Montage ab 20 Zoll',
-                        'Radwechsel 1 Rad', 'Radwechsel 2 Räder', 'Radwechsel 3 Räder',
-                        'Radwechsel 4 Räder', 'Nur Einlagerung'],
-        'price': [25.0, 30.0, 40.0, 9.95, 19.95, 29.95, 39.90, 55.00],
-        'unit': ['pro Reifen', 'pro Reifen', 'pro Reifen', 
-                'pauschal', 'pauschal', 'pauschal', 'pauschal', 'pauschal']
+        'service_name': ['montage_bis_17','montage_18_19','montage_ab_20',
+                         'radwechsel_1_rad','radwechsel_2_raeder','radwechsel_3_raeder',
+                         'radwechsel_4_raeder','nur_einlagerung'],
+        'service_label': ['Montage bis 17 Zoll','Montage 18-19 Zoll','Montage ab 20 Zoll',
+                          'Radwechsel 1 Rad','Radwechsel 2 Räder','Radwechsel 3 Räder',
+                          'Radwechsel 4 Räder','Nur Einlagerung'],
+        'price': [25.0,30.0,40.0,9.95,19.95,29.95,39.90,55.00],
+        'unit': ['pro Reifen','pro Reifen','pro Reifen','pauschal','pauschal','pauschal','pauschal','pauschal']
     }
     return pd.DataFrame(services_data)
 
 def get_service_prices():
-    """Gibt aktuelle Service-Preise zurück"""
     if 'services_config' not in st.session_state:
         st.session_state.services_config = init_default_services()
-    
-    services_config = st.session_state.services_config
     prices = {}
-    for _, row in services_config.iterrows():
+    for _, row in st.session_state.services_config.iterrows():
         prices[row['service_name']] = row['price']
     return prices
 
-# ================================================================================================
-# SAISON-ERKENNUNG FUNKTIONEN - NEU
-# ================================================================================================
+# ---------------------- Saison-Erkennung ----------------------
 def detect_cart_season():
-    """Erkennt die dominante Saison aus dem Warenkorb"""
     if not st.session_state.cart_items:
         return "neutral"
-    
-    saison_counts = {"Winter": 0, "Sommer": 0, "Ganzjahres": 0, "Unbekannt": 0}
-    
-    # Saison aus jedem Item zählen
+    saison_counts = {"Winter":0,"Sommer":0,"Ganzjahres":0,"Unbekannt":0}
     for item in st.session_state.cart_items:
-        item_saison = item.get('Saison', 'Unbekannt')
-        if item_saison in saison_counts:
-            saison_counts[item_saison] += 1
-        else:
-            saison_counts['Unbekannt'] += 1
-    
-    # Dominante Saison finden
+        saison_counts[item.get('Saison','Unbekannt')] = saison_counts.get(item.get('Saison','Unbekannt'),0) + 1
     total_items = sum(saison_counts.values())
-    if total_items == 0:
-        return "neutral"
-    
-    # Sortiere nach Anzahl
-    sorted_seasons = sorted(saison_counts.items(), key=lambda x: x[1], reverse=True)
-    dominant_season, dominant_count = sorted_seasons[0]
-    
-    # Wenn mehr als 70% eine Saison ist, verwende diese
-    if dominant_count / total_items >= 0.7:
-        return dominant_season.lower()
-    # Sonst gemischt/neutral
-    else:
-        return "gemischt"
+    if total_items == 0: return "neutral"
+    dominant_season, dominant_count = sorted(saison_counts.items(), key=lambda x: x[1], reverse=True)[0]
+    return dominant_season.lower() if dominant_count/total_items >= 0.7 else "gemischt"
 
 def get_season_greeting_text(detected_season):
-    """Gibt saison-spezifischen Einleitungstext zurück"""
     season_texts = {
-        "winter": {
-            "greeting": "der Winter steht vor der Tür und die Zeichen stehen auf kälter werdende Temperaturen.",
-            "transition": "Jetzt wird es auch Zeit für Ihre Winterreifen von Ihrem Auto.",
-            "season_name": "Winter"
-        },
-        "sommer": {
-            "greeting": "die warme Jahreszeit kommt und die Temperaturen steigen wieder.",
-            "transition": "Jetzt wird es auch Zeit für Ihre Sommerreifen von Ihrem Auto.", 
-            "season_name": "Sommer"
-        },
-        "ganzjahres": {
-            "greeting": "Sie denken über Ganzjahresreifen nach - eine praktische Lösung für das ganze Jahr.",
-            "transition": "Jetzt wird es Zeit für Ihre neuen Allwetter-Reifen von Ihrem Auto.",
-            "season_name": "Ganzjahres"
-        },
-        "gemischt": {
-            "greeting": "Sie haben verschiedene Reifen-Optionen für unterschiedliche Anforderungen.",
-            "transition": "Gerne stelle ich Ihnen die verschiedenen Möglichkeiten vor.",
-            "season_name": "verschiedene"
-        },
-        "neutral": {
-            "greeting": "Sie interessieren sich für neue Reifen für Ihr Fahrzeug.",
-            "transition": "Gerne stelle ich Ihnen die passenden Optionen vor.",
-            "season_name": "neue"
-        }
+        "winter": {"greeting":"der Winter steht vor der Tür und die Zeichen stehen auf kälter werdende Temperaturen.",
+                   "transition":"Jetzt wird es auch Zeit für Ihre Winterreifen von Ihrem Auto.","season_name":"Winter"},
+        "sommer": {"greeting":"die warme Jahreszeit kommt und die Temperaturen steigen wieder.",
+                   "transition":"Jetzt wird es auch Zeit für Ihre Sommerreifen von Ihrem Auto.","season_name":"Sommer"},
+        "ganzjahres":{"greeting":"Sie denken über Ganzjahresreifen nach - eine praktische Lösung für das ganze Jahr.",
+                      "transition":"Jetzt wird es Zeit für Ihre neuen Allwetter-Reifen von Ihrem Auto.","season_name":"Ganzjahres"},
+        "gemischt":{"greeting":"Sie haben verschiedene Reifen-Optionen für unterschiedliche Anforderungen.",
+                    "transition":"Gerne stelle ich Ihnen die verschiedenen Möglichkeiten vor.","season_name":"verschiedene"},
+        "neutral":{"greeting":"Sie interessieren sich für neue Reifen für Ihr Fahrzeug.",
+                   "transition":"Gerne stelle ich Ihnen die passenden Optionen vor.","season_name":"neue"}
     }
-    
     return season_texts.get(detected_season, season_texts["neutral"])
 
-# ================================================================================================
-# CART MANAGEMENT - OHNE PROBLEMATISCHE CALLBACKS
-# ================================================================================================
+# ---------------------- Cart Ops ----------------------
 def remove_from_cart(tire_id):
-    """Entfernt einen Reifen aus dem Warenkorb"""
     st.session_state.cart_items = [item for item in st.session_state.cart_items if item['id'] != tire_id]
-    if tire_id in st.session_state.cart_quantities:
-        del st.session_state.cart_quantities[tire_id]
-    if tire_id in st.session_state.cart_services:
-        del st.session_state.cart_services[tire_id]
+    st.session_state.cart_quantities.pop(tire_id, None)
+    st.session_state.cart_services.pop(tire_id, None)
+    # zugehörige Widget-Keys säubern
+    _clear_item_widget_keys(tire_id)
     st.session_state.cart_count = len(st.session_state.cart_items)
 
 def clear_cart():
-    """Leert den kompletten Warenkorb"""
+    # alle dynamischen Widget-Keys entfernen
+    for item in list(st.session_state.cart_items):
+        _clear_item_widget_keys(item['id'])
     st.session_state.cart_items = []
     st.session_state.cart_quantities = {}
     st.session_state.cart_services = {}
     st.session_state.cart_count = 0
 
 def calculate_position_total(item):
-    """Berechnet Gesamtpreis für eine Position (Reifen + Services)"""
     tire_id = item['id']
     quantity = st.session_state.cart_quantities.get(tire_id, 4)
     service_prices = get_service_prices()
-    
-    # Reifen-Kosten
+
     reifen_kosten = item['Preis_EUR'] * quantity
-    
-    # Services für diesen Reifen
     item_services = st.session_state.cart_services.get(tire_id, {})
     service_kosten = 0.0
-    
-    # Montage-Kosten
+
     if item_services.get('montage', False):
-        zoll_size = item['Zoll']
-        if zoll_size <= 17:
-            montage_preis = service_prices.get('montage_bis_17', 25.0)
-        elif zoll_size <= 19:
-            montage_preis = service_prices.get('montage_18_19', 30.0)
-        else:
-            montage_preis = service_prices.get('montage_ab_20', 40.0)
+        z = item['Zoll']
+        montage_preis = (service_prices.get('montage_bis_17',25.0) if z<=17
+                         else service_prices.get('montage_18_19',30.0) if z<=19
+                         else service_prices.get('montage_ab_20',40.0))
         service_kosten += montage_preis * quantity
-    
-    # Radwechsel-Kosten
+
     if item_services.get('radwechsel', False):
-        radwechsel_type = item_services.get('radwechsel_type', '4_raeder')
-        if radwechsel_type == '1_rad':
-            service_kosten += service_prices.get('radwechsel_1_rad', 9.95)
-        elif radwechsel_type == '2_raeder':
-            service_kosten += service_prices.get('radwechsel_2_raeder', 19.95)
-        elif radwechsel_type == '3_raeder':
-            service_kosten += service_prices.get('radwechsel_3_raeder', 29.95)
-        else:  # '4_raeder'
-            service_kosten += service_prices.get('radwechsel_4_raeder', 39.90)
-    
-    # Einlagerungs-Kosten
+        t = item_services.get('radwechsel_type','4_raeder')
+        service_kosten += {
+            '1_rad': service_prices.get('radwechsel_1_rad',9.95),
+            '2_raeder': service_prices.get('radwechsel_2_raeder',19.95),
+            '3_raeder': service_prices.get('radwechsel_3_raeder',29.95),
+            '4_raeder': service_prices.get('radwechsel_4_raeder',39.90)
+        }.get(t, service_prices.get('radwechsel_4_raeder',39.90))
+
     if item_services.get('einlagerung', False):
-        service_kosten += service_prices.get('nur_einlagerung', 55.00)
-    
+        service_kosten += service_prices.get('nur_einlagerung',55.00)
+
     return reifen_kosten, service_kosten, reifen_kosten + service_kosten
 
 def get_cart_total():
-    """Berechnet Warenkorb-Gesamtsumme"""
     total = 0.0
-    breakdown = {'reifen': 0.0, 'montage': 0.0, 'radwechsel': 0.0, 'einlagerung': 0.0}
-    
+    breakdown = {'reifen':0.0,'montage':0.0,'radwechsel':0.0,'einlagerung':0.0}
+    sp = get_service_prices()
+
     for item in st.session_state.cart_items:
         reifen_kosten, service_kosten, position_total = calculate_position_total(item)
         total += position_total
         breakdown['reifen'] += reifen_kosten
-        
-        # Service-Breakdown für Gesamtübersicht
-        tire_id = item['id']
-        item_services = st.session_state.cart_services.get(tire_id, {})
-        service_prices = get_service_prices()
-        quantity = st.session_state.cart_quantities.get(tire_id, 4)
-        
+
+        item_services = st.session_state.cart_services.get(item['id'], {})
+        qty = st.session_state.cart_quantities.get(item['id'], 4)
+
         if item_services.get('montage', False):
-            zoll_size = item['Zoll']
-            if zoll_size <= 17:
-                montage_preis = service_prices.get('montage_bis_17', 25.0)
-            elif zoll_size <= 19:
-                montage_preis = service_prices.get('montage_18_19', 30.0)
-            else:
-                montage_preis = service_prices.get('montage_ab_20', 40.0)
-            breakdown['montage'] += montage_preis * quantity
-        
+            z = item['Zoll']
+            mp = (sp.get('montage_bis_17',25.0) if z<=17 else sp.get('montage_18_19',30.0) if z<=19 else sp.get('montage_ab_20',40.0))
+            breakdown['montage'] += mp * qty
+
         if item_services.get('radwechsel', False):
-            radwechsel_type = item_services.get('radwechsel_type', '4_raeder')
-            if radwechsel_type == '1_rad':
-                breakdown['radwechsel'] += service_prices.get('radwechsel_1_rad', 9.95)
-            elif radwechsel_type == '2_raeder':
-                breakdown['radwechsel'] += service_prices.get('radwechsel_2_raeder', 19.95)
-            elif radwechsel_type == '3_raeder':
-                breakdown['radwechsel'] += service_prices.get('radwechsel_3_raeder', 29.95)
-            else:
-                breakdown['radwechsel'] += service_prices.get('radwechsel_4_raeder', 39.90)
-        
+            t = item_services.get('radwechsel_type','4_raeder')
+            breakdown['radwechsel'] += {
+                '1_rad': sp.get('radwechsel_1_rad',9.95),
+                '2_raeder': sp.get('radwechsel_2_raeder',19.95),
+                '3_raeder': sp.get('radwechsel_3_raeder',29.95),
+                '4_raeder': sp.get('radwechsel_4_raeder',39.90)
+            }.get(t, sp.get('radwechsel_4_raeder',39.90))
+
         if item_services.get('einlagerung', False):
-            breakdown['einlagerung'] += service_prices.get('nur_einlagerung', 55.00)
-    
+            breakdown['einlagerung'] += sp.get('nur_einlagerung',55.00)
+
     return total, breakdown
 
 def create_professional_offer(customer_data=None, offer_scenario="vergleich", detected_season="neutral"):
-    """Erstellt professionelles Angebot mit Szenario- und Saison-Unterstützung"""
     if not st.session_state.cart_items:
         return "Warenkorb ist leer"
-    
+
     total, breakdown = get_cart_total()
-    service_prices = get_service_prices()
-    
     content = []
-    
-    # Header
     content.append("AUTOHAUS RAMSPERGER")
     content.append("Kostenvoranschlag für Reifen")
     content.append("=" * 60)
     content.append(f"Datum: {datetime.now().strftime('%d.%m.%Y')}")
     content.append("")
-    
-    # Kundendaten
+
     if customer_data and any(customer_data.values()):
         content.append("KUNDENDATEN:")
         content.append("-" * 30)
-        if customer_data.get('name'):
-            content.append(f"Kunde: {customer_data['name']}")
-        if customer_data.get('kennzeichen'):
-            content.append(f"Kennzeichen: {customer_data['kennzeichen']}")
-        if customer_data.get('modell'):
-            content.append(f"Fahrzeug: {customer_data['modell']}")
-        if customer_data.get('fahrgestellnummer'):
-            content.append(f"Fahrgestellnummer: {customer_data['fahrgestellnummer']}")
+        if customer_data.get('name'): content.append(f"Kunde: {customer_data['name']}")
+        if customer_data.get('kennzeichen'): content.append(f"Kennzeichen: {customer_data['kennzeichen']}")
+        if customer_data.get('modell'): content.append(f"Fahrzeug: {customer_data['modell']}")
+        if customer_data.get('fahrgestellnummer'): content.append(f"Fahrgestellnummer: {customer_data['fahrgestellnummer']}")
         content.append("")
-    
-    # Saison-spezifische Anrede
+
     season_info = get_season_greeting_text(detected_season)
-    
     content.append("Sehr geehrter Kunde,")
     content.append("")
     content.append(season_info["greeting"])
     content.append(season_info["transition"])
-    
-    # Szenario-spezifische Einleitung
+
     if offer_scenario == "vergleich":
         content.append(f"Gerne stelle ich Ihnen verschiedene hochwertige {season_info['season_name']}-Reifenmodelle vor,")
         content.append("aus denen Sie die für Sie beste Option wählen können:")
     elif offer_scenario == "separate":
-        content.append(f"Gerne erstelle ich Ihnen ein Angebot für Ihre verschiedenen Fahrzeuge")
+        content.append("Gerne erstelle ich Ihnen ein Angebot für Ihre verschiedenen Fahrzeuge")
         content.append(f"mit den passenden {season_info['season_name']}-Reifen:")
-    else:  # einzelangebot
-        content.append(f"Gerne unterbreite ich Ihnen ein spezifisches Angebot")
+    else:
+        content.append("Gerne unterbreite ich Ihnen ein spezifisches Angebot")
         content.append(f"für die von Ihnen gewünschten {season_info['season_name']}-Reifen:")
-    
     content.append("")
-    
-    # Reifen-Details je nach Szenario
-    if offer_scenario == "vergleich":
-        content.append("IHRE REIFENOPTIONEN ZUR AUSWAHL:")
+
+    if offer_scenario in ("vergleich","separate","einzelangebot"):
+        header_map = {"vergleich":"IHRE REIFENOPTIONEN ZUR AUSWAHL:",
+                      "separate":"ANGEBOT FÜR IHRE FAHRZEUGE:",
+                      "einzelangebot":"IHR INDIVIDUELLES REIFENANGEBOT:"}
+        content.append(header_map[offer_scenario])
         content.append("=" * 60)
-        
+
         for i, item in enumerate(st.session_state.cart_items, 1):
             reifen_kosten, service_kosten, position_total = calculate_position_total(item)
             quantity = st.session_state.cart_quantities.get(item['id'], 4)
-            
-            content.append(f"OPTION {i}:")
+            label = {"vergleich":"OPTION","separate":"FAHRZEUG","einzelangebot":"POSITION"}[offer_scenario]
+            content.append(f"{label} {i}:")
             content.append("-" * 20)
             content.append(f"Größe: {item['Reifengröße']}")
             content.append(f"Marke: {item['Fabrikat']} {item['Profil']}")
             content.append(f"Teilenummer: {item['Teilenummer']}")
-            
-            # EU-Label
             if item.get('Kraftstoffeffizienz') or item.get('Nasshaftung'):
-                label_info = []
-                if item.get('Kraftstoffeffizienz'):
-                    label_info.append(f"Kraftstoff: {item['Kraftstoffeffizienz']}")
-                if item.get('Nasshaftung'):
-                    label_info.append(f"Nasshaftung: {item['Nasshaftung']}")
-                content.append(f"EU-Label: {' | '.join(label_info)}")
-            
+                lab = []
+                if item.get('Kraftstoffeffizienz'): lab.append(f"Kraftstoff: {item['Kraftstoffeffizienz']}")
+                if item.get('Nasshaftung'): lab.append(f"Nasshaftung: {item['Nasshaftung']}")
+                content.append(f"EU-Label: {' | '.join(lab)}")
             content.append(f"Anzahl: {quantity} Reifen")
             content.append(f"Reifenpreis: {reifen_kosten:.2f}EUR")
-            if service_kosten > 0:
-                content.append(f"Service-Leistungen: {service_kosten:.2f}EUR")
-            content.append(f"OPTION {i} GESAMT: {position_total:.2f}EUR")
+            if service_kosten > 0: content.append(f"Service-Leistungen: {service_kosten:.2f}EUR")
+            content.append(f"{label} {i} GESAMT: {position_total:.2f}EUR")
             content.append("")
-    
-    elif offer_scenario == "separate":
-        content.append("ANGEBOT FÜR IHRE FAHRZEUGE:")
-        content.append("=" * 60)
-        
-        for i, item in enumerate(st.session_state.cart_items, 1):
-            reifen_kosten, service_kosten, position_total = calculate_position_total(item)
-            quantity = st.session_state.cart_quantities.get(item['id'], 4)
-            
-            content.append(f"FAHRZEUG {i}:")
-            content.append("-" * 20)
-            content.append(f"Größe: {item['Reifengröße']}")
-            content.append(f"Marke: {item['Fabrikat']} {item['Profil']}")
-            content.append(f"Teilenummer: {item['Teilenummer']}")
-            
-            # EU-Label
-            if item.get('Kraftstoffeffizienz') or item.get('Nasshaftung'):
-                label_info = []
-                if item.get('Kraftstoffeffizienz'):
-                    label_info.append(f"Kraftstoff: {item['Kraftstoffeffizienz']}")
-                if item.get('Nasshaftung'):
-                    label_info.append(f"Nasshaftung: {item['Nasshaftung']}")
-                content.append(f"EU-Label: {' | '.join(label_info)}")
-            
-            content.append(f"Anzahl: {quantity} Reifen")
-            content.append(f"Reifenpreis: {reifen_kosten:.2f}EUR")
-            if service_kosten > 0:
-                content.append(f"Service-Leistungen: {service_kosten:.2f}EUR")
-            content.append(f"FAHRZEUG {i} GESAMT: {position_total:.2f}EUR")
-            content.append("")
-    
-    else:  # einzelangebot
-        content.append("IHR INDIVIDUELLES REIFENANGEBOT:")
-        content.append("=" * 60)
-        
-        for i, item in enumerate(st.session_state.cart_items, 1):
-            reifen_kosten, service_kosten, position_total = calculate_position_total(item)
-            quantity = st.session_state.cart_quantities.get(item['id'], 4)
-            
-            content.append(f"POSITION {i}:")
-            content.append("-" * 20)
-            content.append(f"Größe: {item['Reifengröße']}")
-            content.append(f"Marke: {item['Fabrikat']} {item['Profil']}")
-            content.append(f"Teilenummer: {item['Teilenummer']}")
-            
-            # EU-Label
-            if item.get('Kraftstoffeffizienz') or item.get('Nasshaftung'):
-                label_info = []
-                if item.get('Kraftstoffeffizienz'):
-                    label_info.append(f"Kraftstoff: {item['Kraftstoffeffizienz']}")
-                if item.get('Nasshaftung'):
-                    label_info.append(f"Nasshaftung: {item['Nasshaftung']}")
-                content.append(f"EU-Label: {' | '.join(label_info)}")
-            
-            content.append(f"Anzahl: {quantity} Reifen")
-            content.append(f"Reifenpreis: {reifen_kosten:.2f}EUR")
-            if service_kosten > 0:
-                content.append(f"Service-Leistungen: {service_kosten:.2f}EUR")
-            content.append(f"POSITION {i} GESAMT: {position_total:.2f}EUR")
-            content.append("")
-    
-    # Gesamtübersicht
+
     content.append("GESAMTÜBERSICHT:")
     content.append("=" * 30)
-    
     if offer_scenario == "vergleich":
         content.append("Sie können zwischen den oben genannten Optionen wählen.")
         content.append("Die Preise verstehen sich als Komplettpreis inkl. aller")
         content.append("gewählten Service-Leistungen.")
-    elif offer_scenario == "einzelangebot":
-        content.append(f"Reifen-Kosten gesamt: {breakdown['reifen']:.2f}EUR")
-        if breakdown['montage'] + breakdown['radwechsel'] + breakdown['einlagerung'] > 0:
-            content.append(f"Service-Leistungen gesamt: {breakdown['montage'] + breakdown['radwechsel'] + breakdown['einlagerung']:.2f}EUR")
-        content.append("")
-        content.append("*" * 60)
-        content.append(f"GESAMTSUMME: {total:.2f}EUR")
-        content.append("*" * 60)
-    else:  # separate
-        content.append(f"Reifen-Kosten gesamt: {breakdown['reifen']:.2f}EUR")
-        if breakdown['montage'] + breakdown['radwechsel'] + breakdown['einlagerung'] > 0:
-            content.append(f"Service-Leistungen gesamt: {breakdown['montage'] + breakdown['radwechsel'] + breakdown['einlagerung']:.2f}EUR")
-        content.append("")
-        content.append("*" * 60)
-        content.append(f"GESAMTSUMME ALLE FAHRZEUGE: {total:.2f}EUR")
-        content.append("*" * 60)
-    
-    content.append("")
-    
-    # Saison-spezifischer Abschluss
-    if detected_season == "winter":
-        content.append("Wir empfehlen den rechtzeitigen Wechsel auf Winterreifen")
-        content.append("für optimale Sicherheit bei winterlichen Bedingungen.")
-    elif detected_season == "sommer":
-        content.append("Sommerreifen bieten optimalen Grip und Fahrkomfort")
-        content.append("bei warmen Temperaturen und trockenen Straßen.")
-    elif detected_season == "ganzjahres":
-        content.append("Ganzjahresreifen bieten eine praktische Lösung")
-        content.append("für den ganzjährigen Einsatz ohne saisonalen Wechsel.")
     else:
-        content.append("Die gewählten Reifen bieten optimale Leistung")
-        content.append("für Ihre individuellen Anforderungen.")
-    
+        content.append(f"Reifen-Kosten gesamt: {breakdown['reifen']:.2f}EUR")
+        services_sum = breakdown['montage'] + breakdown['radwechsel'] + breakdown['einlagerung']
+        if services_sum > 0:
+            content.append(f"Service-Leistungen gesamt: {services_sum:.2f}EUR")
+        content.append("")
+        content.append("*" * 60)
+        content.append(("GESAMTSUMME ALLE FAHRZEUGE: " if offer_scenario=="separate" else "GESAMTSUMME: ") + f"{total:.2f}EUR")
+        content.append("*" * 60)
+
+    content.append("")
+    if detected_season == "winter":
+        content.append("Wir empfehlen den rechtzeitigen Wechsel auf Winterreifen für optimale Sicherheit bei winterlichen Bedingungen.")
+    elif detected_season == "sommer":
+        content.append("Sommerreifen bieten optimalen Grip und Fahrkomfort bei warmen Temperaturen und trockenen Straßen.")
+    elif detected_season == "ganzjahres":
+        content.append("Ganzjahresreifen bieten eine praktische Lösung für den ganzjährigen Einsatz ohne saisonalen Wechsel.")
+    else:
+        content.append("Die gewählten Reifen bieten optimale Leistung für Ihre individuellen Anforderungen.")
+
     content.append("")
     content.append("Gerne stehen wir Ihnen für Rückfragen zur Verfügung.")
     content.append("Wir freuen uns auf Ihren Auftrag!")
     content.append("")
     content.append("Mit freundlichen Grüßen")
     content.append("Autohaus Ramsperger")
-    
+
     return "\n".join(content)
 
 # ================================================================================================
-# SESSION STATE INITIALISIERUNG
+# SESSION STATE INITIALISIERUNG (Single Source of Truth)
 # ================================================================================================
 def init_session_state():
-    """Initialisiert Session State für Warenkorb"""
     if 'customer_data' not in st.session_state:
-        st.session_state.customer_data = {
-            'name': '',
-            'kennzeichen': '',
-            'modell': '',
-            'fahrgestellnummer': ''
-        }
-    
-    # Warenkorb initialisieren
-    if 'cart_items' not in st.session_state:
-        st.session_state.cart_items = []
-    if 'cart_quantities' not in st.session_state:
-        st.session_state.cart_quantities = {}
-    if 'cart_services' not in st.session_state:
-        st.session_state.cart_services = {}
-    if 'cart_count' not in st.session_state:
-        st.session_state.cart_count = 0
-    
-    # Angebot-Szenario - ERWEITERT UM 3. OPTION
+        st.session_state.customer_data = {'name':'','kennzeichen':'','modell':'','fahrgestellnummer':''}
+
+    if 'cart_items' not in st.session_state: st.session_state.cart_items = []
+    if 'cart_quantities' not in st.session_state: st.session_state.cart_quantities = {}
+    if 'cart_services' not in st.session_state: st.session_state.cart_services = {}
+    if 'cart_count' not in st.session_state: st.session_state.cart_count = 0
+
+    # Angebot-Szenario – direkt als Widget-Quelle
     if 'offer_scenario' not in st.session_state:
         st.session_state.offer_scenario = "vergleich"
 
+    # Kundendaten-Feld-Keys (damit Textfelder ohne value= auskommen)
+    st.session_state.setdefault('customer_name', st.session_state.customer_data.get('name',''))
+    st.session_state.setdefault('customer_kennzeichen', st.session_state.customer_data.get('kennzeichen',''))
+    st.session_state.setdefault('customer_modell', st.session_state.customer_data.get('modell',''))
+    st.session_state.setdefault('customer_fahrgestell', st.session_state.customer_data.get('fahrgestellnummer',''))
+
 # ================================================================================================
-# RENDER FUNCTIONS - OHNE CALLBACKS
+# INTERNAL UTILITIES FOR WIDGET-STATE
+# ================================================================================================
+def _ensure_item_defaults(item_id):
+    # Mengen-Key
+    st.session_state.setdefault(f"qty_{item_id}", st.session_state.cart_quantities.get(item_id, 4))
+    # Service-Objekt
+    st.session_state.cart_services.setdefault(item_id, {'montage':False,'radwechsel':False,'radwechsel_type':'4_raeder','einlagerung':False})
+    # Widget-Keys für Services
+    cs = st.session_state.cart_services[item_id]
+    st.session_state.setdefault(f"montage_{item_id}", cs.get('montage', False))
+    st.session_state.setdefault(f"radwechsel_{item_id}", cs.get('radwechsel', False))
+    st.session_state.setdefault(f"cart_radwechsel_type_{item_id}", cs.get('radwechsel_type', '4_raeder'))
+    st.session_state.setdefault(f"einlagerung_{item_id}", cs.get('einlagerung', False))
+
+def _update_qty(item_id):
+    st.session_state.cart_quantities[item_id] = st.session_state.get(f"qty_{item_id}", 4)
+
+def _update_service(item_id, field):
+    st.session_state.cart_services.setdefault(item_id, {})
+    st.session_state.cart_services[item_id][field] = st.session_state.get(f"{field}_{item_id}", False)
+
+def _update_radwechsel_type(item_id):
+    st.session_state.cart_services.setdefault(item_id, {})
+    st.session_state.cart_services[item_id]['radwechsel_type'] = st.session_state.get(f"cart_radwechsel_type_{item_id}", '4_raeder')
+
+def _clear_item_widget_keys(item_id):
+    for key in [f"qty_{item_id}", f"montage_{item_id}", f"radwechsel_{item_id}", f"cart_radwechsel_type_{item_id}", f"einlagerung_{item_id}"]:
+        st.session_state.pop(key, None)
+
+# ================================================================================================
+# RENDER FUNCTIONS
 # ================================================================================================
 def render_empty_cart():
-    """Rendert leeren Warenkorb"""
     st.markdown("""
     <div class="cart-container">
         <h3>Der Warenkorb ist leer</h3>
         <p>Gehe zur <strong>Reifen Suche</strong> und wähle Reifen für dein Angebot aus.</p>
     </div>
     """, unsafe_allow_html=True)
-    
     if st.button("Zur Reifen Suche", use_container_width=True, type="primary"):
         st.switch_page("pages/01_Reifen_Suche.py")
 
 def render_cart_content():
-    """Rendert Warenkorb-Inhalt mit verbesserten Position-Preisen"""
     st.markdown("#### Reifen im Warenkorb")
-    
     for i, item in enumerate(st.session_state.cart_items, 1):
         render_cart_item(item, i)
 
 def render_cart_item(item, position_number):
-    """Rendert ein einzelnes Warenkorb-Item OHNE problematische Callbacks"""
     st.markdown('<div class="cart-item">', unsafe_allow_html=True)
-    
-    # Header mit Position
     st.markdown(f"### Position {position_number}")
-    
+
+    item_id = item['id']
+    _ensure_item_defaults(item_id)
+
     col_info, col_qty, col_services, col_remove = st.columns([3, 1, 2, 1])
-    
+
     with col_info:
         st.markdown(f"**{item['Reifengröße']}** - {item['Fabrikat']} {item['Profil']}")
         st.markdown(f"Teilenummer: {item['Teilenummer']} | Einzelpreis: **{item['Preis_EUR']:.2f}EUR**")
-        
-        # EU-Label, Bestand und Saison
-        effi_display = f" {get_efficiency_emoji(item['Kraftstoffeffizienz'])}{item['Kraftstoffeffizienz']}" if item['Kraftstoffeffizienz'] else ""
-        nasshaft_display = f" {get_efficiency_emoji(item['Nasshaftung'])}{item['Nasshaftung']}" if item['Nasshaftung'] else ""
-        bestand_display = f" | {get_stock_display(item['Bestand'])}"
-        saison_display = f" | Saison: {item.get('Saison', 'Unbekannt')}"
-        
-        if effi_display or nasshaft_display or bestand_display or saison_display:
-            st.markdown(f"EU-Label:{effi_display}{nasshaft_display}{bestand_display}{saison_display}")
-    
+        effi = f" {get_efficiency_emoji(item['Kraftstoffeffizienz'])}{item['Kraftstoffeffizienz']}" if item.get('Kraftstoffeffizienz') else ""
+        nass = f" {get_efficiency_emoji(item['Nasshaftung'])}{item['Nasshaftung']}" if item.get('Nasshaftung') else ""
+        best = f" | {get_stock_display(item.get('Bestand'))}"
+        saz  = f" | Saison: {item.get('Saison','Unbekannt')}"
+        st.markdown(f"EU-Label:{effi}{nass}{best}{saz}")
+
     with col_qty:
-        current_qty = st.session_state.cart_quantities.get(item['id'], 4)
-        new_qty = st.number_input(
-            "Stückzahl:",
-            min_value=1,
-            max_value=8,
-            value=current_qty,
-            step=1,
-            key=f"qty_{item['id']}"
-        )
-        # Nur updaten wenn sich was geändert hat - OHNE Callbacks
-        if new_qty != current_qty:
-            st.session_state.cart_quantities[item['id']] = new_qty
-    
+        st.number_input("Stückzahl:", 1, 8,
+                        key=f"qty_{item_id}",
+                        on_change=_update_qty, args=(item_id,))
+        # cart_quantities wurde im Callback aktualisiert
+
     with col_services:
         render_item_services(item)
-    
+
     with col_remove:
-        if st.button("Entfernen", key=f"remove_{item['id']}", help="Aus Warenkorb entfernen"):
-            remove_from_cart(item['id'])
+        if st.button("Entfernen", key=f"remove_{item_id}", help="Aus Warenkorb entfernen"):
+            remove_from_cart(item_id)
             st.rerun()
-    
-    # Position-Gesamtpreis OHNE blauen Kasten - nur fetter Text
+
     reifen_kosten, service_kosten, position_total = calculate_position_total(item)
-    
     st.markdown(f"### **Position {position_number} Gesamt: {position_total:.2f} EUR**")
     st.markdown(f"Reifen: {reifen_kosten:.2f}EUR + Services: {service_kosten:.2f}EUR")
-    
+
     st.markdown('</div>', unsafe_allow_html=True)
 
 def render_item_services(item):
-    """Rendert Service-Optionen für ein Item OHNE problematische Callbacks"""
+    item_id = item['id']
+    _ensure_item_defaults(item_id)
+    sp = get_service_prices()
+
     st.markdown("**Services:**")
-    
-    # Services für diesen Reifen sicherstellen
-    if item['id'] not in st.session_state.cart_services:
-        st.session_state.cart_services[item['id']] = {
-            'montage': False, 'radwechsel': False, 'radwechsel_type': '4_raeder', 'einlagerung': False
-        }
-    
-    current_services = st.session_state.cart_services[item['id']]
-    service_prices = get_service_prices()
-    
-    # Montage
-    zoll_size = item['Zoll']
-    if zoll_size <= 17:
-        montage_price = service_prices.get('montage_bis_17', 25.0)
-        montage_label = f"Montage ({montage_price:.2f}EUR/Stk)"
-    elif zoll_size <= 19:
-        montage_price = service_prices.get('montage_18_19', 30.0)
-        montage_label = f"Montage ({montage_price:.2f}EUR/Stk)"
-    else:
-        montage_price = service_prices.get('montage_ab_20', 40.0)
-        montage_label = f"Montage ({montage_price:.2f}EUR/Stk)"
-    
-    montage_selected = st.checkbox(
-        montage_label,
-        value=current_services.get('montage', False),
-        key=f"cart_montage_{item['id']}"
-    )
-    # Nur updaten wenn sich was geändert hat - OHNE Callbacks
-    if montage_selected != current_services.get('montage', False):
-        st.session_state.cart_services[item['id']]['montage'] = montage_selected
-    
+
+    # Montage (Preis abhängig vom Zoll)
+    z = item['Zoll']
+    montage_price = (sp.get('montage_bis_17',25.0) if z<=17 else sp.get('montage_18_19',30.0) if z<=19 else sp.get('montage_ab_20',40.0))
+    montage_label = f"Montage ({montage_price:.2f}EUR/Stk)"
+    st.checkbox(montage_label, key=f"montage_{item_id}",
+                on_change=_update_service, args=(item_id,'montage'))
+
     # Radwechsel
-    radwechsel_selected = st.checkbox(
-        "Radwechsel",
-        value=current_services.get('radwechsel', False),
-        key=f"cart_radwechsel_{item['id']}"
-    )
-    # Nur updaten wenn sich was geändert hat - OHNE Callbacks
-    if radwechsel_selected != current_services.get('radwechsel', False):
-        st.session_state.cart_services[item['id']]['radwechsel'] = radwechsel_selected
-    
-    # Radwechsel-Optionen (editierbar im Warenkorb)
-    if radwechsel_selected:
-        radwechsel_options = [
-            ('4_raeder', f"4 Räder ({service_prices.get('radwechsel_4_raeder', 39.90):.2f}EUR)"),
-            ('3_raeder', f"3 Räder ({service_prices.get('radwechsel_3_raeder', 29.95):.2f}EUR)"),
-            ('2_raeder', f"2 Räder ({service_prices.get('radwechsel_2_raeder', 19.95):.2f}EUR)"),
-            ('1_rad', f"1 Rad ({service_prices.get('radwechsel_1_rad', 9.95):.2f}EUR)")
+    st.checkbox("Radwechsel", key=f"radwechsel_{item_id}",
+                on_change=_update_service, args=(item_id,'radwechsel'))
+
+    # Radwechsel-Optionen (nur wenn aktiv)
+    if st.session_state.get(f"radwechsel_{item_id}", False):
+        options = [
+            ('4_raeder', f"4 Räder ({sp.get('radwechsel_4_raeder',39.90):.2f}EUR)"),
+            ('3_raeder', f"3 Räder ({sp.get('radwechsel_3_raeder',29.95):.2f}EUR)"),
+            ('2_raeder', f"2 Räder ({sp.get('radwechsel_2_raeder',19.95):.2f}EUR)"),
+            ('1_rad',   f"1 Rad ({sp.get('radwechsel_1_rad',9.95):.2f}EUR)")
         ]
-        
-        current_radwechsel_type = current_services.get('radwechsel_type', '4_raeder')
-        current_index = next((i for i, (key, _) in enumerate(radwechsel_options) if key == current_radwechsel_type), 0)
-        
-        radwechsel_type = st.selectbox(
-            "Anzahl:",
-            options=[opt[0] for opt in radwechsel_options],
-            index=current_index,
-            format_func=lambda x: next(opt[1] for opt in radwechsel_options if opt[0] == x),
-            key=f"cart_radwechsel_type_{item['id']}"
-        )
-        # Nur updaten wenn sich was geändert hat - OHNE Callbacks
-        if radwechsel_type != current_services.get('radwechsel_type', '4_raeder'):
-            st.session_state.cart_services[item['id']]['radwechsel_type'] = radwechsel_type
-    
+        # kein index/value -> Single Source: st.session_state['cart_radwechsel_type_<id>']
+        st.selectbox("Anzahl:", options=[k for k,_ in options],
+                     format_func=lambda x: next(lbl for k,lbl in options if k==x),
+                     key=f"cart_radwechsel_type_{item_id}",
+                     on_change=_update_radwechsel_type, args=(item_id,))
+
     # Einlagerung
-    einlagerung_selected = st.checkbox(
-        f"Einlagerung ({service_prices.get('nur_einlagerung', 55.00):.2f}EUR)",
-        value=current_services.get('einlagerung', False),
-        key=f"cart_einlagerung_{item['id']}"
-    )
-    # Nur updaten wenn sich was geändert hat - OHNE Callbacks
-    if einlagerung_selected != current_services.get('einlagerung', False):
-        st.session_state.cart_services[item['id']]['einlagerung'] = einlagerung_selected
+    st.checkbox(f"Einlagerung ({sp.get('nur_einlagerung',55.00):.2f}EUR)",
+                key=f"einlagerung_{item_id}",
+                on_change=_update_service, args=(item_id,'einlagerung'))
 
 def render_price_summary(total, breakdown):
-    """Rendert Preisübersicht"""
     st.markdown("---")
     st.markdown('<div class="total-box">', unsafe_allow_html=True)
     st.markdown("#### Preisübersicht")
-    
     col_breakdown, col_total = st.columns([2, 1])
-    
     with col_breakdown:
         st.markdown(f"**Reifen-Kosten:** {breakdown['reifen']:.2f}EUR")
-        
-        if breakdown['montage'] > 0:
-            st.markdown(f"**Montage:** {breakdown['montage']:.2f}EUR")
-        
-        if breakdown['radwechsel'] > 0:
-            st.markdown(f"**Radwechsel:** {breakdown['radwechsel']:.2f}EUR")
-        
-        if breakdown['einlagerung'] > 0:
-            st.markdown(f"**Einlagerung:** {breakdown['einlagerung']:.2f}EUR")
-    
+        if breakdown['montage']>0: st.markdown(f"**Montage:** {breakdown['montage']:.2f}EUR")
+        if breakdown['radwechsel']>0: st.markdown(f"**Radwechsel:** {breakdown['radwechsel']:.2f}EUR")
+        if breakdown['einlagerung']>0: st.markdown(f"**Einlagerung:** {breakdown['einlagerung']:.2f}EUR")
     with col_total:
         st.markdown(f"### **GESAMT: {total:.2f}EUR**")
-    
     st.markdown('</div>', unsafe_allow_html=True)
 
 def render_customer_data():
-    """Rendert Kundendaten-Eingabe OHNE problematische Callbacks"""
     st.markdown("---")
     st.markdown("#### Kundendaten (optional)")
     st.markdown("Diese Angaben werden in das Angebot aufgenommen, falls gewünscht:")
-    
-    col_kunde1, col_kunde2 = st.columns(2)
-    
-    with col_kunde1:
-        name_value = st.text_input(
-            "Kundenname:",
-            value=st.session_state.customer_data.get('name', ''),
-            placeholder="z.B. Max Mustermann",
-            key="customer_name"
-        )
-        # Nur updaten wenn sich was geändert hat - OHNE Callbacks
-        if name_value != st.session_state.customer_data.get('name', ''):
-            st.session_state.customer_data['name'] = name_value
-        
-        kennzeichen_value = st.text_input(
-            "Kennzeichen:",
-            value=st.session_state.customer_data.get('kennzeichen', ''),
-            placeholder="z.B. GP-AB 123",
-            key="customer_kennzeichen"
-        )
-        # Nur updaten wenn sich was geändert hat - OHNE Callbacks
-        if kennzeichen_value != st.session_state.customer_data.get('kennzeichen', ''):
-            st.session_state.customer_data['kennzeichen'] = kennzeichen_value
-    
-    with col_kunde2:
-        modell_value = st.text_input(
-            "Fahrzeugmodell:",
-            value=st.session_state.customer_data.get('modell', ''),
-            placeholder="z.B. BMW 3er E90",
-            key="customer_modell"
-        )
-        # Nur updaten wenn sich was geändert hat - OHNE Callbacks
-        if modell_value != st.session_state.customer_data.get('modell', ''):
-            st.session_state.customer_data['modell'] = modell_value
-        
-        fahrgestell_value = st.text_input(
-            "Fahrgestellnummer:",
-            value=st.session_state.customer_data.get('fahrgestellnummer', ''),
-            placeholder="z.B. WBAVA31070F123456",
-            key="customer_fahrgestell"
-        )
-        # Nur updaten wenn sich was geändert hat - OHNE Callbacks
-        if fahrgestell_value != st.session_state.customer_data.get('fahrgestellnummer', ''):
-            st.session_state.customer_data['fahrgestellnummer'] = fahrgestell_value
+
+    col1, col2 = st.columns(2)
+    with col1:
+        st.text_input("Kundenname:", key="customer_name", placeholder="z.B. Max Mustermann")
+        st.text_input("Kennzeichen:", key="customer_kennzeichen", placeholder="z.B. GP-AB 123")
+    with col2:
+        st.text_input("Fahrzeugmodell:", key="customer_modell", placeholder="z.B. BMW 3er E90")
+        st.text_input("Fahrgestellnummer:", key="customer_fahrgestell", placeholder="z.B. WBAVA31070F123456")
+
+    # Sync in dict (eine Quelle für Offer)
+    st.session_state.customer_data = {
+        'name': st.session_state.get('customer_name',''),
+        'kennzeichen': st.session_state.get('customer_kennzeichen',''),
+        'modell': st.session_state.get('customer_modell',''),
+        'fahrgestellnummer': st.session_state.get('customer_fahrgestell','')
+    }
 
 def render_scenario_selection():
-    """Rendert Szenario-Auswahl für Angebotserstellung mit Saison-Erkennung"""
     st.markdown("---")
     st.markdown("#### Angebot-Typ auswählen")
-    
-    # Automatische Saison-Erkennung
-    detected_season = detect_cart_season()
-    season_info = get_season_greeting_text(detected_season)
-    
-    # Saison-Info anzeigen
+
+    detected = detect_cart_season()
+    season_info = get_season_greeting_text(detected)
     season_display = {
-        "winter": "❄️ Winter-Reifen erkannt",
-        "sommer": "☀️ Sommer-Reifen erkannt", 
-        "ganzjahres": "🌍 Ganzjahres-Reifen erkannt",
-        "gemischt": "🔄 Verschiedene Reifen-Typen",
-        "neutral": "🔍 Reifen-Typ wird analysiert"
+        "winter":"❄️ Winter-Reifen erkannt",
+        "sommer":"☀️ Sommer-Reifen erkannt",
+        "ganzjahres":"🌍 Ganzjahres-Reifen erkannt",
+        "gemischt":"🔄 Verschiedene Reifen-Typen",
+        "neutral":"🔍 Reifen-Typ wird analysiert"
     }
-    
     st.markdown(f"""
     <div class="saison-info-box">
         <h4>🎯 Automatische Saison-Erkennung</h4>
-        <p><strong>{season_display.get(detected_season, "🔍 Analysiere Reifen...")}</strong></p>
+        <p><strong>{season_display.get(detected,'🔍 Analysiere Reifen...')}</strong></p>
         <p>Das Angebot wird automatisch an die erkannte Saison angepasst.</p>
     </div>
     """, unsafe_allow_html=True)
-    
+
     st.markdown("""
     <div class="scenario-box">
         <h4>Wie soll das Angebot erstellt werden?</h4>
         <p>Wähle das passende Szenario für deine Situation:</p>
     </div>
     """, unsafe_allow_html=True)
-    
-    # ERWEITERTE Szenario-Optionen - 3 STATT 2
-    scenario_options = [
-        ("vergleich", "Vergleichsangebot - Verschiedene Reifenoptionen zur Auswahl für ein Fahrzeug"),
-        ("separate", "Separate Fahrzeuge - Jede Position ist für ein anderes Fahrzeug"),
-        ("einzelangebot", "Einzelangebot - Spezifisches Angebot für die gewählten Reifen")
-    ]
-    
-    # Aktuellen Index finden
-    current_index = 0
-    for i, (key, _) in enumerate(scenario_options):
-        if key == st.session_state.offer_scenario:
-            current_index = i
-            break
-    
-    selected_scenario = st.radio(
+
+    # Single Source: key="offer_scenario"
+    st.radio(
         "Angebot-Szenario:",
-        options=[opt[0] for opt in scenario_options],
-        format_func=lambda x: next(opt[1] for opt in scenario_options if opt[0] == x),
-        index=current_index,
-        key="scenario_selection"
+        options=["vergleich","separate","einzelangebot"],
+        format_func=lambda x: {
+            "vergleich":"Vergleichsangebot - Verschiedene Reifenoptionen zur Auswahl für ein Fahrzeug",
+            "separate":"Separate Fahrzeuge - Jede Position ist für ein anderes Fahrzeug",
+            "einzelangebot":"Einzelangebot - Spezifisches Angebot für die gewählten Reifen"
+        }[x],
+        key="offer_scenario"
     )
-    
-    # Nur updaten wenn sich was geändert hat - OHNE Callbacks
-    if selected_scenario != st.session_state.offer_scenario:
-        st.session_state.offer_scenario = selected_scenario
-    
-    # Erklärung je nach Szenario
-    if selected_scenario == "vergleich":
+
+    # Info-Box je nach Auswahl
+    if st.session_state.offer_scenario == "vergleich":
         st.markdown(f"""
         <div class="info-box">
             <strong>Vergleichsangebot:</strong> Der Kunde bekommt mehrere {season_info['season_name']}-Reifenoptionen 
             zur Auswahl präsentiert und kann sich für eine davon entscheiden.
         </div>
         """, unsafe_allow_html=True)
-    elif selected_scenario == "separate":
+    elif st.session_state.offer_scenario == "separate":
         st.markdown(f"""
         <div class="info-box">
             <strong>Separate Fahrzeuge:</strong> Jede Position wird als separates Fahrzeug 
             behandelt mit eigenständiger {season_info['season_name']}-Reifen-Berechnung.
         </div>
         """, unsafe_allow_html=True)
-    else:  # einzelangebot
+    else:
         st.markdown(f"""
         <div class="info-box">
             <strong>Einzelangebot:</strong> Direktes, spezifisches Angebot für die ausgewählten 
@@ -900,72 +637,48 @@ def render_scenario_selection():
         </div>
         """, unsafe_allow_html=True)
 
-def render_actions(total, breakdown):
-    """Rendert Export & Aktionen"""
+    return detected  # für spätere Nutzung
+
+def render_actions(total, breakdown, detected_season):
     st.markdown("---")
     st.markdown("#### Angebot erstellen")
-    
+
     col1, col2, col3, col4, col5 = st.columns(5)
-    
+
     with col1:
-        # Professionelles Angebot erstellen - MIT SAISON-ERKENNUNG
         if st.button("Angebot erstellen", use_container_width=True, type="primary"):
-            detected_season = detect_cart_season()
-            
-            professional_offer = create_professional_offer(
-                st.session_state.customer_data, 
+            offer = create_professional_offer(
+                st.session_state.customer_data,
                 st.session_state.offer_scenario,
-                detected_season  # NEUE Parameter
+                detected_season
             )
-            
-            # Angebot anzeigen
             st.markdown("---")
             st.markdown("### Ihr Angebot")
             st.markdown("*Das folgende Angebot können Sie kopieren und in Ihre E-Mail einfügen:*")
-            
-            # Text in breiter Text-Area
-            st.text_area(
-                "Angebot:",
-                value=professional_offer,
-                height=600,
-                max_chars=None,
-                label_visibility="collapsed"
-            )
-            
-            # Download-Option
-            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            st.text_area("Angebot:", value=offer, height=600, max_chars=None, label_visibility="collapsed")
+            ts = datetime.now().strftime("%Y%m%d_%H%M%S")
             season_info = get_season_greeting_text(detected_season)
-            filename = f"Angebot_Ramsperger_{season_info['season_name']}_{timestamp}.txt"
-            
-            st.download_button(
-                label="Angebot als Datei herunterladen",
-                data=professional_offer,
-                file_name=filename,
-                mime="text/plain"
-            )
-    
+            filename = f"Angebot_Ramsperger_{season_info['season_name']}_{ts}.txt"
+            st.download_button("Angebot als Datei herunterladen", data=offer, file_name=filename, mime="text/plain")
+
     with col2:
-        # Warenkorb leeren
         if st.button("Warenkorb leeren", use_container_width=True, type="secondary"):
             clear_cart()
             st.success("Warenkorb geleert!")
             st.rerun()
-    
+
     with col3:
-        # Zurück zur Suche
         if st.button("Weitere Reifen", use_container_width=True):
             st.switch_page("pages/01_Reifen_Suche.py")
-    
+
     with col4:
-        # Service-Preise bearbeiten (für Admins)
         if st.button("Service-Preise", use_container_width=True):
             st.switch_page("pages/03_Reifen_Verwaltung.py")
-    
+
     with col5:
-        # Bestände reduzieren
         if st.button("Reifen ausbuchen", use_container_width=True, type="primary"):
             if st.session_state.cart_items:
-                # Hier würde in der echten App die Bestandsreduktion erfolgen
+                # hier würde real die Bestandsreduktion passieren
                 st.success("Reifen erfolgreich ausgebucht!")
                 clear_cart()
                 st.rerun()
@@ -973,39 +686,28 @@ def render_actions(total, breakdown):
                 st.warning("Warenkorb ist leer!")
 
 # ================================================================================================
-# MAIN FUNCTION
+# MAIN
 # ================================================================================================
 def main():
     init_session_state()
-    
-    # Header
+
     st.markdown("""
     <div class="main-header">
         <h1>Warenkorb & Angebotserstellung</h1>
         <p>Erstelle professionelle Angebote mit automatischer Saison-Erkennung</p>
     </div>
     """, unsafe_allow_html=True)
-    
-    # Warenkorb leer?
+
     if not st.session_state.cart_items:
         render_empty_cart()
         return
-    
-    # Warenkorb Inhalt mit verbesserten Position-Preisen
+
     render_cart_content()
-    
-    # Preisberechnung
     total, breakdown = get_cart_total()
     render_price_summary(total, breakdown)
-    
-    # Kundendaten
     render_customer_data()
-    
-    # Szenario-Auswahl für Angebotserstellung - MIT SAISON-ERKENNUNG
-    render_scenario_selection()
-    
-    # Export & Aktionen
-    render_actions(total, breakdown)
+    detected = render_scenario_selection()
+    render_actions(total, breakdown, detected)
 
 if __name__ == "__main__":
     main()
