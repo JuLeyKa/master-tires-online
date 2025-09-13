@@ -316,25 +316,19 @@ def get_cart_total():
 # ================================================================================================
 # PDF GENERATION (SCHÖN & PROFESSIONELL)
 # ================================================================================================
-
-# --- Layout-Helfer ---
 def format_eur(value: float) -> str:
-    # Deutsches Zahlenformat 1.234,56 €
     s = f"{value:,.2f}"
     s = s.replace(",", "X").replace(".", ",").replace("X", ".")
     return f"{s} €"
 
 def _header_footer(canvas, doc):
-    # Kopfzeile
     canvas.saveState()
     width, height = A4
     margin = 2 * cm
 
-    # Linie oben
     canvas.setFillColor(colors.HexColor("#0ea5e9"))
     canvas.rect(margin, height - margin + 6, width - 2*margin, 2, fill=1, stroke=0)
 
-    # Firmenname + Claim rechts
     canvas.setFont("Helvetica-Bold", 11)
     canvas.setFillColor(colors.HexColor("#1e293b"))
     canvas.drawRightString(width - margin, height - margin + 14, "AUTOHAUS RAMSPERGER")
@@ -342,21 +336,17 @@ def _header_footer(canvas, doc):
     canvas.setFillColor(colors.HexColor("#64748b"))
     canvas.drawRightString(width - margin, height - margin - 2, "Reifen • Service • Einlagerung")
 
-    # Fußzeile mit Linie
     canvas.setFillColor(colors.HexColor("#e2e8f0"))
     canvas.rect(margin, margin - 8, width - 2*margin, 1, fill=1, stroke=0)
 
     canvas.setFont("Helvetica", 8)
     canvas.setFillColor(colors.HexColor("#64748b"))
-    # Firmeninfos & Seite
     left_text = "Autohaus Ramsperger • Musterstraße 1 • 73033 Göppingen • Tel. 07161 00000 • service@ramsperger.de"
     canvas.drawString(margin, margin - 18, left_text)
     canvas.drawRightString(width - margin, margin - 18, f"Seite {doc.page}")
-
     canvas.restoreState()
 
 def create_professional_pdf(customer_data=None, offer_scenario="vergleich", detected_season="neutral"):
-    """Erstellt eine professionelle PDF-Angebotsdatei (ohne Bilder, cleanes Layout)."""
     if not st.session_state.cart_items:
         return None
 
@@ -373,7 +363,6 @@ def create_professional_pdf(customer_data=None, offer_scenario="vergleich", dete
         bottomMargin=25*mm
     )
 
-    # Styles
     styles = getSampleStyleSheet()
     h1 = ParagraphStyle('H1', parent=styles['Heading1'],
                         fontSize=20, leading=24, spaceAfter=12,
@@ -390,7 +379,6 @@ def create_professional_pdf(customer_data=None, offer_scenario="vergleich", dete
 
     story = []
 
-    # Titel & Meta
     date_str = datetime.now().strftime('%d.%m.%Y')
     offer_number = f"RRS-{datetime.now().strftime('%Y%m%d')}-{len(st.session_state.cart_items):03d}"
 
@@ -410,7 +398,6 @@ def create_professional_pdf(customer_data=None, offer_scenario="vergleich", dete
     story.append(meta_tbl)
     story.append(Spacer(1, 6))
 
-    # Kundendaten (optional)
     if customer_data and any(customer_data.values()):
         cust_rows = []
         if customer_data.get('name'): cust_rows.append(["Kunde:", customer_data['name']])
@@ -432,7 +419,6 @@ def create_professional_pdf(customer_data=None, offer_scenario="vergleich", dete
             story.append(cust_tbl)
             story.append(Spacer(1, 8))
 
-    # Intro
     intro_text = (
         f"Sehr geehrte Damen und Herren,<br/>"
         f"{season_info['greeting']} {season_info['transition']} "
@@ -441,7 +427,6 @@ def create_professional_pdf(customer_data=None, offer_scenario="vergleich", dete
     story.append(Paragraph(intro_text, normal))
     story.append(Spacer(1, 12))
 
-    # Angebots-Header je Szenario
     scenario_headers = {
         "vergleich": "Ihre Reifenoptionen zur Auswahl",
         "separate": "Angebot für Ihre Fahrzeuge",
@@ -450,7 +435,6 @@ def create_professional_pdf(customer_data=None, offer_scenario="vergleich", dete
     story.append(Paragraph(scenario_headers.get(offer_scenario, "Ihr Reifenangebot"), h2))
     story.append(Spacer(1, 4))
 
-    # Reifentabelle
     table_data = [['Pos.', 'Reifengröße', 'Marke', 'Profil', 'Stück', 'Einzelpreis', 'Services', 'Gesamtpreis']]
     for i, item in enumerate(st.session_state.cart_items, 1):
         reifen_kosten, service_kosten, position_total = calculate_position_total(item)
@@ -481,19 +465,17 @@ def create_professional_pdf(customer_data=None, offer_scenario="vergleich", dete
     col_widths = [1.1*cm, 3.2*cm, 2.6*cm, 4.2*cm, 1.6*cm, 2.8*cm, 3.4*cm, 3.0*cm]
     reifen_table = Table(table_data, colWidths=col_widths, repeatRows=1)
     reifen_table.setStyle(TableStyle([
-        # Header
         ('BACKGROUND', (0,0), (-1,0), colors.HexColor('#0ea5e9')),
         ('TEXTCOLOR', (0,0), (-1,0), colors.white),
         ('FONTNAME', (0,0), (-1,0), 'Helvetica-Bold'),
         ('FONTSIZE', (0,0), (-1,0), 10),
         ('ALIGN', (0,0), (-1,0), 'CENTER'),
-        # Body
         ('FONTNAME', (0,1), (-1,-1), 'Helvetica'),
         ('FONTSIZE', (0,1), (-1,-1), 9.5),
-        ('ALIGN', (0,1), (0,-1), 'CENTER'),     # Pos
-        ('ALIGN', (4,1), (4,-1), 'CENTER'),     # Stück
-        ('ALIGN', (5,1), (5,-1), 'RIGHT'),      # Einzelpreis
-        ('ALIGN', (7,1), (7,-1), 'RIGHT'),      # Gesamt
+        ('ALIGN', (0,1), (0,-1), 'CENTER'),
+        ('ALIGN', (4,1), (4,-1), 'CENTER'),
+        ('ALIGN', (5,1), (5,-1), 'RIGHT'),
+        ('ALIGN', (7,1), (7,-1), 'RIGHT'),
         ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
         ('ROWBACKGROUNDS', (0,1), (-1,-1), [colors.white, colors.HexColor('#f8fafc')]),
         ('GRID', (0,0), (-1,-1), 0.4, colors.HexColor('#e2e8f0')),
@@ -505,7 +487,6 @@ def create_professional_pdf(customer_data=None, offer_scenario="vergleich", dete
     story.append(KeepTogether(reifen_table))
     story.append(Spacer(1, 10))
 
-    # Kostenbox
     story.append(Paragraph("Kostenaufstellung", h2))
     cost_rows = [['Reifen-Kosten:', format_eur(breakdown['reifen'])]]
     if breakdown['montage'] > 0:
@@ -515,7 +496,6 @@ def create_professional_pdf(customer_data=None, offer_scenario="vergleich", dete
     if breakdown['einlagerung'] > 0:
         cost_rows.append(['Einlagerung:', format_eur(breakdown['einlagerung'])])
 
-    # Leerreihe und Gesamtsumme
     cost_rows.append(['', ''])
     cost_rows.append(['GESAMTSUMME:', format_eur(total)])
 
@@ -539,7 +519,6 @@ def create_professional_pdf(customer_data=None, offer_scenario="vergleich", dete
     story.append(KeepTogether(cost_tbl))
     story.append(Spacer(1, 10))
 
-    # Hinweise
     bullets = []
     if detected_season == "winter":
         bullets.append("Wir empfehlen den rechtzeitigen Wechsel auf Winterreifen für optimale Sicherheit bei winterlichen Bedingungen.")
@@ -556,13 +535,11 @@ def create_professional_pdf(customer_data=None, offer_scenario="vergleich", dete
         story.append(Paragraph(f"• {b}", normal))
     story.append(Spacer(1, 14))
 
-    # Signatur / CTA
     story.append(Paragraph("Vielen Dank für Ihr Vertrauen!", h2))
     story.append(Paragraph("Ihr Team vom Autohaus Ramsperger", normal))
     story.append(Spacer(1, 10))
     story.append(Paragraph("Hinweis: Dieses Angebot ist freibleibend. Verfügbarkeit abhängig vom Lagerbestand.", small))
 
-    # Build mit Header/Footer
     doc.build(story, onFirstPage=_header_footer, onLaterPages=_header_footer)
     buffer.seek(0)
     return buffer.getvalue()
@@ -573,22 +550,18 @@ def create_professional_pdf(customer_data=None, offer_scenario="vergleich", dete
 _EMAIL_REGEX = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 
 def _normalize_crlf(text: str) -> str:
-    """Outlook-Desktop erwartet CRLF. Konvertiert \n → \r\n sauber."""
     if text is None:
         return ""
-    # Erst vereinheitlichen, dann CRLF setzen
     text = text.replace("\r\n", "\n").replace("\r", "\n")
     return text.replace("\n", "\r\n")
 
 def _urlencode_mail_body(text: str) -> str:
-    """Percent-Encode für mailto/Gmail/OWA; CRLF bereits normalisiert übergeben!"""
     return urllib.parse.quote(text, safe="")
 
 def _valid_email(addr: str) -> bool:
     return bool(_EMAIL_REGEX.match(addr or ""))
 
 def create_email_text(customer_data=None, detected_season="neutral"):
-    """Kurzer, solider E-Mail-Text; passt in mailto-Limits."""
     season_info = get_season_greeting_text(detected_season)
     email_content = (
         "Sehr geehrte Damen und Herren,\n\n"
@@ -601,62 +574,42 @@ def create_email_text(customer_data=None, detected_season="neutral"):
     return email_content
 
 def create_mailto_link(customer_email, email_text, detected_season):
-    """Outlook-Desktop-sicherer mailto-Link (CRLF, striktes Encoding, nur reine Adresse)."""
     if not customer_email or not _valid_email(customer_email.strip()):
         return None
-
     season_info = get_season_greeting_text(detected_season)
     subject = f"Ihr Reifenangebot von Autohaus Ramsperger - {season_info['season_name']}-Reifen"
-
-    # CRLF für Outlook-Desktop
     body_crlf = _normalize_crlf(email_text)
-
     subject_encoded = urllib.parse.quote(subject, safe="")
     body_encoded = _urlencode_mail_body(body_crlf)
-
-    # Achtung: Empfänger im mailto NICHT encoden (Outlook mag %40 etc. teils nicht als To)
     to_addr = customer_email.strip()
     return f"mailto:{to_addr}?subject={subject_encoded}&body={body_encoded}"
 
 def create_outlook_web_link(customer_email, email_text, detected_season):
-    """Outlook Web App (OWA) Deeplink – robust bei längeren Texten."""
     if not customer_email or not _valid_email(customer_email.strip()):
         return None
-
     season_info = get_season_greeting_text(detected_season)
     subject = f"Ihr Reifenangebot von Autohaus Ramsperger - {season_info['season_name']}-Reifen"
     body_crlf = _normalize_crlf(email_text)
-
     params = {
         "to": customer_email.strip(),
         "subject": subject,
         "body": body_crlf
     }
-    # Alles encoden (inkl. '@' hier ok, da es eine echte HTTPS-URL ist)
     q = "&".join([f"{k}={urllib.parse.quote(v, safe='')}" for k, v in params.items()])
     return f"https://outlook.office.com/mail/deeplink/compose?{q}"
 
 def create_gmail_link(customer_email, email_text, detected_season):
-    """Gmail-Compose-Link im Browser."""
     if not customer_email or not _valid_email(customer_email.strip()):
         return None
-
     season_info = get_season_greeting_text(detected_season)
     subject = f"Ihr Reifenangebot von Autohaus Ramsperger - {season_info['season_name']}-Reifen"
     body_crlf = _normalize_crlf(email_text)
-
-    params = {
-        "view": "cm",
-        "to": customer_email.strip(),
-        "su": subject,
-        "body": body_crlf,
-        "fs": "1"
-    }
+    params = {"view":"cm","to":customer_email.strip(),"su":subject,"body":body_crlf,"fs":"1"}
     q = "&".join([f"{k}={urllib.parse.quote(v, safe='')}" for k, v in params.items()])
     return f"https://mail.google.com/mail/u/0/?{q}"
 
 # ================================================================================================
-# SESSION STATE INITIALISIERUNG (Single Source of Truth)
+# SESSION STATE INITIALISIERUNG
 # ================================================================================================
 def init_session_state():
     if 'customer_data' not in st.session_state:
@@ -772,18 +725,15 @@ def render_item_services(item):
 
     st.markdown("**Services:**")
 
-    # Montage (Preis abhängig vom Zoll)
     z = item['Zoll']
     montage_price = (sp.get('montage_bis_17',25.0) if z<=17 else sp.get('montage_18_19',30.0) if z<=19 else sp.get('montage_ab_20',40.0))
     montage_label = f"Montage ({montage_price:.2f}EUR/Stk)"
     st.checkbox(montage_label, key=f"montage_{item_id}",
                 on_change=_update_service, args=(item_id,'montage'))
 
-    # Radwechsel
     st.checkbox("Radwechsel", key=f"radwechsel_{item_id}",
                 on_change=_update_service, args=(item_id,'radwechsel'))
 
-    # Radwechsel-Optionen (nur wenn aktiv)
     if st.session_state.get(f"radwechsel_{item_id}", False):
         options = [
             ('4_raeder', f"4 Räder ({sp.get('radwechsel_4_raeder',39.90):.2f}EUR)"),
@@ -796,7 +746,6 @@ def render_item_services(item):
                      key=f"cart_radwechsel_type_{item_id}",
                      on_change=_update_radwechsel_type, args=(item_id,))
 
-    # Einlagerung
     st.checkbox(f"Einlagerung ({sp.get('nur_einlagerung',55.00):.2f}EUR)",
                 key=f"einlagerung_{item_id}",
                 on_change=_update_service, args=(item_id,'einlagerung'))
@@ -901,7 +850,6 @@ def render_scenario_selection():
     return detected
 
 def render_email_options(email_text, detected_season):
-    """E-Mail-Optionen: Outlook (Desktop, mailto), Outlook Web (OWA), Gmail."""
     customer_email = st.session_state.customer_data.get('email', '').strip()
     if not customer_email:
         st.warning("Bitte geben Sie eine E-Mail-Adresse bei den Kundendaten ein.")
@@ -918,32 +866,26 @@ def render_email_options(email_text, detected_season):
     </div>
     """, unsafe_allow_html=True)
 
+    mailto_link = create_mailto_link(customer_email, email_text, detected_season)
+    owa_link    = create_outlook_web_link(customer_email, email_text, detected_season)
+    gmail_link  = create_gmail_link(customer_email, email_text, detected_season)
+
     col1, col2, col3 = st.columns(3)
-
     with col1:
-        if st.button("📧 Outlook (Desktop)", use_container_width=True, type="secondary",
-                     help="Öffnet Ihren Standard-E-Mail-Client (z. B. Outlook Desktop)"):
-            mailto_link = create_mailto_link(customer_email, email_text, detected_season)
-            if mailto_link:
-                st.markdown(f'<a href="{mailto_link}" id="outlook-email-link" style="display:none;" target="_blank"></a>', unsafe_allow_html=True)
-                st.markdown("<script>document.getElementById('outlook-email-link').click();</script>", unsafe_allow_html=True)
-                st.success("Outlook (Desktop) wurde geöffnet. Bitte PDF anhängen und senden.")
-
+        if mailto_link:
+            st.link_button("📧 Outlook (Desktop)", mailto_link,
+                           use_container_width=True, type="secondary",
+                           help="Öffnet Ihren Standard-Mailclient (z. B. Outlook Desktop)")
     with col2:
-        if st.button("📧 Outlook Web (OWA)", use_container_width=True, type="secondary",
-                     help="Öffnet Outlook im Browser mit vorbereiteter E-Mail"):
-            owa_link = create_outlook_web_link(customer_email, email_text, detected_season)
-            if owa_link:
-                st.markdown(f'**[📧 Outlook Web öffnen – hier klicken]({owa_link})**', unsafe_allow_html=True)
-                st.info("Der Link öffnet Outlook Web mit der vorbereiteten E-Mail. Bitte PDF anhängen und senden.")
-
+        if owa_link:
+            st.link_button("📧 Outlook Web (OWA)", owa_link,
+                           use_container_width=True, type="secondary",
+                           help="Öffnet Outlook im Browser mit vorbereiteter E-Mail")
     with col3:
-        if st.button("📧 Gmail (Browser)", use_container_width=True, type="secondary",
-                     help="Öffnet Gmail.com direkt im Browser"):
-            gmail_link = create_gmail_link(customer_email, email_text, detected_season)
-            if gmail_link:
-                st.markdown(f'**[📧 Gmail öffnen – hier klicken]({gmail_link})**', unsafe_allow_html=True)
-                st.info("Der Link öffnet Gmail.com mit der vorbereiteten E-Mail. Bitte PDF anhängen und senden.")
+        if gmail_link:
+            st.link_button("📧 Gmail (Browser)", gmail_link,
+                           use_container_width=True, type="secondary",
+                           help="Öffnet Gmail.com mit vorbereiteter E-Mail")
 
     if st.button("❌ E-Mail-Optionen schließen", use_container_width=True):
         st.session_state.show_email_options = False
