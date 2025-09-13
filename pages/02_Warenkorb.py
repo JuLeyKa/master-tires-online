@@ -386,6 +386,7 @@ def create_professional_pdf(customer_data=None, offer_scenario="vergleich", dete
     for i, item in enumerate(st.session_state.cart_items, 1):
         reifen_kosten, service_kosten, position_total = calculate_position_total(item)
         quantity = st.session_state.cart_quantities.get(item['id'], 4)
+        service_prices = get_service_prices()
 
         # Services-Text
         item_services = st.session_state.cart_services.get(item['id'], {})
@@ -406,14 +407,14 @@ def create_professional_pdf(customer_data=None, offer_scenario="vergleich", dete
         if item.get('Geräuschemissionen'): eu_parts.append(f"Geräusch: {str(item['Geräuschemissionen']).strip()}")
         eu_label = " | ".join(eu_parts) if eu_parts else "EU-Label: –"
 
-        # Linke Spalte (Info)
+        # Linke Spalte (Info) - schmaler gemacht
         left = [
             [_p(f"<b>{item['Reifengröße']}</b> – <b>{item['Fabrikat']} {item['Profil']}</b>", cell)],
             [_p(f"Teilenummer: {item['Teilenummer']} · Einzelpreis: <b>{format_eur(item['Preis_EUR'])}</b>", cell)],
             [_p(f"{eu_label} · Saison: {item.get('Saison','Unbekannt')}", cell)]
         ]
 
-        left_tbl = Table(left, colWidths=[10.6*cm])
+        left_tbl = Table(left, colWidths=[8.6*cm])
         left_tbl.setStyle(TableStyle([
             ('FONTNAME',(0,0),(-1,-1),'Helvetica'),
             ('FONTSIZE',(0,0),(-1,-1),8.5),
