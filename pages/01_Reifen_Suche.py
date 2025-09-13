@@ -199,22 +199,24 @@ def is_tire_in_cart(tire_data):
     return any(item['id'] == tire_id for item in st.session_state.cart_items)
 
 def get_dynamic_tire_sizes(filtered_df, max_sizes=12):
-    """Erstellt dynamische Liste der häufigsten Reifengrößen aus gefilterten Daten"""
+    """Erstellt dynamische Liste von Reifengrößen aus gefilterten Daten, sortiert nach Größe"""
     if filtered_df.empty:
         return []
     
-    # Reifengrößen mit Häufigkeit
-    size_counts = filtered_df.groupby(['Breite', 'Hoehe', 'Zoll']).size().reset_index(name='count')
-    size_counts['size_str'] = (size_counts['Breite'].astype(str) + '/' + 
-                              size_counts['Hoehe'].astype(str) + ' R' + 
-                              size_counts['Zoll'].astype(str))
+    # Eindeutige Reifengrößen extrahieren
+    unique_sizes = filtered_df[['Breite', 'Hoehe', 'Zoll']].drop_duplicates()
     
-    # Nach Häufigkeit sortieren (häufigste zuerst)
-    size_counts = size_counts.sort_values('count', ascending=False)
+    # Nach Zoll, dann Breite, dann Höhe sortieren
+    unique_sizes = unique_sizes.sort_values(['Zoll', 'Breite', 'Hoehe'])
+    
+    # Reifengröße String erstellen
+    unique_sizes['size_str'] = (unique_sizes['Breite'].astype(str) + '/' + 
+                               unique_sizes['Hoehe'].astype(str) + ' R' + 
+                               unique_sizes['Zoll'].astype(str))
     
     # Begrenzen auf max_sizes, aber alle anzeigen wenn weniger verfügbar
-    num_sizes = min(max_sizes, len(size_counts))
-    top_sizes = size_counts.head(num_sizes)['size_str'].tolist()
+    num_sizes = min(max_sizes, len(unique_sizes))
+    top_sizes = unique_sizes.head(num_sizes)['size_str'].tolist()
     
     return top_sizes
 
@@ -726,7 +728,7 @@ def main():
         filtered_for_sizes = filtered_for_sizes[filtered_for_sizes["Zoll"] == int(zoll_filter)]
 
     # AUFKLAPPBARE REIFENGRÖSSEN MIT DYNAMISCHER LISTE
-    with st.expander("Gängige Reifengrößen (aus aktueller Auswahl)", expanded=False):
+    with st.expander("Gängige Reifengrößen", expanded=False):
         # Dynamische Reifengrößen basierend auf gefilterterten Daten
         dynamic_sizes = get_dynamic_tire_sizes(filtered_for_sizes, max_sizes=12)
         
