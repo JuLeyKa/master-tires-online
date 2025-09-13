@@ -110,71 +110,6 @@ MAIN_CSS = """
         box-shadow: var(--shadow-md);
     }
     
-    .navigation-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-        gap: 1rem;
-        align-items: center;
-    }
-    
-    .filter-item {
-        display: flex;
-        flex-direction: column;
-        gap: 0.25rem;
-    }
-    
-    .filter-item label {
-        font-weight: 500;
-        color: var(--text-primary);
-        font-size: 0.9rem;
-    }
-    
-    /* REIFENGROSSEN EXPANDER */
-    .reifengroessen-container {
-        background: var(--background-white);
-        border: 1px solid var(--border-color);
-        border-radius: var(--border-radius);
-        margin: 1rem 0;
-        box-shadow: var(--shadow-sm);
-    }
-    
-    .size-buttons-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-        gap: 0.5rem;
-        padding: 1rem;
-    }
-    
-    .size-btn {
-        background: linear-gradient(135deg, #f8fafc, #f1f5f9);
-        border: 2px solid var(--border-color);
-        padding: 0.75rem 1rem;
-        border-radius: var(--border-radius);
-        font-weight: 500;
-        font-family: 'Inter', sans-serif;
-        cursor: pointer;
-        transition: all 0.2s ease;
-        text-align: center;
-    }
-    
-    .size-btn:hover {
-        border-color: var(--primary-color);
-        background: linear-gradient(135deg, #f0f9ff, #e0f2fe);
-        transform: translateY(-1px);
-    }
-    
-    .size-btn.selected {
-        background: linear-gradient(135deg, var(--primary-color), var(--primary-dark));
-        color: white;
-        border-color: var(--primary-dark);
-    }
-    
-    .reset-button-container {
-        padding: 0 1rem 1rem 1rem;
-        border-top: 1px solid var(--border-color);
-        margin-top: 1rem;
-    }
-    
     [data-testid="metric-container"] {
         background: var(--background-white);
         border: 1px solid var(--border-color);
@@ -468,92 +403,7 @@ def init_session_state():
         st.session_state.cart_count = 0
 
 # ================================================================================================
-# NEUE RENDER FUNCTIONS
-# ================================================================================================
-def render_navigation_schnellauswahl(df):
-    """Rendert Navigation & Schnellauswahl mit 4 Elementen"""
-    st.markdown('<div class="navigation-container">', unsafe_allow_html=True)
-    
-    st.markdown("### Navigation & Schnellauswahl")
-    
-    col1, col2, col3, col4 = st.columns(4)
-    
-    with col1:
-        # Warenkorb Button
-        cart_count = st.session_state.cart_count
-        cart_text = f"Warenkorb ({cart_count})" if cart_count > 0 else "Warenkorb"
-        if st.button(cart_text, key="nav_cart", help="Zum Warenkorb wechseln", use_container_width=True, type="primary"):
-            st.switch_page("pages/02_Warenkorb.py")
-    
-    with col2:
-        # Saison-Typ Filter
-        saison_options = ["Alle", "Winter", "Sommer", "Ganzjahres"]
-        current_saison_index = saison_options.index(st.session_state.saison_filter)
-        
-        new_saison_filter = st.selectbox(
-            "Saison-Typ:",
-            options=saison_options,
-            index=current_saison_index,
-            help="Filtere nach Reifen-Saison basierend auf Teilenummer",
-            key="top_saison_filter"
-        )
-        st.session_state.saison_filter = new_saison_filter
-    
-    with col3:
-        # Zoll Filter
-        zoll_opt = ["Alle"] + sorted(df["Zoll"].unique().tolist())
-        current_zoll_index = zoll_opt.index(st.session_state.zoll_filter) if st.session_state.zoll_filter in zoll_opt else 0
-        
-        new_zoll_filter = st.selectbox(
-            "Zoll:",
-            options=zoll_opt,
-            index=current_zoll_index,
-            help="Filtere nach Zoll-Größe",
-            key="top_zoll_filter"
-        )
-        st.session_state.zoll_filter = new_zoll_filter
-    
-    with col4:
-        # Mit Bestand Checkbox
-        new_mit_bestand = st.checkbox(
-            "Mit Bestand",
-            value=st.session_state.mit_bestand_filter,
-            help="Nur Reifen mit positivem Lagerbestand anzeigen",
-            key="top_bestand_filter"
-        )
-        st.session_state.mit_bestand_filter = new_mit_bestand
-    
-    st.markdown('</div>', unsafe_allow_html=True)
-
-def render_reifengroessen_expander():
-    """Rendert aufklappbare Reifengrößen-Auswahl"""
-    with st.expander("Gängige Reifengrößen", expanded=False):
-        
-        top_sizes = [
-            "195/65 R15", "195/60 R16", "205/55 R16", "205/60 R16",
-            "205/65 R16", "215/55 R16", "215/60 R16", "215/65 R16",
-            "205/50 R17", "215/55 R17", "215/60 R17", "215/65 R17",
-        ]
-        
-        cols = st.columns(4)
-        for i, size in enumerate(top_sizes):
-            with cols[i % 4]:
-                button_type = "primary" if st.session_state.selected_size == size else "secondary"
-                if st.button(size, key=f"size_btn_{size}", use_container_width=True, type=button_type):
-                    st.session_state.selected_size = size
-                    st.rerun()
-        
-        # Schnellauswahl zurücksetzen Button - in separater Zeile
-        st.markdown("---")
-        col_reset1, col_reset2, col_reset3 = st.columns([1, 1, 1])
-        with col_reset2:
-            if st.button("Schnellauswahl zurücksetzen", key="reset_selection", help="Reifengrößen-Auswahl aufheben", use_container_width=True):
-                if st.session_state.selected_size:
-                    st.session_state.selected_size = None
-                    st.rerun()
-
-# ================================================================================================
-# RENDER FUNCTIONS - UNVERÄNDERT
+# RENDER FUNCTIONS
 # ================================================================================================
 def render_config_card(row, idx, filtered_df):
     """Rendert die Konfigurationskarte für einen Reifen"""
@@ -824,7 +674,7 @@ def render_legend(mit_bestand, saison_filter, zoll_filter):
             st.markdown(f"**Aktive Filter:** {' | '.join(filter_info)}")
 
 # ================================================================================================
-# MAIN FUNCTION - NEUE STRUKTUR OHNE STICKY
+# MAIN FUNCTION - KOMPLETT NEU OHNE STICKY
 # ================================================================================================
 def main():
     init_session_state()
@@ -843,11 +693,85 @@ def main():
         st.warning("Keine Reifen-Daten verfügbar. Bitte prüfe die CSV-Datei.")
         st.stop()
     
-    # NAVIGATION & SCHNELLAUSWAHL - NEUE 4-ELEMENT STRUKTUR MIT DIREKTEN RÜCKGABEWERTEN
-    saison_filter, zoll_filter, mit_bestand = render_navigation_schnellauswahl(df)
+    # NAVIGATION & SCHNELLAUSWAHL - DIREKTE WIDGET VALUES (FIX FÜR DOPPELKLICK)
+    st.markdown('<div class="navigation-container">', unsafe_allow_html=True)
+    st.markdown("### Navigation & Schnellauswahl")
+    
+    col1, col2, col3, col4 = st.columns(4)
+    
+    with col1:
+        # Warenkorb Button
+        cart_count = st.session_state.cart_count
+        cart_text = f"Warenkorb ({cart_count})" if cart_count > 0 else "Warenkorb"
+        if st.button(cart_text, key="nav_cart", help="Zum Warenkorb wechseln", use_container_width=True, type="primary"):
+            st.switch_page("pages/02_Warenkorb.py")
+    
+    with col2:
+        # Saison-Typ Filter - DIREKTER WIDGET WERT
+        saison_options = ["Alle", "Winter", "Sommer", "Ganzjahres"]
+        current_saison_index = saison_options.index(st.session_state.saison_filter) if st.session_state.saison_filter in saison_options else 0
+        
+        saison_filter = st.selectbox(
+            "Saison-Typ:",
+            options=saison_options,
+            index=current_saison_index,
+            help="Filtere nach Reifen-Saison basierend auf Teilenummer",
+            key="top_saison_filter"
+        )
+    
+    with col3:
+        # Zoll Filter - DIREKTER WIDGET WERT
+        zoll_opt = ["Alle"] + sorted(df["Zoll"].unique().tolist())
+        current_zoll_index = zoll_opt.index(st.session_state.zoll_filter) if st.session_state.zoll_filter in zoll_opt else 0
+        
+        zoll_filter = st.selectbox(
+            "Zoll:",
+            options=zoll_opt,
+            index=current_zoll_index,
+            help="Filtere nach Zoll-Größe",
+            key="top_zoll_filter"
+        )
+    
+    with col4:
+        # Mit Bestand Checkbox - DIREKTER WIDGET WERT
+        mit_bestand = st.checkbox(
+            "Mit Bestand",
+            value=st.session_state.mit_bestand_filter,
+            help="Nur Reifen mit positivem Lagerbestand anzeigen",
+            key="top_bestand_filter"
+        )
+    
+    st.markdown('</div>', unsafe_allow_html=True)
+    
+    # Session State für nächste Aufrufe aktualisieren
+    st.session_state.saison_filter = saison_filter
+    st.session_state.zoll_filter = zoll_filter
+    st.session_state.mit_bestand_filter = mit_bestand
     
     # AUFKLAPPBARE REIFENGRÖSSEN MIT RESET BUTTON
-    render_reifengroessen_expander()
+    with st.expander("Gängige Reifengrößen", expanded=False):
+        top_sizes = [
+            "195/65 R15", "195/60 R16", "205/55 R16", "205/60 R16",
+            "205/65 R16", "215/55 R16", "215/60 R16", "215/65 R16",
+            "205/50 R17", "215/55 R17", "215/60 R17", "215/65 R17",
+        ]
+        
+        cols = st.columns(4)
+        for i, size in enumerate(top_sizes):
+            with cols[i % 4]:
+                button_type = "primary" if st.session_state.selected_size == size else "secondary"
+                if st.button(size, key=f"size_btn_{size}", use_container_width=True, type=button_type):
+                    st.session_state.selected_size = size
+                    st.rerun()
+        
+        # Schnellauswahl zurücksetzen Button - in separater Zeile
+        st.markdown("---")
+        col_reset1, col_reset2, col_reset3 = st.columns([1, 1, 1])
+        with col_reset2:
+            if st.button("Schnellauswahl zurücksetzen", key="reset_selection", help="Reifengrößen-Auswahl aufheben", use_container_width=True):
+                if st.session_state.selected_size:
+                    st.session_state.selected_size = None
+                    st.rerun()
     
     # Sidebar Filter - REDUZIERT (ohne Saison, Zoll, Mit Bestand)
     with st.sidebar:
@@ -888,10 +812,8 @@ def main():
         # Statistiken
         show_stats = st.checkbox("Statistiken anzeigen", value=False)
     
-    # Filter anwenden
+    # Filter anwenden - MIT DIREKTEN WIDGET WERTEN
     filtered = df.copy()
-    
-    # Filter aus der oberen Navigation - DIREKTE WERTE STATT SESSION STATE
     
     # Bestandsfilter
     if mit_bestand:
