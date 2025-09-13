@@ -843,8 +843,8 @@ def main():
         st.warning("Keine Reifen-Daten verfügbar. Bitte prüfe die CSV-Datei.")
         st.stop()
     
-    # NAVIGATION & SCHNELLAUSWAHL - NEUE 4-ELEMENT STRUKTUR
-    render_navigation_schnellauswahl(df)
+    # NAVIGATION & SCHNELLAUSWAHL - NEUE 4-ELEMENT STRUKTUR MIT DIREKTEN RÜCKGABEWERTEN
+    saison_filter, zoll_filter, mit_bestand = render_navigation_schnellauswahl(df)
     
     # AUFKLAPPBARE REIFENGRÖSSEN MIT RESET BUTTON
     render_reifengroessen_expander()
@@ -891,10 +891,7 @@ def main():
     # Filter anwenden
     filtered = df.copy()
     
-    # Filter aus der oberen Navigation
-    mit_bestand = st.session_state.mit_bestand_filter
-    saison_filter = st.session_state.saison_filter
-    zoll_filter = st.session_state.zoll_filter
+    # Filter aus der oberen Navigation - DIREKTE WERTE STATT SESSION STATE
     
     # Bestandsfilter
     if mit_bestand:
