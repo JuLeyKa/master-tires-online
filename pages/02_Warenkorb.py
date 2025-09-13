@@ -124,6 +124,28 @@ def get_service_prices():
         prices[row['service_name']] = row['price']
     return prices
 
+# ================================================================================================
+# PERSONALISIERTE ANREDE FUNKTIONEN
+# ================================================================================================
+def create_personalized_salutation(customer_data=None):
+    """Erstellt personalisierte Anrede basierend auf Anrede und Name"""
+    if not customer_data:
+        return "Sehr geehrte Damen und Herren"
+    
+    anrede = customer_data.get('anrede', '').strip()
+    name = customer_data.get('name', '').strip()
+    
+    if anrede and name:
+        if anrede == "Herr":
+            return f"Sehr geehrter Herr {name}"
+        elif anrede == "Frau":
+            return f"Sehr geehrte Frau {name}"
+        elif anrede == "Firma":
+            return "Sehr geehrte Damen und Herren"
+    
+    # Fallback für leere Anrede oder fehlenden Namen
+    return "Sehr geehrte Damen und Herren"
+
 # ---------------------- Saison-Erkennung ----------------------
 def detect_cart_season():
     if not st.session_state.cart_items:
@@ -322,7 +344,9 @@ def create_professional_pdf(customer_data=None, offer_scenario="vergleich", dete
     # Kundendaten (ohne Überschrift; nur vorhandene Felder)
     cust_lines = []
     if customer_data:
-        if customer_data.get('name'):
+        if customer_data.get('anrede') and customer_data.get('name'):
+            cust_lines.append(f"<b>Kunde:</b> {customer_data['anrede']} {customer_data['name']}")
+        elif customer_data.get('name'):
             cust_lines.append(f"<b>Name:</b> {customer_data['name']}")
         if customer_data.get('email'):
             cust_lines.append(f"<b>E-Mail:</b> {customer_data['email']}")
@@ -341,9 +365,10 @@ def create_professional_pdf(customer_data=None, offer_scenario="vergleich", dete
             story.append(_p(line, normal))
         story.append(Spacer(1, 8))
 
-    # Einleitung
+    # Einleitung mit personalisierter Anrede
+    personal_salutation = create_personalized_salutation(customer_data)
     intro_text = (
-        f"Sehr geehrte Damen und Herren,<br/>"
+        f"{personal_salutation},<br/>"
         f"{season_info['greeting']} {season_info['transition']} "
         f"Nachfolgend erhalten Sie Ihr individuelles Angebot."
     )
@@ -528,8 +553,10 @@ def _valid_email(addr: str) -> bool:
 
 def create_email_text(customer_data=None, detected_season="neutral"):
     season_info = get_season_greeting_text(detected_season)
+    personal_salutation = create_personalized_salutation(customer_data)
+    
     email_content = (
-        "Sehr geehrte Damen und Herren,\r\n\r\n"
+        f"{personal_salutation},\r\n\r\n"
         f"anbei sende ich Ihnen Ihr Reifenangebot für {season_info['season_name']}-Reifen.\r\n\r\n"
         "Alle Details finden Sie im angehängten PDF-Dokument.\r\n\r\n"
         "Bei Fragen stehen wir Ihnen gerne zur Verfügung.\r\n\r\n"
@@ -627,7 +654,7 @@ def create_td_mailto_link(td_email_text):
 # ================================================================================================
 def init_session_state():
     if 'customer_data' not in st.session_state:
-        st.session_state.customer_data = {'name':'','email':'','kennzeichen':'','modell':'','fahrgestellnummer':''}
+        st.session_state.customer_data = {'anrede':'','name':'','email':'','kennzeichen':'','modell':'','fahrgestellnummer':''}
 
     if 'cart_items' not in st.session_state: st.session_state.cart_items = []
     if 'cart_quantities' not in st.session_state: st.session_state.cart_quantities = {}
@@ -644,6 +671,7 @@ def init_session_state():
     if 'pdf_created' not in st.session_state:
         st.session_state.pdf_created = False
 
+    st.session_state.setdefault('customer_anrede', st.session_state.customer_data.get('anrede',''))
     st.session_state.setdefault('customer_name', st.session_state.customer_data.get('name',''))
     st.session_state.setdefault('customer_email', st.session_state.customer_data.get('email',''))
     st.session_state.setdefault('customer_kennzeichen', st.session_state.customer_data.get('kennzeichen',''))
@@ -784,6 +812,14 @@ def render_customer_data():
     st.markdown("#### Kundendaten (optional)")
     st.markdown("Diese Angaben werden in das Angebot aufgenommen, falls gewünscht:")
 
+    # Anrede-Dropdown prominent platziert - ganze Breite
+    anrede_options = ["", "Herr", "Frau", "Firma"]
+    st.selectbox("Anrede:", 
+                 options=anrede_options, 
+                 key="customer_anrede", 
+                 help="Für personalisierte Ansprache in Angeboten und E-Mails")
+
+    # Rest der Kundendaten in zwei Spalten
     col1, col2 = st.columns(2)
     with col1:
         st.text_input("Kundenname:", key="customer_name", placeholder="z.B. Max Mustermann")
@@ -793,7 +829,9 @@ def render_customer_data():
         st.text_input("Fahrzeugmodell:", key="customer_modell", placeholder="z.B. BMW 3er E90")
         st.text_input("Fahrgestellnummer:", key="customer_fahrgestell", placeholder="z.B. WBAVA31070F123456")
 
+    # Session State Update
     st.session_state.customer_data = {
+        'anrede': st.session_state.get('customer_anrede',''),
         'name': st.session_state.get('customer_name',''),
         'email': st.session_state.get('customer_email',''),
         'kennzeichen': st.session_state.get('customer_kennzeichen',''),
