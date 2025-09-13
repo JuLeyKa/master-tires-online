@@ -563,19 +563,17 @@ def create_email_text(customer_data=None, detected_season="neutral"):
     """Erstellt verkürzten E-Mail-Text mit Verweis auf PDF-Anhang"""
     season_info = get_season_greeting_text(detected_season)
     
+    # SEHR kurzer Text für mailto: Limits
     email_content = f"""Sehr geehrte Damen und Herren,
 
-{season_info["greeting"]}
-{season_info["transition"]}
+anbei sende ich Ihnen Ihr Reifenangebot für {season_info["season_name"]}-Reifen.
 
-Gerne sende ich Ihnen anbei Ihr persönliches Reifenangebot von Autohaus Ramsperger.
+Alle Details finden Sie im angehängten PDF-Dokument.
 
-Das detaillierte Angebot mit allen Reifenspezifikationen, Preisberechnungen und Service-Leistungen finden Sie im angehängten PDF-Dokument.
-
-Bei Fragen oder für die Terminvereinbarung stehen wir Ihnen gerne zur Verfügung.
+Bei Fragen stehen wir gerne zur Verfügung.
 
 Mit freundlichen Grüßen
-Ihr Team vom Autohaus Ramsperger"""
+Autohaus Ramsperger"""
 
     return email_content
 
