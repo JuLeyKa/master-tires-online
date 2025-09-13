@@ -271,51 +271,23 @@ def remove_tire(teilenummer):
     return False
 
 # ================================================================================================
-# EXPORT FUNKTIONEN
+# EXPORT FUNKTIONEN - ANGEPASST AN REIFEN VERWALTUNG
 # ================================================================================================
 def create_download_csv(df):
-    """Erstellt CSV für Download"""
-    df_download = df.copy()
-    
-    # Spalten-Mapping für bessere Lesbarkeit
-    column_mapping = {
-        'Breite': 'Breite', 'Hoehe': 'Höhe', 'Zoll': 'Zoll', 'Loadindex': 'Tragkraft',
-        'Speedindex': 'Geschw.', 'Fabrikat': 'Hersteller', 'Profil': 'Profil',
-        'Teilenummer': 'Teilenummer', 'Preis_EUR': 'Preis (EUR)', 'Bestand': 'Bestand',
-        'Kraftstoffeffizienz': 'Kraftstoff', 'Nasshaftung': 'Nasshaftung', 
-        'Geräuschklasse': 'Lärm (dB)'
-    }
-    
-    df_download = df_download.rename(columns=column_mapping)
-    
-    # Formatierung
-    if 'Preis (EUR)' in df_download.columns:
-        df_download['Preis (EUR)'] = df_download['Preis (EUR)'].apply(
-            lambda x: f"{x:.2f}".replace('.', ',') if pd.notnull(x) and x != '' else ''
-        )
-    
-    if 'Bestand' in df_download.columns:
-        df_download['Bestand'] = df_download['Bestand'].fillna('').apply(
-            lambda x: str(int(x)) if pd.notnull(x) and x != '' else ''
-        )
-    
-    if 'Lärm (dB)' in df_download.columns:
-        df_download['Lärm (dB)'] = df_download['Lärm (dB)'].fillna('').apply(
-            lambda x: str(int(x)) if pd.notnull(x) and x != '' else ''
-        )
-    
-    # Relevante Spalten
-    export_columns = ['Breite', 'Höhe', 'Zoll', 'Tragkraft', 'Geschw.', 'Hersteller', 
-                     'Profil', 'Teilenummer', 'Preis (EUR)', 'Bestand', 'Kraftstoff', 
-                     'Nasshaftung', 'Lärm (dB)']
-    available_columns = [col for col in export_columns if col in df_download.columns]
-    df_download = df_download[available_columns]
-    df_download = df_download.fillna('')
-    
-    # CSV erstellen
-    csv_buffer = io.StringIO()
-    df_download.to_csv(csv_buffer, index=False, encoding='utf-8', sep=';', decimal=',')
-    return csv_buffer.getvalue()
+    """Erstellt CSV für Download - vereinfacht wie create_github_export aus Reifen Verwaltung"""
+    try:
+        if df.empty:
+            return None
+        
+        # CSV erstellen ohne Transformationen - genau wie in Reifen Verwaltung
+        csv_buffer = io.StringIO()
+        df.to_csv(csv_buffer, index=False, encoding='utf-8')
+        
+        return csv_buffer.getvalue()
+        
+    except Exception as e:
+        st.error(f"Fehler beim Erstellen des CSV-Exports: {e}")
+        return None
 
 def create_download_excel(df):
     """Erstellt Excel für Download"""
@@ -750,7 +722,7 @@ def render_single_tire_editor(df):
                 st.error("Fehler beim Löschen!")
 
 def render_export_functions(df, filtered_df):
-    """Rendert Export-Funktionen"""
+    """Rendert Export-Funktionen - angepasste Button-Texte"""
     st.markdown("---")
     st.markdown("### 📁 Export-Funktionen")
     
@@ -759,16 +731,17 @@ def render_export_functions(df, filtered_df):
     with col1:
         if len(filtered_df) > 0:
             csv_data = create_download_csv(filtered_df)
-            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            filename = f"Ramsperger_Gefilterte_DB_{timestamp}.csv"
-            
-            st.download_button(
-                label="Gefilterte DB als CSV",
-                data=csv_data,
-                file_name=filename,
-                mime="text/csv",
-                help="Gefilterte Datenbank als CSV herunterladen"
-            )
+            if csv_data:
+                timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                filename = f"Ramsperger_Gefilterte_DB_{timestamp}.csv"
+                
+                st.download_button(
+                    label="Gefilterte DB als CSV",
+                    data=csv_data,
+                    file_name=filename,
+                    mime="text/csv",
+                    help="Gefilterte Datenbank als CSV herunterladen"
+                )
     
     with col2:
         if len(filtered_df) > 0:
@@ -788,14 +761,14 @@ def render_export_functions(df, filtered_df):
     with col3:
         if len(df) > 0:
             csv_data = create_download_csv(df)
-            
-            st.download_button(
-                label="Komplette DB als CSV",
-                data=csv_data,
-                file_name="Ramsperger_Winterreifen_20250826_160010.csv",
-                mime="text/csv",
-                help="Komplette Datenbank als CSV herunterladen"
-            )
+            if csv_data:
+                st.download_button(
+                    label="Master-DB herunterladen",
+                    data=csv_data,
+                    file_name="Ramsperger_Winterreifen_20250826_160010.csv",
+                    mime="text/csv",
+                    help="Master-Datenbank herunterladen"
+                )
 
 # ================================================================================================
 # MAIN FUNCTION
