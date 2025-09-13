@@ -252,7 +252,7 @@ def get_cart_total():
     return total, breakdown
 
 # ================================================================================================
-# PDF GENERATION (B/W modern, einzige Farbe: Grün in Gesamtsumme)
+# PDF GENERATION (Kompakt optimiert)
 # ================================================================================================
 def format_eur(value: float) -> str:
     s = f"{value:,.2f}"
@@ -304,17 +304,17 @@ def create_professional_pdf(customer_data=None, offer_scenario="vergleich", dete
         bottomMargin=25*mm
     )
 
-    # Styles (B/W)
+    # Styles (kompakt)
     styles = getSampleStyleSheet()
     h1 = ParagraphStyle('H1', parent=styles['Heading1'], fontName="Helvetica-Bold",
-                        fontSize=20, leading=24, spaceAfter=10, textColor=colors.black, alignment=TA_LEFT)
+                        fontSize=16, leading=18, spaceAfter=4, textColor=colors.black, alignment=TA_LEFT)
     h2 = ParagraphStyle('H2', parent=styles['Heading2'], fontName="Helvetica-Bold",
-                        fontSize=13.5, leading=18, spaceAfter=6, textColor=colors.black, alignment=TA_LEFT)
+                        fontSize=11, leading=13, spaceAfter=2, textColor=colors.black, alignment=TA_LEFT)
     normal = ParagraphStyle('NormalPlus', parent=styles['Normal'], fontName="Helvetica",
-                            fontSize=10.5, leading=14, textColor=colors.black)
+                            fontSize=9.5, leading=12, textColor=colors.black)
     small = ParagraphStyle('Small', parent=styles['Normal'], fontName="Helvetica",
-                           fontSize=9, leading=12, textColor=colors.black)
-    cell = ParagraphStyle('cell', parent=normal, fontSize=9.6, leading=13)
+                           fontSize=8.5, leading=10, textColor=colors.black)
+    cell = ParagraphStyle('cell', parent=normal, fontSize=8.5, leading=11)
     cell_c = ParagraphStyle('cellc', parent=cell, alignment=TA_CENTER)
     cell_r = ParagraphStyle('cellr', parent=cell, alignment=TA_RIGHT)
 
@@ -322,39 +322,38 @@ def create_professional_pdf(customer_data=None, offer_scenario="vergleich", dete
 
     # Kopf
     date_str = datetime.now().strftime('%d.%m.%Y')
-    offer_number = f"RRS-{datetime.now().strftime('%Y%m%d')}-{len(st.session_state.cart_items):03d}"
 
     story.append(_p("Angebot Reifen & Service", h1))
 
+    # Metadaten ohne Angebotsnummer
     meta_tbl = Table([
-        ["Datum", date_str, "Angebotsnummer", offer_number],
-        ["Saison", season_info['season_name'], "", ""]
-    ], colWidths=[2.5*cm, 6.0*cm, 3.7*cm, 4.3*cm])
+        ["Datum", date_str],
+        ["Saison", season_info['season_name']]
+    ], colWidths=[2.5*cm, 6.0*cm])
     meta_tbl.setStyle(TableStyle([
         ('FONTNAME',(0,0),(-1,-1),'Helvetica'),
-        ('FONTSIZE',(0,0),(-1,-1),9.8),
+        ('FONTSIZE',(0,0),(-1,-1),9.5),
         ('TEXTCOLOR',(0,0),(-1,-1),colors.black),
-        ('BOTTOMPADDING',(0,0),(-1,-1),4),
+        ('BOTTOMPADDING',(0,0),(-1,-1),2),
         ('ALIGN',(0,0),(0,-1),'LEFT'),
-        ('ALIGN',(2,0),(2,0),'LEFT'),
     ]))
     story.append(meta_tbl)
-    story.append(Spacer(1, 4))
+    story.append(Spacer(1, 2))
 
-    # Kundendaten (ohne Überschrift; nur vorhandene Felder)
+    # Kundendaten ohne Labels
     cust_lines = []
     if customer_data:
         if customer_data.get('anrede') and customer_data.get('name'):
-            cust_lines.append(f"<b>Kunde:</b> {customer_data['anrede']} {customer_data['name']}")
+            cust_lines.append(f"{customer_data['anrede']} {customer_data['name']}")
         elif customer_data.get('name'):
-            cust_lines.append(f"<b>Name:</b> {customer_data['name']}")
+            cust_lines.append(f"{customer_data['name']}")
         if customer_data.get('email'):
-            cust_lines.append(f"<b>E-Mail:</b> {customer_data['email']}")
+            cust_lines.append(f"{customer_data['email']}")
         if customer_data.get('kennzeichen'):
-            cust_lines.append(f"<b>Kennzeichen:</b> {customer_data['kennzeichen']}")
+            cust_lines.append(f"{customer_data['kennzeichen']}")
         extra = []
         if customer_data.get('modell'):
-            extra.append(f"Fahrzeug: {customer_data['modell']}")
+            extra.append(f"{customer_data['modell']}")
         if customer_data.get('fahrgestellnummer'):
             extra.append(f"FIN: {customer_data['fahrgestellnummer']}")
         if extra:
@@ -363,7 +362,7 @@ def create_professional_pdf(customer_data=None, offer_scenario="vergleich", dete
     if cust_lines:
         for line in cust_lines:
             story.append(_p(line, normal))
-        story.append(Spacer(1, 8))
+        story.append(Spacer(1, 3))
 
     # Einleitung mit personalisierter Anrede
     personal_salutation = create_personalized_salutation(customer_data)
@@ -373,16 +372,16 @@ def create_professional_pdf(customer_data=None, offer_scenario="vergleich", dete
         f"Nachfolgend erhalten Sie Ihr individuelles Angebot."
     )
     story.append(_p(intro_text, normal))
-    story.append(Spacer(1, 10))
+    story.append(Spacer(1, 4))
 
-    # Positionsdarstellung wie im Warenkorb: Card-Layout (B/W)
+    # Positionsdarstellung ohne "Position X" Titel
     section_title = {
         "vergleich": "Ihr individuelles Reifenangebot",
         "separate": "Angebot für Ihre Fahrzeuge",
         "einzelangebot": "Ihr individuelles Reifenangebot"
     }.get(offer_scenario, "Ihr Reifenangebot")
     story.append(_p(section_title, h2))
-    story.append(Spacer(1, 4))
+    story.append(Spacer(1, 2))
 
     for i, item in enumerate(st.session_state.cart_items, 1):
         reifen_kosten, service_kosten, position_total = calculate_position_total(item)
@@ -417,10 +416,10 @@ def create_professional_pdf(customer_data=None, offer_scenario="vergleich", dete
         left_tbl = Table(left, colWidths=[10.6*cm])
         left_tbl.setStyle(TableStyle([
             ('FONTNAME',(0,0),(-1,-1),'Helvetica'),
-            ('FONTSIZE',(0,0),(-1,-1),9.6),
+            ('FONTSIZE',(0,0),(-1,-1),8.5),
             ('TEXTCOLOR',(0,0),(-1,-1),colors.black),
             ('VALIGN',(0,0),(-1,-1),'TOP'),
-            ('BOTTOMPADDING',(0,0),(-1,-1),2),
+            ('BOTTOMPADDING',(0,0),(-1,-1),1),
             ('TOPPADDING',(0,0),(-1,-1),0),
         ]))
 
@@ -442,10 +441,10 @@ def create_professional_pdf(customer_data=None, offer_scenario="vergleich", dete
         right_tbl = Table(right_rows, colWidths=[3.4*cm, 4.4*cm])
         right_tbl.setStyle(TableStyle([
             ('FONTNAME',(0,0),(-1,-1),'Helvetica'),
-            ('FONTSIZE',(0,0),(-1,-1),9.6),
+            ('FONTSIZE',(0,0),(-1,-1),8.5),
             ('TEXTCOLOR',(0,0),(-1,-1),colors.black),
             ('VALIGN',(0,0),(-1,-1),'TOP'),
-            ('BOTTOMPADDING',(0,0),(-1,-1),2),
+            ('BOTTOMPADDING',(0,0),(-1,-1),1),
             ('TOPPADDING',(0,0),(-1,-1),0),
         ]))
 
@@ -456,23 +455,22 @@ def create_professional_pdf(customer_data=None, offer_scenario="vergleich", dete
             ('BOX',(0,0),(-1,-1),0, colors.white),
         ]))
 
-        # Titelzeile „Position X"
-        story.append(_p(f"Position {i}", h2))
+        # Direkt Card ohne Position-Titel
         story.append(KeepTogether(card))
+
+        # Dünne Trennlinie zwischen Cards (nur wenn nicht letzte Position)
+        if i < len(st.session_state.cart_items):
+            story.append(Table([[""]], colWidths=[17.6*cm], rowHeights=[0.2]))
+            story[-1].setStyle(TableStyle([
+                ('LINEABOVE',(0,0),(-1,-1),0.3,colors.black),
+                ('LEFTPADDING',(0,0),(-1,-1),0),
+                ('RIGHTPADDING',(0,0),(-1,-1),0),
+                ('TOPPADDING',(0,0),(-1,-1),0),
+                ('BOTTOMPADDING',(0,0),(-1,-1),0),
+            ]))
         story.append(Spacer(1, 2))
 
-        # Dünne Trennlinie zwischen Cards
-        story.append(Table([[""]], colWidths=[17.6*cm], rowHeights=[0.6]))
-        story[-1].setStyle(TableStyle([
-            ('LINEABOVE',(0,0),(-1,-1),0.4,colors.black),
-            ('LEFTPADDING',(0,0),(-1,-1),0),
-            ('RIGHTPADDING',(0,0),(-1,-1),0),
-            ('TOPPADDING',(0,0),(-1,-1),0),
-            ('BOTTOMPADDING',(0,0),(-1,-1),0),
-        ]))
-        story.append(Spacer(1, 6))
-
-    # Kostenaufstellung (GESAMTSUMME in Grün)
+    # Kostenaufstellung (GESAMTSUMME in Grün) - kompakter und innerhalb A4
     story.append(_p("Kostenaufstellung", h2))
     cost_rows = [['Reifen-Kosten', format_eur(breakdown['reifen'])]]
     if breakdown['montage'] > 0:
@@ -485,10 +483,10 @@ def create_professional_pdf(customer_data=None, offer_scenario="vergleich", dete
     cost_rows.append(['', ''])
     cost_rows.append(['GESAMTSUMME', format_eur(total)])
 
-    cost_tbl = Table(cost_rows, colWidths=[10.6*cm, 4.0*cm])
+    cost_tbl = Table(cost_rows, colWidths=[12*cm, 5*cm])
     cost_tbl.setStyle(TableStyle([
         ('FONTNAME',(0,0),(-1,-2),'Helvetica'),
-        ('FONTSIZE',(0,0),(-1,-2),10.5),
+        ('FONTSIZE',(0,0),(-1,-2),9),
         ('TEXTCOLOR',(0,0),(-1,-2),colors.black),
         ('ALIGN',(0,0),(0,-2),'LEFT'),
         ('ALIGN',(1,0),(1,-2),'RIGHT'),
@@ -496,19 +494,19 @@ def create_professional_pdf(customer_data=None, offer_scenario="vergleich", dete
 
         # Gesamtsumme (einzige Farbe)
         ('FONTNAME',(0,-1),(-1,-1),'Helvetica-Bold'),
-        ('FONTSIZE',(0,-1),(-1,-1),13),
+        ('FONTSIZE',(0,-1),(-1,-1),11),
         ('BACKGROUND',(0,-1),(-1,-1), colors.HexColor('#f0fdf4')),
         ('TEXTCOLOR',(0,-1),(-1,-1), colors.HexColor('#166534')),
         ('ALIGN',(0,-1),(0,-1),'LEFT'),
         ('ALIGN',(1,-1),(1,-1),'RIGHT'),
 
-        ('TOPPADDING',(0,0),(-1,-1),6),
-        ('BOTTOMPADDING',(0,0),(-1,-1),6),
-        ('LEFTPADDING',(0,0),(-1,-1),6),
-        ('RIGHTPADDING',(0,0),(-1,-1),6),
+        ('TOPPADDING',(0,0),(-1,-1),3),
+        ('BOTTOMPADDING',(0,0),(-1,-1),3),
+        ('LEFTPADDING',(0,0),(-1,-1),3),
+        ('RIGHTPADDING',(0,0),(-1,-1),3),
     ]))
     story.append(KeepTogether(cost_tbl))
-    story.append(Spacer(1, 10))
+    story.append(Spacer(1, 4))
 
     # Hinweise - kompakter
     bullets = []
@@ -525,7 +523,7 @@ def create_professional_pdf(customer_data=None, offer_scenario="vergleich", dete
     ])
     for b in bullets:
         story.append(_p(f"• {b}", small))
-    story.append(Spacer(1, 4))
+    story.append(Spacer(1, 3))
 
     story.append(_p("Vielen Dank für Ihr Vertrauen!", h2))
     story.append(_p("Ihr Team vom Autohaus Ramsperger", normal))
