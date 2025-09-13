@@ -24,11 +24,11 @@ st.set_page_config(
 
 # ================================================================================================
 # CSS STYLES - DIREKT EINGEBETTET
+# (B/W in der App beibehalten; Primär-UI der App bleibt, PDF ist neu in B/W)
 # ================================================================================================
 MAIN_CSS = """
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
-    
     :root {
         --primary-color: #0ea5e9;
         --primary-dark: #0284c7;
@@ -46,123 +46,40 @@ MAIN_CSS = """
         --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1);
         --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1);
     }
-
-    .main > div {
-        padding-top: 1rem;
-    }
-
+    .main > div { padding-top: 1rem; }
     .main-header {
         background: linear-gradient(135deg, var(--primary-color), var(--primary-dark));
-        color: white;
-        padding: 2rem;
-        border-radius: 12px;
-        text-align: center;
-        margin-bottom: 2rem;
-        box-shadow: var(--shadow-lg);
+        color: white; padding: 2rem; border-radius: 12px; text-align: center;
+        margin-bottom: 1.5rem; box-shadow: var(--shadow-lg);
     }
-
-    .main-header h1 {
-        margin: 0;
-        font-size: 2.5rem;
-        font-weight: 700;
-        font-family: 'Inter', sans-serif;
-    }
-
-    .main-header p {
-        margin: 0.5rem 0 0 0;
-        font-size: 1.1rem;
-        opacity: 0.9;
-    }
-
+    .main-header h1 { margin: 0; font-size: 2.2rem; font-weight: 700; font-family: 'Inter', sans-serif; }
+    .main-header p { margin: 0.5rem 0 0 0; font-size: 1.05rem; opacity: 0.95; }
     .cart-container {
         background: linear-gradient(135deg, #f0f9ff, #e0f2fe);
-        padding: 1.5rem;
-        border-radius: 12px;
-        margin: 1rem 0;
-        border: 2px solid var(--primary-color);
+        padding: 1.2rem; border-radius: 12px; margin: 1rem 0; border: 2px solid var(--primary-color);
         box-shadow: var(--shadow-md);
     }
-
     .cart-item {
-        background: var(--background-white);
-        padding: 1rem;
-        border-radius: var(--border-radius);
-        margin: 0.5rem 0;
-        border-left: 4px solid var(--primary-color);
-        box-shadow: var(--shadow-sm);
+        background: var(--background-white); padding: 1rem; border-radius: var(--border-radius);
+        margin: 0.5rem 0; border-left: 4px solid var(--primary-color); box-shadow: var(--shadow-sm);
         transition: transform 0.1s ease;
     }
-
-    .cart-item:hover {
-        transform: translateX(4px);
-    }
-
+    .cart-item:hover { transform: translateX(2px); }
     .total-box {
         background: linear-gradient(135deg, #f0fdf4, #dcfce7);
-        padding: 1.5rem;
-        border-radius: 12px;
-        margin: 1rem 0;
-        border: 2px solid var(--success-color);
+        padding: 1.2rem; border-radius: 12px; margin: 1rem 0; border: 2px solid var(--success-color);
         box-shadow: var(--shadow-md);
     }
-
     .info-box {
         background: linear-gradient(135deg, #f0fdf4, #dcfce7);
-        padding: 1rem;
-        border-radius: var(--border-radius);
-        border-left: 4px solid var(--success-color);
-        margin: 1rem 0;
-        box-shadow: var(--shadow-sm);
+        padding: 0.9rem; border-radius: var(--border-radius); border-left: 4px solid var(--success-color);
+        margin: 1rem 0; box-shadow: var(--shadow-sm);
     }
-
-    .warning-box {
-        background: linear-gradient(135deg, #fef3c7, #fde68a);
-        padding: 1rem;
-        border-radius: var(--border-radius);
-        border-left: 4px solid var(--warning-color);
-        margin: 1rem 0;
-        box-shadow: var(--shadow-sm);
-    }
-
-    .scenario-box {
-        background: linear-gradient(135deg, #f3f4f6, #e5e7eb);
-        padding: 1rem;
-        border-radius: var(--border-radius);
-        border-left: 4px solid var(--secondary-color);
-        margin: 1rem 0;
-        box-shadow: var(--shadow-sm);
-    }
-
-    .saison-info-box {
-        background: linear-gradient(135deg, #e0f2fe, #bae6fd);
-        padding: 1rem;
-        border-radius: var(--border-radius);
-        border-left: 4px solid var(--primary-color);
-        margin: 1rem 0;
-        box-shadow: var(--shadow-sm);
-    }
-
-    .email-options-box {
-        background: linear-gradient(135deg, #f8fafc, #e2e8f0);
-        padding: 1.5rem;
-        border-radius: 12px;
-        margin: 1rem 0;
-        border: 2px solid var(--secondary-color);
-        box-shadow: var(--shadow-md);
-    }
-
     .stButton > button {
-        border-radius: var(--border-radius);
-        border: none;
-        font-weight: 500;
-        transition: all 0.2s ease;
+        border-radius: var(--border-radius); border: none; font-weight: 500; transition: all 0.2s ease;
         font-family: 'Inter', sans-serif;
     }
-
-    .stButton > button:hover {
-        transform: translateY(-1px);
-        box-shadow: var(--shadow-md);
-    }
+    .stButton > button:hover { transform: translateY(-1px); box-shadow: var(--shadow-md); }
 </style>
 """
 st.markdown(MAIN_CSS, unsafe_allow_html=True)
@@ -314,7 +231,7 @@ def get_cart_total():
     return total, breakdown
 
 # ================================================================================================
-# PDF GENERATION (SCHÖN & PROFESSIONELL)
+# PDF GENERATION (B/W MODERN, einzige Farbe: Grün in Gesamtsumme)
 # ================================================================================================
 def format_eur(value: float) -> str:
     s = f"{value:,.2f}"
@@ -322,29 +239,34 @@ def format_eur(value: float) -> str:
     return f"{s} €"
 
 def _header_footer(canvas, doc):
+    """
+    Minimaler B/W-Header + Footer, keine Adressen/Telefon.
+    Kopf: 'AUTOHAUS RAMSPERGER' in Schwarz, dünne Linie.
+    Fuß: Seitenzahl rechts.
+    """
     canvas.saveState()
     width, height = A4
-    margin = 2 * cm
+    margin = 20 * mm
 
-    canvas.setFillColor(colors.HexColor("#0ea5e9"))
-    canvas.rect(margin, height - margin + 6, width - 2*margin, 2, fill=1, stroke=0)
-
+    # Header Text
     canvas.setFont("Helvetica-Bold", 11)
-    canvas.setFillColor(colors.HexColor("#1e293b"))
-    canvas.drawRightString(width - margin, height - margin + 14, "AUTOHAUS RAMSPERGER")
-    canvas.setFont("Helvetica", 9)
-    canvas.setFillColor(colors.HexColor("#64748b"))
-    canvas.drawRightString(width - margin, height - margin - 2, "Reifen • Service • Einlagerung")
+    canvas.setFillColor(colors.black)
+    canvas.drawString(margin, height - margin + 6, "AUTOHAUS RAMSPERGER")
 
-    canvas.setFillColor(colors.HexColor("#e2e8f0"))
-    canvas.rect(margin, margin - 8, width - 2*margin, 1, fill=1, stroke=0)
+    # Dünne schwarze Linie
+    canvas.setStrokeColor(colors.black)
+    canvas.setLineWidth(0.5)
+    canvas.line(margin, height - margin + 2, width - margin, height - margin + 2)
 
-    canvas.setFont("Helvetica", 8)
-    canvas.setFillColor(colors.HexColor("#64748b"))
-    left_text = "Autohaus Ramsperger • Musterstraße 1 • 73033 Göppingen • Tel. 07161 00000 • service@ramsperger.de"
-    canvas.drawString(margin, margin - 18, left_text)
-    canvas.drawRightString(width - margin, margin - 18, f"Seite {doc.page}")
+    # Footer: Seitenzahl
+    canvas.setFont("Helvetica", 8.5)
+    canvas.setFillColor(colors.black)
+    canvas.drawRightString(width - margin, margin - 8, f"Seite {doc.page}")
+
     canvas.restoreState()
+
+def _p(text, style):
+    return Paragraph(text, style)
 
 def create_professional_pdf(customer_data=None, offer_scenario="vergleich", detected_season="neutral"):
     if not st.session_state.cart_items:
@@ -363,79 +285,103 @@ def create_professional_pdf(customer_data=None, offer_scenario="vergleich", dete
         bottomMargin=25*mm
     )
 
+    # Styles (B/W)
     styles = getSampleStyleSheet()
-    h1 = ParagraphStyle('H1', parent=styles['Heading1'],
-                        fontSize=20, leading=24, spaceAfter=12,
-                        textColor=colors.HexColor('#0ea5e9'),
-                        alignment=TA_LEFT)
-    h2 = ParagraphStyle('H2', parent=styles['Heading2'],
-                        fontSize=14, leading=18, spaceAfter=8,
-                        textColor=colors.HexColor('#1e293b'),
-                        alignment=TA_LEFT)
-    normal = ParagraphStyle('NormalPlus', parent=styles['Normal'],
-                            fontSize=10.5, leading=14, textColor=colors.HexColor('#1e293b'))
-    small = ParagraphStyle('Small', parent=styles['Normal'],
-                           fontSize=9, leading=12, textColor=colors.HexColor('#64748b'))
+    h1 = ParagraphStyle(
+        'H1', parent=styles['Heading1'], fontName="Helvetica-Bold",
+        fontSize=20, leading=24, spaceAfter=10, textColor=colors.black, alignment=TA_LEFT
+    )
+    h2 = ParagraphStyle(
+        'H2', parent=styles['Heading2'], fontName="Helvetica-Bold",
+        fontSize=13.5, leading=18, spaceAfter=6, textColor=colors.black, alignment=TA_LEFT
+    )
+    normal = ParagraphStyle(
+        'NormalPlus', parent=styles['Normal'], fontName="Helvetica",
+        fontSize=10.5, leading=14, textColor=colors.black
+    )
+    small = ParagraphStyle(
+        'Small', parent=styles['Normal'], fontName="Helvetica",
+        fontSize=9, leading=12, textColor=colors.black
+    )
+    mono = ParagraphStyle(
+        'Mono', parent=styles['Code'], fontName="Helvetica", fontSize=10, leading=13
+    )
 
     story = []
 
+    # Kopfblock
     date_str = datetime.now().strftime('%d.%m.%Y')
     offer_number = f"RRS-{datetime.now().strftime('%Y%m%d')}-{len(st.session_state.cart_items):03d}"
 
-    story.append(Paragraph("Angebot Reifen & Service", h1))
-    meta_tbl = Table([
-        ["Datum:", date_str, "Angebotsnummer:", offer_number],
-        ["Saison:", season_info['season_name'], "", ""]
-    ], colWidths=[2.5*cm, 5.5*cm, 3.5*cm, 4*cm])
+    story.append(_p("Angebot Reifen & Service", h1))
+
+    meta_tbl = Table(
+        [
+            ["Datum", date_str, "Angebotsnummer", offer_number],
+            ["Saison", season_info['season_name'], "", ""]
+        ],
+        colWidths=[2.5*cm, 6.0*cm, 3.7*cm, 4.3*cm]
+    )
     meta_tbl.setStyle(TableStyle([
         ('FONTNAME',(0,0),(-1,-1),'Helvetica'),
-        ('FONTSIZE',(0,0),(-1,-1),9.5),
-        ('TEXTCOLOR',(0,0),(-1,-1),colors.HexColor('#1e293b')),
-        ('ALIGN',(0,0),(0,-1),'RIGHT'),
-        ('ALIGN',(2,0),(2,0),'RIGHT'),
+        ('FONTSIZE',(0,0),(-1,-1),9.8),
+        ('TEXTCOLOR',(0,0),(-1,-1),colors.black),
+        ('ALIGN',(0,0),(0,-1),'LEFT'),
+        ('ALIGN',(2,0),(2,0),'LEFT'),
         ('BOTTOMPADDING',(0,0),(-1,-1),4),
     ]))
     story.append(meta_tbl)
     story.append(Spacer(1, 6))
 
+    # Kundendaten (ohne Adressen/Telefon)
     if customer_data and any(customer_data.values()):
         cust_rows = []
-        if customer_data.get('name'): cust_rows.append(["Kunde:", customer_data['name']])
-        if customer_data.get('email'): cust_rows.append(["E-Mail:", customer_data['email']])
-        if customer_data.get('kennzeichen'): cust_rows.append(["Kennzeichen:", customer_data['kennzeichen']])
-        if customer_data.get('modell'): cust_rows.append(["Fahrzeug:", customer_data['modell']])
-        if customer_data.get('fahrgestellnummer'): cust_rows.append(["Fahrgestellnr.:", customer_data['fahrgestellnummer']])
-
+        if customer_data.get('name'): cust_rows.append(["Kunde", customer_data['name']])
+        if customer_data.get('email'): cust_rows.append(["E-Mail", customer_data['email']])
+        if customer_data.get('kennzeichen'): cust_rows.append(["Kennzeichen", customer_data['kennzeichen']])
+        if customer_data.get('modell'): cust_rows.append(["Fahrzeug", customer_data['modell']])
+        if customer_data.get('fahrgestellnummer'): cust_rows.append(["Fahrgestellnr.", customer_data['fahrgestellnummer']])
         if cust_rows:
-            story.append(Paragraph("Kundendaten", h2))
+            story.append(_p("Kundendaten", h2))
             cust_tbl = Table(cust_rows, colWidths=[3.5*cm, 12.5*cm])
             cust_tbl.setStyle(TableStyle([
                 ('FONTNAME',(0,0),(-1,-1),'Helvetica'),
-                ('FONTSIZE',(0,0),(-1,-1),9.5),
-                ('ALIGN',(0,0),(0,-1),'RIGHT'),
+                ('FONTSIZE',(0,0),(-1,-1),9.8),
+                ('TEXTCOLOR',(0,0),(-1,-1),colors.black),
+                ('ALIGN',(0,0),(0,-1),'LEFT'),
                 ('VALIGN',(0,0),(-1,-1),'TOP'),
                 ('BOTTOMPADDING',(0,0),(-1,-1),3),
             ]))
             story.append(cust_tbl)
             story.append(Spacer(1, 8))
 
+    # Einleitung
     intro_text = (
         f"Sehr geehrte Damen und Herren,<br/>"
         f"{season_info['greeting']} {season_info['transition']} "
         f"Nachfolgend erhalten Sie Ihr individuelles Angebot."
     )
-    story.append(Paragraph(intro_text, normal))
-    story.append(Spacer(1, 12))
+    story.append(_p(intro_text, normal))
+    story.append(Spacer(1, 10))
 
+    # Abschnittstitel
     scenario_headers = {
-        "vergleich": "Ihre Reifenoptionen zur Auswahl",
+        "vergleich": "Ihr individuelles Reifenangebot",
         "separate": "Angebot für Ihre Fahrzeuge",
         "einzelangebot": "Ihr individuelles Reifenangebot"
     }
-    story.append(Paragraph(scenario_headers.get(offer_scenario, "Ihr Reifenangebot"), h2))
+    story.append(_p(scenario_headers.get(offer_scenario, "Ihr Reifenangebot"), h2))
     story.append(Spacer(1, 4))
 
-    table_data = [['Pos.', 'Reifengröße', 'Marke', 'Profil', 'Stück', 'Einzelpreis', 'Services', 'Gesamtpreis']]
+    # Positions-Tabelle (stabile Breiten, Wrap, B/W)
+    header = ['Pos.', 'Reifengröße', 'Marke/Profil', 'Stück', 'Einzelpreis', 'Services', 'Gesamtpreis']
+    table_data = [header]
+
+    # Paragraph styles for cells to enable wrapping
+    cell_style = ParagraphStyle('cell', parent=normal, fontSize=9.6, leading=13)
+    cell_style_center = ParagraphStyle('cellc', parent=cell_style, alignment=TA_CENTER)
+    cell_style_right = ParagraphStyle('cellr', parent=cell_style, alignment=TA_RIGHT)
+
     for i, item in enumerate(st.session_state.cart_items, 1):
         reifen_kosten, service_kosten, position_total = calculate_position_total(item)
         quantity = st.session_state.cart_quantities.get(item['id'], 4)
@@ -451,66 +397,81 @@ def create_professional_pdf(customer_data=None, offer_scenario="vergleich", dete
             svc_parts.append("Einlagerung")
         services_text = ", ".join(svc_parts) if svc_parts else "Keine"
 
-        table_data.append([
-            str(i),
-            item['Reifengröße'],
-            item['Fabrikat'],
-            item['Profil'],
-            f"{quantity}x",
-            format_eur(item['Preis_EUR']),
-            services_text,
-            format_eur(position_total)
-        ])
+        marke_profil = f"{item['Fabrikat']} {item['Profil']}"
+        row = [
+            _p(str(i), cell_style_center),
+            _p(item['Reifengröße'], cell_style),
+            _p(marke_profil, cell_style),
+            _p(f"{quantity}x", cell_style_center),
+            _p(format_eur(item['Preis_EUR']), cell_style_right),
+            _p(services_text, cell_style),
+            _p(format_eur(position_total), cell_style_right)
+        ]
+        table_data.append(row)
 
-    col_widths = [1.1*cm, 3.2*cm, 2.6*cm, 4.2*cm, 1.6*cm, 2.8*cm, 3.4*cm, 3.0*cm]
+    col_widths = [1.0*cm, 3.2*cm, 5.4*cm, 1.4*cm, 2.8*cm, 4.0*cm, 3.0*cm]
     reifen_table = Table(table_data, colWidths=col_widths, repeatRows=1)
     reifen_table.setStyle(TableStyle([
-        ('BACKGROUND', (0,0), (-1,0), colors.HexColor('#0ea5e9')),
-        ('TEXTCOLOR', (0,0), (-1,0), colors.white),
+        # Header (B/W)
         ('FONTNAME', (0,0), (-1,0), 'Helvetica-Bold'),
-        ('FONTSIZE', (0,0), (-1,0), 10),
-        ('ALIGN', (0,0), (-1,0), 'CENTER'),
+        ('FONTSIZE', (0,0), (-1,0), 10.2),
+        ('TEXTCOLOR', (0,0), (-1,0), colors.black),
+        ('ALIGN', (0,0), (-1,0), 'LEFT'),
+        ('BOTTOMPADDING', (0,0), (-1,0), 6),
+        ('LINEBELOW', (0,0), (-1,0), 0.8, colors.black),
+
+        # Body
         ('FONTNAME', (0,1), (-1,-1), 'Helvetica'),
-        ('FONTSIZE', (0,1), (-1,-1), 9.5),
-        ('ALIGN', (0,1), (0,-1), 'CENTER'),
-        ('ALIGN', (4,1), (4,-1), 'CENTER'),
-        ('ALIGN', (5,1), (5,-1), 'RIGHT'),
-        ('ALIGN', (7,1), (7,-1), 'RIGHT'),
-        ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
-        ('ROWBACKGROUNDS', (0,1), (-1,-1), [colors.white, colors.HexColor('#f8fafc')]),
-        ('GRID', (0,0), (-1,-1), 0.4, colors.HexColor('#e2e8f0')),
-        ('LEFTPADDING', (0,0), (-1,-1), 6),
-        ('RIGHTPADDING', (0,0), (-1,-1), 6),
-        ('TOPPADDING', (0,0), (-1,-1), 6),
-        ('BOTTOMPADDING', (0,0), (-1,-1), 6),
+        ('FONTSIZE', (0,1), (-1,-1), 9.6),
+        ('TEXTCOLOR', (0,1), (-1,-1), colors.black),
+        ('VALIGN', (0,1), (-1,-1), 'MIDDLE'),
+        ('TOPPADDING', (0,1), (-1,-1), 5),
+        ('BOTTOMPADDING', (0,1), (-1,-1), 5),
+
+        # Dezente vertikale Guides (B/W, sehr dünn)
+        ('INNERGRID', (0,0), (-1,-1), 0.25, colors.black),
+        ('BOX', (0,0), (-1,-1), 0.25, colors.black),
+
+        # Alignment einzelner Spalten
+        ('ALIGN', (0,1), (0,-1), 'CENTER'),   # Pos.
+        ('ALIGN', (3,1), (3,-1), 'CENTER'),   # Stück
+        ('ALIGN', (4,1), (4,-1), 'RIGHT'),    # Einzelpreis
+        ('ALIGN', (6,1), (6,-1), 'RIGHT'),    # Gesamtpreis
     ]))
     story.append(KeepTogether(reifen_table))
-    story.append(Spacer(1, 10))
+    story.append(Spacer(1, 12))
 
-    story.append(Paragraph("Kostenaufstellung", h2))
-    cost_rows = [['Reifen-Kosten:', format_eur(breakdown['reifen'])]]
+    # Kostenaufstellung (wie gehabt, GESAMTSUMME in Grün)
+    story.append(_p("Kostenaufstellung", h2))
+    cost_rows = [['Reifen-Kosten', format_eur(breakdown['reifen'])]]
     if breakdown['montage'] > 0:
-        cost_rows.append(['Montage-Service:', format_eur(breakdown['montage'])])
+        cost_rows.append(['Montage-Service', format_eur(breakdown['montage'])])
     if breakdown['radwechsel'] > 0:
-        cost_rows.append(['Radwechsel-Service:', format_eur(breakdown['radwechsel'])])
+        cost_rows.append(['Radwechsel-Service', format_eur(breakdown['radwechsel'])])
     if breakdown['einlagerung'] > 0:
-        cost_rows.append(['Einlagerung:', format_eur(breakdown['einlagerung'])])
+        cost_rows.append(['Einlagerung', format_eur(breakdown['einlagerung'])])
 
+    # Abstand vor Gesamtsumme
     cost_rows.append(['', ''])
-    cost_rows.append(['GESAMTSUMME:', format_eur(total)])
+    cost_rows.append(['GESAMTSUMME', format_eur(total)])
 
-    cost_tbl = Table(cost_rows, colWidths=[10.2*cm, 4.0*cm])
+    cost_tbl = Table(cost_rows, colWidths=[10.5*cm, 4.0*cm])
     cost_tbl.setStyle(TableStyle([
         ('FONTNAME',(0,0),(-1,-1),'Helvetica'),
         ('FONTSIZE',(0,0),(-1,-2),10.5),
-        ('ALIGN',(0,0),(0,-1),'RIGHT'),
-        ('ALIGN',(1,0),(1,-1),'RIGHT'),
-        ('TEXTCOLOR',(0,0),(-1,-2),colors.HexColor('#1e293b')),
-        ('LINEBELOW',(0,-2),(-1,-2), 1, colors.HexColor('#e2e8f0')),
+        ('TEXTCOLOR',(0,0),(-1,-2),colors.black),
+        ('ALIGN',(0,0),(0,-2),'LEFT'),
+        ('ALIGN',(1,0),(1,-2),'RIGHT'),
+        ('LINEBELOW',(0,-2),(-1,-2), 0.6, colors.black),
+
+        # Gesamtsumme (einzige Farbe Grün)
         ('FONTNAME',(0,-1),(-1,-1),'Helvetica-Bold'),
         ('FONTSIZE',(0,-1),(-1,-1),13),
         ('BACKGROUND',(0,-1),(-1,-1), colors.HexColor('#f0fdf4')),
         ('TEXTCOLOR',(0,-1),(-1,-1), colors.HexColor('#166534')),
+        ('ALIGN',(0,-1),(0,-1),'LEFT'),
+        ('ALIGN',(1,-1),(1,-1),'RIGHT'),
+
         ('TOPPADDING',(0,0),(-1,-1),6),
         ('BOTTOMPADDING',(0,0),(-1,-1),6),
         ('LEFTPADDING',(0,0),(-1,-1),6),
@@ -519,6 +480,7 @@ def create_professional_pdf(customer_data=None, offer_scenario="vergleich", dete
     story.append(KeepTogether(cost_tbl))
     story.append(Spacer(1, 10))
 
+    # Bullets / Hinweise (B/W)
     bullets = []
     if detected_season == "winter":
         bullets.append("Wir empfehlen den rechtzeitigen Wechsel auf Winterreifen für optimale Sicherheit bei winterlichen Bedingungen.")
@@ -532,22 +494,20 @@ def create_professional_pdf(customer_data=None, offer_scenario="vergleich", dete
         "Für Rückfragen stehen wir Ihnen gerne zur Verfügung."
     ])
     for b in bullets:
-        story.append(Paragraph(f"• {b}", normal))
-    story.append(Spacer(1, 14))
+        story.append(_p(f"• {b}", normal))
+    story.append(Spacer(1, 12))
 
-    story.append(Paragraph("Vielen Dank für Ihr Vertrauen!", h2))
-    story.append(Paragraph("Ihr Team vom Autohaus Ramsperger", normal))
-    story.append(Spacer(1, 10))
-    story.append(Paragraph("Hinweis: Dieses Angebot ist freibleibend. Verfügbarkeit abhängig vom Lagerbestand.", small))
+    story.append(_p("Vielen Dank für Ihr Vertrauen!", h2))
+    story.append(_p("Ihr Team vom Autohaus Ramsperger", normal))
 
     doc.build(story, onFirstPage=_header_footer, onLaterPages=_header_footer)
     buffer.seek(0)
     return buffer.getvalue()
 
 # ================================================================================================
-# E-MAIL TEXT & LINKS (OUTLOOK-DESKTOP-SICHER + OWA + GMAIL)
+# E-MAIL TEXT & MAILTO (direkter Outlook-Flow)
 # ================================================================================================
-_EMAIL_REGEX = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
+_EMAIL_REGEX = re.compile(r"^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$")
 
 def _normalize_crlf(text: str) -> str:
     if text is None:
@@ -564,11 +524,11 @@ def _valid_email(addr: str) -> bool:
 def create_email_text(customer_data=None, detected_season="neutral"):
     season_info = get_season_greeting_text(detected_season)
     email_content = (
-        "Sehr geehrte Damen und Herren,\n\n"
-        f"anbei sende ich Ihnen Ihr Reifenangebot für {season_info['season_name']}-Reifen.\n\n"
-        "Alle Details finden Sie im angehängten PDF-Dokument.\n\n"
-        "Bei Fragen stehen wir Ihnen gerne zur Verfügung.\n\n"
-        "Mit freundlichen Grüßen\n"
+        "Sehr geehrte Damen und Herren,\r\n\r\n"
+        f"anbei sende ich Ihnen Ihr Reifenangebot für {season_info['season_name']}-Reifen.\r\n\r\n"
+        "Alle Details finden Sie im angehängten PDF-Dokument.\r\n\r\n"
+        "Bei Fragen stehen wir Ihnen gerne zur Verfügung.\r\n\r\n"
+        "Mit freundlichen Grüßen\r\n"
         "Autohaus Ramsperger"
     )
     return email_content
@@ -600,6 +560,7 @@ def init_session_state():
         st.session_state.offer_scenario = "vergleich"
 
     if 'show_email_options' not in st.session_state:
+        # bleibt für Kompatibilität bestehen, wird aber nicht mehr genutzt
         st.session_state.show_email_options = False
 
     if 'pdf_created' not in st.session_state:
@@ -804,34 +765,6 @@ def render_scenario_selection():
 
     return detected
 
-def render_email_options(email_text, detected_season):
-    customer_email = st.session_state.customer_data.get('email', '').strip()
-    if not customer_email:
-        st.warning("Bitte geben Sie eine E-Mail-Adresse bei den Kundendaten ein.")
-        return
-    if not _valid_email(customer_email):
-        st.error("Die E-Mail-Adresse scheint ungültig zu sein. Bitte prüfen.")
-        return
-
-    st.markdown(f"""
-    <div class="email-options-box">
-        <h4>📧 E-Mail-Versand Optionen</h4>
-        <p>Wählen Sie Ihren E-Mail-Client zum Versenden des Angebots an <strong>{customer_email}</strong>:</p>
-        <p><strong>Wichtig:</strong> Bitte fügen Sie die heruntergeladene PDF-Datei manuell als Anhang zur E-Mail hinzu.</p>
-    </div>
-    """, unsafe_allow_html=True)
-
-    mailto_link = create_mailto_link(customer_email, email_text, detected_season)
-
-    if mailto_link:
-        st.link_button("📧 Outlook (Desktop)", mailto_link,
-                       use_container_width=True, type="secondary",
-                       help="Öffnet Ihren Standard-Mailclient (z. B. Outlook Desktop)")
-
-    if st.button("❌ E-Mail-Optionen schließen", use_container_width=True):
-        st.session_state.show_email_options = False
-        st.rerun()
-
 def render_actions(total, breakdown, detected_season):
     st.markdown("---")
     st.markdown("#### PDF-Angebot erstellen")
@@ -867,18 +800,27 @@ def render_actions(total, breakdown, detected_season):
                 st.error("Fehler beim Erstellen der PDF-Datei")
 
     with col2:
+        # Direkter Outlook/Desktop-Mailto-Flow (kein 2-Schritte-Dialog)
         customer_email = st.session_state.customer_data.get('email', '').strip()
-        if customer_email and st.session_state.pdf_created:
-            if st.button("📧 Per E-Mail senden", use_container_width=True, type="secondary",
-                         help="Zeigt E-Mail-Optionen an"):
-                st.session_state.show_email_options = True
-                st.rerun()
-        elif not customer_email:
+        if not customer_email:
             st.button("📧 E-Mail fehlt", use_container_width=True, disabled=True,
                       help="Bitte E-Mail-Adresse bei Kundendaten eingeben")
-        else:
+        elif not st.session_state.pdf_created:
             st.button("📧 Erst PDF erstellen", use_container_width=True, disabled=True,
                       help="Bitte zuerst PDF-Angebot erstellen")
+        else:
+            mailto_link = create_mailto_link(
+                customer_email,
+                st.session_state.get('current_email_text', create_email_text(st.session_state.customer_data, detected_season)),
+                detected_season
+            )
+            if mailto_link:
+                st.link_button("📧 Per E-Mail senden", mailto_link,
+                               use_container_width=True, type="secondary",
+                               help="Öffnet Ihren Standard-Mailclient (z. B. Outlook Desktop)")
+            else:
+                st.button("📧 Ungültige E-Mail", use_container_width=True, disabled=True,
+                          help="Bitte E-Mail-Adresse prüfen")
 
     with col3:
         if st.button("Warenkorb leeren", use_container_width=True, type="secondary"):
@@ -901,9 +843,7 @@ def render_actions(total, breakdown, detected_season):
             else:
                 st.warning("Warenkorb ist leer!")
 
-    if st.session_state.show_email_options and hasattr(st.session_state, 'current_email_text'):
-        st.markdown("---")
-        render_email_options(st.session_state.current_email_text, detected_season)
+    # Der alte E-Mail-Optionen-Block entfällt bewusst (Direktversand per mailto:)
 
 # ================================================================================================
 # MAIN
@@ -914,7 +854,7 @@ def main():
     st.markdown("""
     <div class="main-header">
         <h1>Warenkorb & Angebotserstellung</h1>
-        <p>Erstelle professionelle PDF-Angebote mit automatischer Saison-Erkennung und flexiblem E-Mail-Versand</p>
+        <p>Erstelle professionelle PDF-Angebote mit automatischer Saison-Erkennung und direktem E-Mail-Versand</p>
     </div>
     """, unsafe_allow_html=True)
 
