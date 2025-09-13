@@ -4,10 +4,14 @@ from datetime import datetime
 from pathlib import Path
 import urllib.parse
 import io
+import re
+
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-from reportlab.lib.units import cm
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
+from reportlab.lib.units import cm, mm
+from reportlab.platypus import (
+    SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, KeepTogether
+)
 from reportlab.lib import colors
 from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_RIGHT
 
@@ -42,11 +46,11 @@ MAIN_CSS = """
         --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1);
         --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1);
     }
-    
+
     .main > div {
         padding-top: 1rem;
     }
-    
+
     .main-header {
         background: linear-gradient(135deg, var(--primary-color), var(--primary-dark));
         color: white;
@@ -56,20 +60,20 @@ MAIN_CSS = """
         margin-bottom: 2rem;
         box-shadow: var(--shadow-lg);
     }
-    
+
     .main-header h1 {
         margin: 0;
         font-size: 2.5rem;
         font-weight: 700;
         font-family: 'Inter', sans-serif;
     }
-    
+
     .main-header p {
         margin: 0.5rem 0 0 0;
         font-size: 1.1rem;
         opacity: 0.9;
     }
-    
+
     .cart-container {
         background: linear-gradient(135deg, #f0f9ff, #e0f2fe);
         padding: 1.5rem;
@@ -78,7 +82,7 @@ MAIN_CSS = """
         border: 2px solid var(--primary-color);
         box-shadow: var(--shadow-md);
     }
-    
+
     .cart-item {
         background: var(--background-white);
         padding: 1rem;
@@ -88,11 +92,11 @@ MAIN_CSS = """
         box-shadow: var(--shadow-sm);
         transition: transform 0.1s ease;
     }
-    
+
     .cart-item:hover {
         transform: translateX(4px);
     }
-    
+
     .total-box {
         background: linear-gradient(135deg, #f0fdf4, #dcfce7);
         padding: 1.5rem;
@@ -101,7 +105,7 @@ MAIN_CSS = """
         border: 2px solid var(--success-color);
         box-shadow: var(--shadow-md);
     }
-    
+
     .info-box {
         background: linear-gradient(135deg, #f0fdf4, #dcfce7);
         padding: 1rem;
@@ -110,7 +114,7 @@ MAIN_CSS = """
         margin: 1rem 0;
         box-shadow: var(--shadow-sm);
     }
-    
+
     .warning-box {
         background: linear-gradient(135deg, #fef3c7, #fde68a);
         padding: 1rem;
@@ -119,7 +123,7 @@ MAIN_CSS = """
         margin: 1rem 0;
         box-shadow: var(--shadow-sm);
     }
-    
+
     .scenario-box {
         background: linear-gradient(135deg, #f3f4f6, #e5e7eb);
         padding: 1rem;
@@ -128,7 +132,7 @@ MAIN_CSS = """
         margin: 1rem 0;
         box-shadow: var(--shadow-sm);
     }
-    
+
     .saison-info-box {
         background: linear-gradient(135deg, #e0f2fe, #bae6fd);
         padding: 1rem;
@@ -137,7 +141,7 @@ MAIN_CSS = """
         margin: 1rem 0;
         box-shadow: var(--shadow-sm);
     }
-    
+
     .email-options-box {
         background: linear-gradient(135deg, #f8fafc, #e2e8f0);
         padding: 1.5rem;
@@ -146,7 +150,7 @@ MAIN_CSS = """
         border: 2px solid var(--secondary-color);
         box-shadow: var(--shadow-md);
     }
-    
+
     .stButton > button {
         border-radius: var(--border-radius);
         border: none;
@@ -154,7 +158,7 @@ MAIN_CSS = """
         transition: all 0.2s ease;
         font-family: 'Inter', sans-serif;
     }
-    
+
     .stButton > button:hover {
         transform: translateY(-1px);
         box-shadow: var(--shadow-md);
@@ -164,7 +168,7 @@ MAIN_CSS = """
 st.markdown(MAIN_CSS, unsafe_allow_html=True)
 
 # ================================================================================================
-# HELPER FUNCTIONS
+# HELPER FUNCTIONS (APP)
 # ================================================================================================
 def get_efficiency_emoji(rating):
     if pd.isna(rating):
@@ -236,12 +240,10 @@ def remove_from_cart(tire_id):
     st.session_state.cart_items = [item for item in st.session_state.cart_items if item['id'] != tire_id]
     st.session_state.cart_quantities.pop(tire_id, None)
     st.session_state.cart_services.pop(tire_id, None)
-    # zugehörige Widget-Keys säubern
     _clear_item_widget_keys(tire_id)
     st.session_state.cart_count = len(st.session_state.cart_items)
 
 def clear_cart():
-    # alle dynamischen Widget-Keys entfernen
     for item in list(st.session_state.cart_items):
         _clear_item_widget_keys(item['id'])
     st.session_state.cart_items = []
@@ -311,309 +313,347 @@ def get_cart_total():
 
     return total, breakdown
 
-# ---------------------- PDF GENERATION (NEU) ----------------------
+# ================================================================================================
+# PDF GENERATION (SCHÖN & PROFESSIONELL)
+# ================================================================================================
+
+# --- Layout-Helfer ---
+def format_eur(value: float) -> str:
+    # Deutsches Zahlenformat 1.234,56 €
+    s = f"{value:,.2f}"
+    s = s.replace(",", "X").replace(".", ",").replace("X", ".")
+    return f"{s} €"
+
+def _header_footer(canvas, doc):
+    # Kopfzeile
+    canvas.saveState()
+    width, height = A4
+    margin = 2 * cm
+
+    # Linie oben
+    canvas.setFillColor(colors.HexColor("#0ea5e9"))
+    canvas.rect(margin, height - margin + 6, width - 2*margin, 2, fill=1, stroke=0)
+
+    # Firmenname + Claim rechts
+    canvas.setFont("Helvetica-Bold", 11)
+    canvas.setFillColor(colors.HexColor("#1e293b"))
+    canvas.drawRightString(width - margin, height - margin + 14, "AUTOHAUS RAMSPERGER")
+    canvas.setFont("Helvetica", 9)
+    canvas.setFillColor(colors.HexColor("#64748b"))
+    canvas.drawRightString(width - margin, height - margin - 2, "Reifen • Service • Einlagerung")
+
+    # Fußzeile mit Linie
+    canvas.setFillColor(colors.HexColor("#e2e8f0"))
+    canvas.rect(margin, margin - 8, width - 2*margin, 1, fill=1, stroke=0)
+
+    canvas.setFont("Helvetica", 8)
+    canvas.setFillColor(colors.HexColor("#64748b"))
+    # Firmeninfos & Seite
+    left_text = "Autohaus Ramsperger • Musterstraße 1 • 73033 Göppingen • Tel. 07161 00000 • service@ramsperger.de"
+    canvas.drawString(margin, margin - 18, left_text)
+    canvas.drawRightString(width - margin, margin - 18, f"Seite {doc.page}")
+
+    canvas.restoreState()
+
 def create_professional_pdf(customer_data=None, offer_scenario="vergleich", detected_season="neutral"):
-    """Erstellt eine professionelle PDF-Angebotsdatei"""
+    """Erstellt eine professionelle PDF-Angebotsdatei (ohne Bilder, cleanes Layout)."""
     if not st.session_state.cart_items:
         return None
 
     total, breakdown = get_cart_total()
     season_info = get_season_greeting_text(detected_season)
-    
-    # PDF Buffer
+
     buffer = io.BytesIO()
-    
-    # PDF Document
     doc = SimpleDocTemplate(
         buffer,
         pagesize=A4,
-        rightMargin=2*cm,
-        leftMargin=2*cm,
-        topMargin=2*cm,
-        bottomMargin=2*cm
+        rightMargin=20*mm,
+        leftMargin=20*mm,
+        topMargin=28*mm,
+        bottomMargin=25*mm
     )
-    
+
     # Styles
     styles = getSampleStyleSheet()
-    title_style = ParagraphStyle(
-        'CustomTitle',
-        parent=styles['Heading1'],
-        fontSize=24,
-        spaceAfter=30,
-        textColor=colors.HexColor('#0ea5e9'),
-        alignment=TA_CENTER,
-        fontName='Helvetica-Bold'
-    )
-    
-    heading_style = ParagraphStyle(
-        'CustomHeading',
-        parent=styles['Heading2'],
-        fontSize=16,
-        spaceAfter=12,
-        textColor=colors.HexColor('#1e293b'),
-        fontName='Helvetica-Bold'
-    )
-    
-    normal_style = ParagraphStyle(
-        'CustomNormal',
-        parent=styles['Normal'],
-        fontSize=11,
-        spaceAfter=6,
-        textColor=colors.HexColor('#1e293b')
-    )
-    
-    # Story (PDF Inhalt)
+    h1 = ParagraphStyle('H1', parent=styles['Heading1'],
+                        fontSize=20, leading=24, spaceAfter=12,
+                        textColor=colors.HexColor('#0ea5e9'),
+                        alignment=TA_LEFT)
+    h2 = ParagraphStyle('H2', parent=styles['Heading2'],
+                        fontSize=14, leading=18, spaceAfter=8,
+                        textColor=colors.HexColor('#1e293b'),
+                        alignment=TA_LEFT)
+    normal = ParagraphStyle('NormalPlus', parent=styles['Normal'],
+                            fontSize=10.5, leading=14, textColor=colors.HexColor('#1e293b'))
+    small = ParagraphStyle('Small', parent=styles['Normal'],
+                           fontSize=9, leading=12, textColor=colors.HexColor('#64748b'))
+
     story = []
-    
-    # Header
-    story.append(Paragraph("AUTOHAUS RAMSPERGER", title_style))
-    story.append(Paragraph("Professionelles Reifenangebot", styles['Heading3']))
-    story.append(Spacer(1, 20))
-    
-    # Datum und Angebotsnummer
+
+    # Titel & Meta
     date_str = datetime.now().strftime('%d.%m.%Y')
     offer_number = f"RRS-{datetime.now().strftime('%Y%m%d')}-{len(st.session_state.cart_items):03d}"
-    
-    info_data = [
-        ['Datum:', date_str],
-        ['Angebotsnummer:', offer_number],
-        ['Saison-Typ:', season_info['season_name']]
-    ]
-    
-    info_table = Table(info_data, colWidths=[4*cm, 8*cm])
-    info_table.setStyle(TableStyle([
-        ('FONTNAME', (0, 0), (-1, -1), 'Helvetica'),
-        ('FONTSIZE', (0, 0), (-1, -1), 10),
-        ('ALIGN', (0, 0), (0, -1), 'RIGHT'),
-        ('ALIGN', (1, 0), (1, -1), 'LEFT'),
-        ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+
+    story.append(Paragraph("Angebot Reifen & Service", h1))
+    meta_tbl = Table([
+        ["Datum:", date_str, "Angebotsnummer:", offer_number],
+        ["Saison:", season_info['season_name'], "", ""]
+    ], colWidths=[2.5*cm, 5.5*cm, 3.5*cm, 4*cm])
+    meta_tbl.setStyle(TableStyle([
+        ('FONTNAME',(0,0),(-1,-1),'Helvetica'),
+        ('FONTSIZE',(0,0),(-1,-1),9.5),
+        ('TEXTCOLOR',(0,0),(-1,-1),colors.HexColor('#1e293b')),
+        ('ALIGN',(0,0),(0,-1),'RIGHT'),
+        ('ALIGN',(2,0),(2,0),'RIGHT'),
+        ('BOTTOMPADDING',(0,0),(-1,-1),4),
     ]))
-    
-    story.append(info_table)
-    story.append(Spacer(1, 20))
-    
-    # Kundendaten
+    story.append(meta_tbl)
+    story.append(Spacer(1, 6))
+
+    # Kundendaten (optional)
     if customer_data and any(customer_data.values()):
-        story.append(Paragraph("KUNDENDATEN", heading_style))
-        
-        customer_table_data = []
-        if customer_data.get('name'): customer_table_data.append(['Kunde:', customer_data['name']])
-        if customer_data.get('email'): customer_table_data.append(['E-Mail:', customer_data['email']])
-        if customer_data.get('kennzeichen'): customer_table_data.append(['Kennzeichen:', customer_data['kennzeichen']])
-        if customer_data.get('modell'): customer_table_data.append(['Fahrzeug:', customer_data['modell']])
-        if customer_data.get('fahrgestellnummer'): customer_table_data.append(['Fahrgestellnummer:', customer_data['fahrgestellnummer']])
-        
-        if customer_table_data:
-            customer_table = Table(customer_table_data, colWidths=[4*cm, 10*cm])
-            customer_table.setStyle(TableStyle([
-                ('FONTNAME', (0, 0), (-1, -1), 'Helvetica'),
-                ('FONTSIZE', (0, 0), (-1, -1), 10),
-                ('ALIGN', (0, 0), (0, -1), 'RIGHT'),
-                ('ALIGN', (1, 0), (1, -1), 'LEFT'),
-                ('VALIGN', (0, 0), (-1, -1), 'TOP'),
-                ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
+        cust_rows = []
+        if customer_data.get('name'): cust_rows.append(["Kunde:", customer_data['name']])
+        if customer_data.get('email'): cust_rows.append(["E-Mail:", customer_data['email']])
+        if customer_data.get('kennzeichen'): cust_rows.append(["Kennzeichen:", customer_data['kennzeichen']])
+        if customer_data.get('modell'): cust_rows.append(["Fahrzeug:", customer_data['modell']])
+        if customer_data.get('fahrgestellnummer'): cust_rows.append(["Fahrgestellnr.:", customer_data['fahrgestellnummer']])
+
+        if cust_rows:
+            story.append(Paragraph("Kundendaten", h2))
+            cust_tbl = Table(cust_rows, colWidths=[3.5*cm, 12.5*cm])
+            cust_tbl.setStyle(TableStyle([
+                ('FONTNAME',(0,0),(-1,-1),'Helvetica'),
+                ('FONTSIZE',(0,0),(-1,-1),9.5),
+                ('ALIGN',(0,0),(0,-1),'RIGHT'),
+                ('VALIGN',(0,0),(-1,-1),'TOP'),
+                ('BOTTOMPADDING',(0,0),(-1,-1),3),
             ]))
-            story.append(customer_table)
-            story.append(Spacer(1, 20))
-    
-    # Angebot Header
+            story.append(cust_tbl)
+            story.append(Spacer(1, 8))
+
+    # Intro
+    intro_text = (
+        f"Sehr geehrte Damen und Herren,<br/>"
+        f"{season_info['greeting']} {season_info['transition']} "
+        f"Nachfolgend erhalten Sie Ihr individuelles Angebot."
+    )
+    story.append(Paragraph(intro_text, normal))
+    story.append(Spacer(1, 12))
+
+    # Angebots-Header je Szenario
     scenario_headers = {
-        "vergleich": "IHRE REIFENOPTIONEN ZUR AUSWAHL",
-        "separate": "ANGEBOT FÜR IHRE FAHRZEUGE", 
-        "einzelangebot": "IHR INDIVIDUELLES REIFENANGEBOT"
+        "vergleich": "Ihre Reifenoptionen zur Auswahl",
+        "separate": "Angebot für Ihre Fahrzeuge",
+        "einzelangebot": "Ihr individuelles Reifenangebot"
     }
-    
-    story.append(Paragraph(scenario_headers.get(offer_scenario, "IHR REIFENANGEBOT"), heading_style))
-    story.append(Spacer(1, 10))
-    
-    # Reifen-Tabelle
+    story.append(Paragraph(scenario_headers.get(offer_scenario, "Ihr Reifenangebot"), h2))
+    story.append(Spacer(1, 4))
+
+    # Reifentabelle
     table_data = [['Pos.', 'Reifengröße', 'Marke', 'Profil', 'Stück', 'Einzelpreis', 'Services', 'Gesamtpreis']]
-    
     for i, item in enumerate(st.session_state.cart_items, 1):
         reifen_kosten, service_kosten, position_total = calculate_position_total(item)
         quantity = st.session_state.cart_quantities.get(item['id'], 4)
-        
-        # Service-Text aufbauen
-        services_text = ""
+
         item_services = st.session_state.cart_services.get(item['id'], {})
-        service_parts = []
-        
+        svc_parts = []
         if item_services.get('montage', False):
-            service_parts.append("Montage")
+            svc_parts.append("Montage")
         if item_services.get('radwechsel', False):
-            radwechsel_type = item_services.get('radwechsel_type', '4_raeder')
-            type_map = {'1_rad': '1 Rad', '2_raeder': '2 Räder', '3_raeder': '3 Räder', '4_raeder': '4 Räder'}
-            service_parts.append(f"Radwechsel {type_map.get(radwechsel_type, '4 Räder')}")
+            type_map = {'1_rad':'1 Rad','2_raeder': '2 Räder','3_raeder':'3 Räder','4_raeder':'4 Räder'}
+            svc_parts.append(f"Radwechsel {type_map.get(item_services.get('radwechsel_type','4_raeder'),'4 Räder')}")
         if item_services.get('einlagerung', False):
-            service_parts.append("Einlagerung")
-        
-        if service_parts:
-            services_text = ", ".join(service_parts)
-        else:
-            services_text = "Keine"
-        
+            svc_parts.append("Einlagerung")
+        services_text = ", ".join(svc_parts) if svc_parts else "Keine"
+
         table_data.append([
             str(i),
             item['Reifengröße'],
             item['Fabrikat'],
             item['Profil'],
             f"{quantity}x",
-            f"{item['Preis_EUR']:.2f} EUR",
+            format_eur(item['Preis_EUR']),
             services_text,
-            f"{position_total:.2f} EUR"
+            format_eur(position_total)
         ])
-    
-    # Reifen-Tabelle erstellen
-    reifen_table = Table(table_data, colWidths=[1*cm, 3*cm, 2.5*cm, 4*cm, 1.5*cm, 2.5*cm, 3*cm, 2.5*cm])
+
+    col_widths = [1.1*cm, 3.2*cm, 2.6*cm, 4.2*cm, 1.6*cm, 2.8*cm, 3.4*cm, 3.0*cm]
+    reifen_table = Table(table_data, colWidths=col_widths, repeatRows=1)
     reifen_table.setStyle(TableStyle([
         # Header
-        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#0ea5e9')),
-        ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
-        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-        ('FONTSIZE', (0, 0), (-1, 0), 10),
-        ('ALIGN', (0, 0), (-1, 0), 'CENTER'),
-        # Data rows
-        ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
-        ('FONTSIZE', (0, 1), (-1, -1), 9),
-        ('ALIGN', (0, 1), (0, -1), 'CENTER'),  # Position
-        ('ALIGN', (4, 1), (4, -1), 'CENTER'),  # Stück
-        ('ALIGN', (5, 1), (5, -1), 'RIGHT'),   # Einzelpreis
-        ('ALIGN', (7, 1), (7, -1), 'RIGHT'),   # Gesamtpreis
-        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-        # Borders
-        ('GRID', (0, 0), (-1, -1), 1, colors.black),
-        ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#f8fafc')]),
-        # Padding
-        ('TOPPADDING', (0, 0), (-1, -1), 8),
-        ('BOTTOMPADDING', (0, 0), (-1, -1), 8),
-        ('LEFTPADDING', (0, 0), (-1, -1), 6),
-        ('RIGHTPADDING', (0, 0), (-1, -1), 6),
+        ('BACKGROUND', (0,0), (-1,0), colors.HexColor('#0ea5e9')),
+        ('TEXTCOLOR', (0,0), (-1,0), colors.white),
+        ('FONTNAME', (0,0), (-1,0), 'Helvetica-Bold'),
+        ('FONTSIZE', (0,0), (-1,0), 10),
+        ('ALIGN', (0,0), (-1,0), 'CENTER'),
+        # Body
+        ('FONTNAME', (0,1), (-1,-1), 'Helvetica'),
+        ('FONTSIZE', (0,1), (-1,-1), 9.5),
+        ('ALIGN', (0,1), (0,-1), 'CENTER'),     # Pos
+        ('ALIGN', (4,1), (4,-1), 'CENTER'),     # Stück
+        ('ALIGN', (5,1), (5,-1), 'RIGHT'),      # Einzelpreis
+        ('ALIGN', (7,1), (7,-1), 'RIGHT'),      # Gesamt
+        ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
+        ('ROWBACKGROUNDS', (0,1), (-1,-1), [colors.white, colors.HexColor('#f8fafc')]),
+        ('GRID', (0,0), (-1,-1), 0.4, colors.HexColor('#e2e8f0')),
+        ('LEFTPADDING', (0,0), (-1,-1), 6),
+        ('RIGHTPADDING', (0,0), (-1,-1), 6),
+        ('TOPPADDING', (0,0), (-1,-1), 6),
+        ('BOTTOMPADDING', (0,0), (-1,-1), 6),
     ]))
-    
-    story.append(reifen_table)
-    story.append(Spacer(1, 20))
-    
-    # Kostenaufstellung
-    story.append(Paragraph("KOSTENAUFSTELLUNG", heading_style))
-    
-    cost_data = [
-        ['Reifen-Kosten:', f"{breakdown['reifen']:.2f} EUR"],
-    ]
-    
+    story.append(KeepTogether(reifen_table))
+    story.append(Spacer(1, 10))
+
+    # Kostenbox
+    story.append(Paragraph("Kostenaufstellung", h2))
+    cost_rows = [['Reifen-Kosten:', format_eur(breakdown['reifen'])]]
     if breakdown['montage'] > 0:
-        cost_data.append(['Montage-Service:', f"{breakdown['montage']:.2f} EUR"])
+        cost_rows.append(['Montage-Service:', format_eur(breakdown['montage'])])
     if breakdown['radwechsel'] > 0:
-        cost_data.append(['Radwechsel-Service:', f"{breakdown['radwechsel']:.2f} EUR"])
+        cost_rows.append(['Radwechsel-Service:', format_eur(breakdown['radwechsel'])])
     if breakdown['einlagerung'] > 0:
-        cost_data.append(['Einlagerung:', f"{breakdown['einlagerung']:.2f} EUR"])
-    
-    # Gesamtsumme
-    cost_data.append(['', ''])  # Leerzeile
-    cost_data.append(['GESAMTSUMME:', f"{total:.2f} EUR"])
-    
-    cost_table = Table(cost_data, colWidths=[10*cm, 4*cm])
-    cost_table.setStyle(TableStyle([
-        ('FONTNAME', (0, 0), (-1, -2), 'Helvetica'),
-        ('FONTSIZE', (0, 0), (-1, -2), 11),
-        ('FONTNAME', (0, -1), (-1, -1), 'Helvetica-Bold'),
-        ('FONTSIZE', (0, -1), (-1, -1), 14),
-        ('ALIGN', (0, 0), (0, -1), 'RIGHT'),
-        ('ALIGN', (1, 0), (1, -1), 'RIGHT'),
-        ('VALIGN', (0, 0), (-1, -1), 'TOP'),
-        ('LINEBELOW', (0, -2), (-1, -2), 2, colors.black),
-        ('BACKGROUND', (0, -1), (-1, -1), colors.HexColor('#f0fdf4')),
-        ('TOPPADDING', (0, 0), (-1, -1), 6),
-        ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
+        cost_rows.append(['Einlagerung:', format_eur(breakdown['einlagerung'])])
+
+    # Leerreihe und Gesamtsumme
+    cost_rows.append(['', ''])
+    cost_rows.append(['GESAMTSUMME:', format_eur(total)])
+
+    cost_tbl = Table(cost_rows, colWidths=[10.2*cm, 4.0*cm])
+    cost_tbl.setStyle(TableStyle([
+        ('FONTNAME',(0,0),(-1,-1),'Helvetica'),
+        ('FONTSIZE',(0,0),(-1,-2),10.5),
+        ('ALIGN',(0,0),(0,-1),'RIGHT'),
+        ('ALIGN',(1,0),(1,-1),'RIGHT'),
+        ('TEXTCOLOR',(0,0),(-1,-2),colors.HexColor('#1e293b')),
+        ('LINEBELOW',(0,-2),(-1,-2), 1, colors.HexColor('#e2e8f0')),
+        ('FONTNAME',(0,-1),(-1,-1),'Helvetica-Bold'),
+        ('FONTSIZE',(0,-1),(-1,-1),13),
+        ('BACKGROUND',(0,-1),(-1,-1), colors.HexColor('#f0fdf4')),
+        ('TEXTCOLOR',(0,-1),(-1,-1), colors.HexColor('#166534')),
+        ('TOPPADDING',(0,0),(-1,-1),6),
+        ('BOTTOMPADDING',(0,0),(-1,-1),6),
+        ('LEFTPADDING',(0,0),(-1,-1),6),
+        ('RIGHTPADDING',(0,0),(-1,-1),6),
     ]))
-    
-    story.append(cost_table)
-    story.append(Spacer(1, 30))
-    
-    # Zusatzinformationen
-    additional_info = []
+    story.append(KeepTogether(cost_tbl))
+    story.append(Spacer(1, 10))
+
+    # Hinweise
+    bullets = []
     if detected_season == "winter":
-        additional_info.append("• Wir empfehlen den rechtzeitigen Wechsel auf Winterreifen für optimale Sicherheit bei winterlichen Bedingungen.")
+        bullets.append("Wir empfehlen den rechtzeitigen Wechsel auf Winterreifen für optimale Sicherheit bei winterlichen Bedingungen.")
     elif detected_season == "sommer":
-        additional_info.append("• Sommerreifen bieten optimalen Grip und Fahrkomfort bei warmen Temperaturen und trockenen Straßen.")
+        bullets.append("Sommerreifen bieten optimalen Grip und Fahrkomfort bei warmen Temperaturen und trockenen Straßen.")
     elif detected_season == "ganzjahres":
-        additional_info.append("• Ganzjahresreifen bieten eine praktische Lösung für den ganzjährigen Einsatz ohne saisonalen Wechsel.")
-    
-    additional_info.extend([
-        "• Alle Preise verstehen sich inklusive der gewählten Service-Leistungen.",
-        "• Montage und Service werden von unseren Fachkräften durchgeführt.",
-        "• Bei Fragen stehen wir Ihnen gerne zur Verfügung."
+        bullets.append("Ganzjahresreifen sind eine praktische Lösung für das ganze Jahr ohne saisonalen Wechsel.")
+    bullets.extend([
+        "Alle Preise verstehen sich inklusive der gewählten Service-Leistungen.",
+        "Montage und Service werden von unseren Fachkräften durchgeführt.",
+        "Für Rückfragen stehen wir Ihnen gerne zur Verfügung."
     ])
-    
-    for info in additional_info:
-        story.append(Paragraph(info, normal_style))
-    
-    story.append(Spacer(1, 30))
-    
-    # Footer
-    story.append(Paragraph("Vielen Dank für Ihr Vertrauen!", styles['Heading3']))
-    story.append(Paragraph("Ihr Team vom Autohaus Ramsperger", normal_style))
-    
-    # PDF generieren
-    doc.build(story)
+    for b in bullets:
+        story.append(Paragraph(f"• {b}", normal))
+    story.append(Spacer(1, 14))
+
+    # Signatur / CTA
+    story.append(Paragraph("Vielen Dank für Ihr Vertrauen!", h2))
+    story.append(Paragraph("Ihr Team vom Autohaus Ramsperger", normal))
+    story.append(Spacer(1, 10))
+    story.append(Paragraph("Hinweis: Dieses Angebot ist freibleibend. Verfügbarkeit abhängig vom Lagerbestand.", small))
+
+    # Build mit Header/Footer
+    doc.build(story, onFirstPage=_header_footer, onLaterPages=_header_footer)
     buffer.seek(0)
     return buffer.getvalue()
 
-# ---------------------- E-MAIL TEXT FUNCTIONS (VERKÜRZT) ----------------------
+# ================================================================================================
+# E-MAIL TEXT & LINKS (OUTLOOK-DESKTOP-SICHER + OWA + GMAIL)
+# ================================================================================================
+_EMAIL_REGEX = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
+
+def _normalize_crlf(text: str) -> str:
+    """Outlook-Desktop erwartet CRLF. Konvertiert \n → \r\n sauber."""
+    if text is None:
+        return ""
+    # Erst vereinheitlichen, dann CRLF setzen
+    text = text.replace("\r\n", "\n").replace("\r", "\n")
+    return text.replace("\n", "\r\n")
+
+def _urlencode_mail_body(text: str) -> str:
+    """Percent-Encode für mailto/Gmail/OWA; CRLF bereits normalisiert übergeben!"""
+    return urllib.parse.quote(text, safe="")
+
+def _valid_email(addr: str) -> bool:
+    return bool(_EMAIL_REGEX.match(addr or ""))
+
 def create_email_text(customer_data=None, detected_season="neutral"):
-    """Erstellt verkürzten E-Mail-Text mit Verweis auf PDF-Anhang"""
+    """Kurzer, solider E-Mail-Text; passt in mailto-Limits."""
     season_info = get_season_greeting_text(detected_season)
-    
-    # SEHR kurzer Text für mailto: Limits
-    email_content = f"""Sehr geehrte Damen und Herren,
-
-anbei sende ich Ihnen Ihr Reifenangebot für {season_info["season_name"]}-Reifen.
-
-Alle Details finden Sie im angehängten PDF-Dokument.
-
-Bei Fragen stehen wir gerne zur Verfügung.
-
-Mit freundlichen Grüßen
-Autohaus Ramsperger"""
-
+    email_content = (
+        "Sehr geehrte Damen und Herren,\n\n"
+        f"anbei sende ich Ihnen Ihr Reifenangebot für {season_info['season_name']}-Reifen.\n\n"
+        "Alle Details finden Sie im angehängten PDF-Dokument.\n\n"
+        "Bei Fragen stehen wir Ihnen gerne zur Verfügung.\n\n"
+        "Mit freundlichen Grüßen\n"
+        "Autohaus Ramsperger"
+    )
     return email_content
 
 def create_mailto_link(customer_email, email_text, detected_season):
-    """Erstellt einen mailto: Link mit verkürztem Text"""
-    if not customer_email or not customer_email.strip():
+    """Outlook-Desktop-sicherer mailto-Link (CRLF, striktes Encoding, nur reine Adresse)."""
+    if not customer_email or not _valid_email(customer_email.strip()):
         return None
-    
+
     season_info = get_season_greeting_text(detected_season)
-    
-    # E-Mail Betreff
     subject = f"Ihr Reifenangebot von Autohaus Ramsperger - {season_info['season_name']}-Reifen"
-    
-    # URL-Encoding für mailto: Link
-    subject_encoded = urllib.parse.quote(subject)
-    body_encoded = urllib.parse.quote(email_text)
-    
-    mailto_link = f"mailto:{customer_email}?subject={subject_encoded}&body={body_encoded}"
-    
-    return mailto_link
+
+    # CRLF für Outlook-Desktop
+    body_crlf = _normalize_crlf(email_text)
+
+    subject_encoded = urllib.parse.quote(subject, safe="")
+    body_encoded = _urlencode_mail_body(body_crlf)
+
+    # Achtung: Empfänger im mailto NICHT encoden (Outlook mag %40 etc. teils nicht als To)
+    to_addr = customer_email.strip()
+    return f"mailto:{to_addr}?subject={subject_encoded}&body={body_encoded}"
+
+def create_outlook_web_link(customer_email, email_text, detected_season):
+    """Outlook Web App (OWA) Deeplink – robust bei längeren Texten."""
+    if not customer_email or not _valid_email(customer_email.strip()):
+        return None
+
+    season_info = get_season_greeting_text(detected_season)
+    subject = f"Ihr Reifenangebot von Autohaus Ramsperger - {season_info['season_name']}-Reifen"
+    body_crlf = _normalize_crlf(email_text)
+
+    params = {
+        "to": customer_email.strip(),
+        "subject": subject,
+        "body": body_crlf
+    }
+    # Alles encoden (inkl. '@' hier ok, da es eine echte HTTPS-URL ist)
+    q = "&".join([f"{k}={urllib.parse.quote(v, safe='')}" for k, v in params.items()])
+    return f"https://outlook.office.com/mail/deeplink/compose?{q}"
 
 def create_gmail_link(customer_email, email_text, detected_season):
-    """Erstellt einen direkten Gmail Compose Link"""
-    if not customer_email or not customer_email.strip():
+    """Gmail-Compose-Link im Browser."""
+    if not customer_email or not _valid_email(customer_email.strip()):
         return None
-    
+
     season_info = get_season_greeting_text(detected_season)
-    
-    # E-Mail Betreff
     subject = f"Ihr Reifenangebot von Autohaus Ramsperger - {season_info['season_name']}-Reifen"
-    
-    # URL-Encoding für Gmail compose Link
-    to_encoded = urllib.parse.quote(customer_email)
-    subject_encoded = urllib.parse.quote(subject)
-    body_encoded = urllib.parse.quote(email_text)
-    
-    # Gmail compose URL
-    gmail_url = f"https://mail.google.com/mail/u/0/?view=cm&to={to_encoded}&su={subject_encoded}&body={body_encoded}"
-    
-    return gmail_url
+    body_crlf = _normalize_crlf(email_text)
+
+    params = {
+        "view": "cm",
+        "to": customer_email.strip(),
+        "su": subject,
+        "body": body_crlf,
+        "fs": "1"
+    }
+    q = "&".join([f"{k}={urllib.parse.quote(v, safe='')}" for k, v in params.items()])
+    return f"https://mail.google.com/mail/u/0/?{q}"
 
 # ================================================================================================
 # SESSION STATE INITIALISIERUNG (Single Source of Truth)
@@ -627,19 +667,15 @@ def init_session_state():
     if 'cart_services' not in st.session_state: st.session_state.cart_services = {}
     if 'cart_count' not in st.session_state: st.session_state.cart_count = 0
 
-    # Angebot-Szenario – direkt als Widget-Quelle
     if 'offer_scenario' not in st.session_state:
         st.session_state.offer_scenario = "vergleich"
 
-    # E-Mail-Optionen Anzeige
     if 'show_email_options' not in st.session_state:
         st.session_state.show_email_options = False
 
-    # PDF wurde erstellt
     if 'pdf_created' not in st.session_state:
         st.session_state.pdf_created = False
 
-    # Kundendaten-Feld-Keys (damit Textfelder ohne value= auskommen)
     st.session_state.setdefault('customer_name', st.session_state.customer_data.get('name',''))
     st.session_state.setdefault('customer_email', st.session_state.customer_data.get('email',''))
     st.session_state.setdefault('customer_kennzeichen', st.session_state.customer_data.get('kennzeichen',''))
@@ -650,11 +686,9 @@ def init_session_state():
 # INTERNAL UTILITIES FOR WIDGET-STATE
 # ================================================================================================
 def _ensure_item_defaults(item_id):
-    # Mengen-Key
     st.session_state.setdefault(f"qty_{item_id}", st.session_state.cart_quantities.get(item_id, 4))
-    # Service-Objekt
     st.session_state.cart_services.setdefault(item_id, {'montage':False,'radwechsel':False,'radwechsel_type':'4_raeder','einlagerung':False})
-    # Widget-Keys für Services
+
     cs = st.session_state.cart_services[item_id]
     st.session_state.setdefault(f"montage_{item_id}", cs.get('montage', False))
     st.session_state.setdefault(f"radwechsel_{item_id}", cs.get('radwechsel', False))
@@ -716,7 +750,6 @@ def render_cart_item(item, position_number):
         st.number_input("Stückzahl:", 1, 8,
                         key=f"qty_{item_id}",
                         on_change=_update_qty, args=(item_id,))
-        # cart_quantities wurde im Callback aktualisiert
 
     with col_services:
         render_item_services(item)
@@ -758,7 +791,6 @@ def render_item_services(item):
             ('2_raeder', f"2 Räder ({sp.get('radwechsel_2_raeder',19.95):.2f}EUR)"),
             ('1_rad',   f"1 Rad ({sp.get('radwechsel_1_rad',9.95):.2f}EUR)")
         ]
-        # kein index/value -> Single Source: st.session_state['cart_radwechsel_type_<id>']
         st.selectbox("Anzahl:", options=[k for k,_ in options],
                      format_func=lambda x: next(lbl for k,lbl in options if k==x),
                      key=f"cart_radwechsel_type_{item_id}",
@@ -797,7 +829,6 @@ def render_customer_data():
         st.text_input("Fahrzeugmodell:", key="customer_modell", placeholder="z.B. BMW 3er E90")
         st.text_input("Fahrgestellnummer:", key="customer_fahrgestell", placeholder="z.B. WBAVA31070F123456")
 
-    # Sync in dict (eine Quelle für Offer)
     st.session_state.customer_data = {
         'name': st.session_state.get('customer_name',''),
         'email': st.session_state.get('customer_email',''),
@@ -834,19 +865,17 @@ def render_scenario_selection():
     </div>
     """, unsafe_allow_html=True)
 
-    # Single Source: key="offer_scenario"
     st.radio(
         "Angebot-Szenario:",
         options=["vergleich","separate","einzelangebot"],
         format_func=lambda x: {
             "vergleich":"Vergleichsangebot - Verschiedene Reifenoptionen zur Auswahl für ein Fahrzeug",
             "separate":"Separate Fahrzeuge - Jede Position ist für ein anderes Fahrzeug",
-            "einzelangebot":"Einzelangebot - Spezifisches Angebot für die gewählten Reifen"
+            "einzelangebot":"Einzelangebot - Spezifisches Angebot für die ausgewählten Reifen"
         }[x],
         key="offer_scenario"
     )
 
-    # Info-Box je nach Auswahl
     if st.session_state.offer_scenario == "vergleich":
         st.markdown(f"""
         <div class="info-box">
@@ -869,16 +898,18 @@ def render_scenario_selection():
         </div>
         """, unsafe_allow_html=True)
 
-    return detected  # für spätere Nutzung
+    return detected
 
 def render_email_options(email_text, detected_season):
-    """Rendert die E-Mail-Optionen Box"""
+    """E-Mail-Optionen: Outlook (Desktop, mailto), Outlook Web (OWA), Gmail."""
     customer_email = st.session_state.customer_data.get('email', '').strip()
-    
     if not customer_email:
         st.warning("Bitte geben Sie eine E-Mail-Adresse bei den Kundendaten ein.")
         return
-    
+    if not _valid_email(customer_email):
+        st.error("Die E-Mail-Adresse scheint ungültig zu sein. Bitte prüfen.")
+        return
+
     st.markdown(f"""
     <div class="email-options-box">
         <h4>📧 E-Mail-Versand Optionen</h4>
@@ -886,31 +917,34 @@ def render_email_options(email_text, detected_season):
         <p><strong>Wichtig:</strong> Bitte fügen Sie die heruntergeladene PDF-Datei manuell als Anhang zur E-Mail hinzu.</p>
     </div>
     """, unsafe_allow_html=True)
-    
-    col1, col2 = st.columns(2)
-    
+
+    col1, col2, col3 = st.columns(3)
+
     with col1:
-        if st.button("📧 Mit Outlook senden", use_container_width=True, type="secondary", help="Öffnet Ihren Standard-E-Mail-Client (meist Outlook)"):
+        if st.button("📧 Outlook (Desktop)", use_container_width=True, type="secondary",
+                     help="Öffnet Ihren Standard-E-Mail-Client (z. B. Outlook Desktop)"):
             mailto_link = create_mailto_link(customer_email, email_text, detected_season)
             if mailto_link:
-                st.markdown(f'<a href="{mailto_link}" target="_blank" style="display: none;" id="outlook-email-link"></a>', unsafe_allow_html=True)
-                st.markdown("""
-                <script>
-                    document.getElementById('outlook-email-link').click();
-                </script>
-                """, unsafe_allow_html=True)
-                st.success(f"Outlook wird automatisch geöffnet mit E-Mail an {customer_email}")
-                st.info("Die E-Mail ist vorbereitet. Fügen Sie jetzt die PDF-Datei als Anhang hinzu und senden Sie die E-Mail ab.")
-    
+                st.markdown(f'<a href="{mailto_link}" id="outlook-email-link" style="display:none;" target="_blank"></a>', unsafe_allow_html=True)
+                st.markdown("<script>document.getElementById('outlook-email-link').click();</script>", unsafe_allow_html=True)
+                st.success("Outlook (Desktop) wurde geöffnet. Bitte PDF anhängen und senden.")
+
     with col2:
-        if st.button("📧 Mit Gmail senden", use_container_width=True, type="secondary", help="Öffnet Gmail.com direkt im Browser"):
+        if st.button("📧 Outlook Web (OWA)", use_container_width=True, type="secondary",
+                     help="Öffnet Outlook im Browser mit vorbereiteter E-Mail"):
+            owa_link = create_outlook_web_link(customer_email, email_text, detected_season)
+            if owa_link:
+                st.markdown(f'**[📧 Outlook Web öffnen – hier klicken]({owa_link})**', unsafe_allow_html=True)
+                st.info("Der Link öffnet Outlook Web mit der vorbereiteten E-Mail. Bitte PDF anhängen und senden.")
+
+    with col3:
+        if st.button("📧 Gmail (Browser)", use_container_width=True, type="secondary",
+                     help="Öffnet Gmail.com direkt im Browser"):
             gmail_link = create_gmail_link(customer_email, email_text, detected_season)
             if gmail_link:
-                st.success("Gmail wird im Browser geöffnet!")
-                st.markdown(f'**[📧 Gmail öffnen - Klicken Sie hier]({gmail_link})**', unsafe_allow_html=True)
-                st.info("Der Link öffnet Gmail.com mit der vorbereiteten E-Mail. Fügen Sie die PDF-Datei als Anhang hinzu.")
-    
-    # Schließen Button
+                st.markdown(f'**[📧 Gmail öffnen – hier klicken]({gmail_link})**', unsafe_allow_html=True)
+                st.info("Der Link öffnet Gmail.com mit der vorbereiteten E-Mail. Bitte PDF anhängen und senden.")
+
     if st.button("❌ E-Mail-Optionen schließen", use_container_width=True):
         st.session_state.show_email_options = False
         st.rerun()
@@ -923,25 +957,20 @@ def render_actions(total, breakdown, detected_season):
 
     with col1:
         if st.button("📄 PDF-Angebot erstellen", use_container_width=True, type="primary"):
-            # PDF erstellen
             pdf_data = create_professional_pdf(
                 st.session_state.customer_data,
                 st.session_state.offer_scenario,
                 detected_season
             )
-            
             if pdf_data:
-                # E-Mail-Text für E-Mail erstellen
                 st.session_state.current_email_text = create_email_text(
                     st.session_state.customer_data,
                     detected_season
                 )
-                
-                # PDF Download anbieten
                 ts = datetime.now().strftime("%Y%m%d_%H%M%S")
                 season_info = get_season_greeting_text(detected_season)
                 filename = f"Angebot_Ramsperger_{season_info['season_name']}_{ts}.pdf"
-                
+
                 st.success("✅ PDF-Angebot erfolgreich erstellt!")
                 st.download_button(
                     label="📥 PDF-Angebot herunterladen",
@@ -955,18 +984,18 @@ def render_actions(total, breakdown, detected_season):
                 st.error("Fehler beim Erstellen der PDF-Datei")
 
     with col2:
-        # E-Mail versenden Button (nur wenn PDF erstellt wurde)
         customer_email = st.session_state.customer_data.get('email', '').strip()
         if customer_email and st.session_state.pdf_created:
-            if st.button("📧 Per E-Mail senden", use_container_width=True, type="secondary", help="Zeigt E-Mail-Optionen an"):
+            if st.button("📧 Per E-Mail senden", use_container_width=True, type="secondary",
+                         help="Zeigt E-Mail-Optionen an"):
                 st.session_state.show_email_options = True
                 st.rerun()
         elif not customer_email:
-            if st.button("📧 E-Mail fehlt", use_container_width=True, disabled=True, help="Bitte E-Mail-Adresse bei Kundendaten eingeben"):
-                st.warning("Bitte geben Sie eine E-Mail-Adresse bei den Kundendaten ein.")
+            st.button("📧 E-Mail fehlt", use_container_width=True, disabled=True,
+                      help="Bitte E-Mail-Adresse bei Kundendaten eingeben")
         else:
-            if st.button("📧 Erst PDF erstellen", use_container_width=True, disabled=True, help="Bitte zuerst PDF-Angebot erstellen"):
-                st.info("Bitte erstellen Sie zuerst das PDF-Angebot.")
+            st.button("📧 Erst PDF erstellen", use_container_width=True, disabled=True,
+                      help="Bitte zuerst PDF-Angebot erstellen")
 
     with col3:
         if st.button("Warenkorb leeren", use_container_width=True, type="secondary"):
@@ -982,7 +1011,6 @@ def render_actions(total, breakdown, detected_season):
     with col5:
         if st.button("Reifen ausbuchen", use_container_width=True, type="primary"):
             if st.session_state.cart_items:
-                # hier würde real die Bestandsreduktion passieren
                 st.success("Reifen erfolgreich ausgebucht!")
                 clear_cart()
                 st.session_state.pdf_created = False
@@ -990,7 +1018,6 @@ def render_actions(total, breakdown, detected_season):
             else:
                 st.warning("Warenkorb ist leer!")
 
-    # E-Mail-Optionen anzeigen (falls aktiviert)
     if st.session_state.show_email_options and hasattr(st.session_state, 'current_email_text'):
         st.markdown("---")
         render_email_options(st.session_state.current_email_text, detected_season)
