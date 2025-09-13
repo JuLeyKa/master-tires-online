@@ -252,7 +252,7 @@ def get_cart_total():
     return total, breakdown
 
 # ================================================================================================
-# PDF GENERATION (Kompakt optimiert)
+# PDF GENERATION (Kompakt optimiert mit Service-Aufschlüsselung)
 # ================================================================================================
 def format_eur(value: float) -> str:
     s = f"{value:,.2f}"
@@ -388,18 +388,6 @@ def create_professional_pdf(customer_data=None, offer_scenario="vergleich", dete
         quantity = st.session_state.cart_quantities.get(item['id'], 4)
         service_prices = get_service_prices()
 
-        # Services-Text
-        item_services = st.session_state.cart_services.get(item['id'], {})
-        svc_parts = []
-        if item_services.get('montage', False):
-            svc_parts.append("Montage")
-        if item_services.get('radwechsel', False):
-            type_map = {'1_rad':'1 Rad','2_raeder': '2 Räder','3_raeder':'3 Räder','4_raeder':'4 Räder'}
-            svc_parts.append(f"Radwechsel {type_map.get(item_services.get('radwechsel_type','4_raeder'),'4 Räder')}")
-        if item_services.get('einlagerung', False):
-            svc_parts.append("Einlagerung")
-        services_text = ", ".join(svc_parts) if svc_parts else "Keine"
-
         # EU-Label kompakt (falls vorhanden)
         eu_parts = []
         if item.get('Kraftstoffeffizienz'): eu_parts.append(f"Kraftstoff: {str(item['Kraftstoffeffizienz']).strip()}")
@@ -407,14 +395,45 @@ def create_professional_pdf(customer_data=None, offer_scenario="vergleich", dete
         if item.get('Geräuschemissionen'): eu_parts.append(f"Geräusch: {str(item['Geräuschemissionen']).strip()}")
         eu_label = " | ".join(eu_parts) if eu_parts else "EU-Label: –"
 
-        # Linke Spalte (Info) - schmaler gemacht
-        left = [
+        # Service-Aufschlüsselung für linke Spalte
+        item_services = st.session_state.cart_services.get(item['id'], {})
+        service_lines = []
+        
+        if item_services.get('montage', False):
+            z = item['Zoll']
+            montage_preis = (service_prices.get('montage_bis_17',25.0) if z<=17
+                             else service_prices.get('montage_18_19',30.0) if z<=19
+                             else service_prices.get('montage_ab_20',40.0))
+            montage_gesamt = montage_preis * quantity
+            service_lines.append(f"Montage: {format_eur(montage_gesamt)}")
+        
+        if item_services.get('radwechsel', False):
+            t = item_services.get('radwechsel_type','4_raeder')
+            radwechsel_preis = {
+                '1_rad': service_prices.get('radwechsel_1_rad',9.95),
+                '2_raeder': service_prices.get('radwechsel_2_raeder',19.95),
+                '3_raeder': service_prices.get('radwechsel_3_raeder',29.95),
+                '4_raeder': service_prices.get('radwechsel_4_raeder',39.90)
+            }.get(t, service_prices.get('radwechsel_4_raeder',39.90))
+            type_map = {'1_rad':'1 Rad','2_raeder': '2 Räder','3_raeder':'3 Räder','4_raeder':'4 Räder'}
+            service_lines.append(f"Radwechsel {type_map.get(t,'4 Räder')}: {format_eur(radwechsel_preis)}")
+        
+        if item_services.get('einlagerung', False):
+            einlagerung_preis = service_prices.get('nur_einlagerung',55.00)
+            service_lines.append(f"Einlagerung: {format_eur(einlagerung_preis)}")
+
+        # Linke Spalte (Info + Services)
+        left_rows = [
             [_p(f"<b>{item['Reifengröße']}</b> – <b>{item['Fabrikat']} {item['Profil']}</b>", cell)],
             [_p(f"Teilenummer: {item['Teilenummer']} · Einzelpreis: <b>{format_eur(item['Preis_EUR'])}</b>", cell)],
             [_p(f"{eu_label} · Saison: {item.get('Saison','Unbekannt')}", cell)]
         ]
+        
+        # Service-Zeilen hinzufügen
+        for service_line in service_lines:
+            left_rows.append([_p(service_line, cell)])
 
-        left_tbl = Table(left, colWidths=[8.6*cm])
+        left_tbl = Table(left_rows, colWidths=[12*cm])
         left_tbl.setStyle(TableStyle([
             ('FONTNAME',(0,0),(-1,-1),'Helvetica'),
             ('FONTSIZE',(0,0),(-1,-1),8.5),
@@ -424,22 +443,16 @@ def create_professional_pdf(customer_data=None, offer_scenario="vergleich", dete
             ('TOPPADDING',(0,0),(-1,-1),0),
         ]))
 
-        # Rechte Spalte (Services/Preise)
+        # Rechte Spalte (nur Stückzahl und Gesamtpreis)
         right_rows = [
-            [_p("<b>Stückzahl</b>", cell), _p(f"{quantity}×", cell_c)],
-            [_p("<b>Services</b>", cell), _p(services_text, cell)],
-            [_p("<b>Position</b>", cell), _p(f"<b>{format_eur(position_total)}</b>", cell_r)],
+            [_p("<b>Stückzahl</b>", cell_c)],
+            [_p(f"{quantity}×", cell_c)],
+            [_p(" ", cell_c)],  # Spacer
+            [_p("<b>Position Gesamt</b>", cell_c)],
+            [_p(f"<b>{format_eur(position_total)}</b>", cell_c)],
         ]
-        # Zusätzliche Fahrzeuginfo pro Position (falls Szenario 'separate' oder explizit gewünscht)
-        veh_parts = []
-        if st.session_state.customer_data.get('modell'):
-            veh_parts.append(f"Fahrzeug: {st.session_state.customer_data['modell']}")
-        if st.session_state.customer_data.get('kennzeichen'):
-            veh_parts.append(f"Kennzeichen: {st.session_state.customer_data['kennzeichen']}")
-        if veh_parts and offer_scenario == "separate":
-            right_rows.insert(0, [_p("<b>Fahrzeug</b>", cell), _p(" · ".join(veh_parts), cell)])
 
-        right_tbl = Table(right_rows, colWidths=[3.4*cm, 4.4*cm])
+        right_tbl = Table(right_rows, colWidths=[5.6*cm])
         right_tbl.setStyle(TableStyle([
             ('FONTNAME',(0,0),(-1,-1),'Helvetica'),
             ('FONTSIZE',(0,0),(-1,-1),8.5),
@@ -449,7 +462,7 @@ def create_professional_pdf(customer_data=None, offer_scenario="vergleich", dete
             ('TOPPADDING',(0,0),(-1,-1),0),
         ]))
 
-        card = Table([[left_tbl, right_tbl]], colWidths=[10.6*cm, 7.0*cm])
+        card = Table([[left_tbl, right_tbl]], colWidths=[12*cm, 5.6*cm])
         card.setStyle(TableStyle([
             ('VALIGN',(0,0),(-1,-1),'TOP'),
             ('INNERGRID',(0,0),(-1,-1),0, colors.white),
@@ -471,43 +484,44 @@ def create_professional_pdf(customer_data=None, offer_scenario="vergleich", dete
             ]))
         story.append(Spacer(1, 2))
 
-    # Kostenaufstellung (GESAMTSUMME in Grün) - kompakter und innerhalb A4
-    story.append(_p("Kostenaufstellung", h2))
-    cost_rows = [['Reifen-Kosten', format_eur(breakdown['reifen'])]]
-    if breakdown['montage'] > 0:
-        cost_rows.append(['Montage-Service', format_eur(breakdown['montage'])])
-    if breakdown['radwechsel'] > 0:
-        cost_rows.append(['Radwechsel-Service', format_eur(breakdown['radwechsel'])])
-    if breakdown['einlagerung'] > 0:
-        cost_rows.append(['Einlagerung', format_eur(breakdown['einlagerung'])])
+    # Kostenaufstellung nur bei NICHT-Vergleichsangeboten
+    if offer_scenario != "vergleich":
+        story.append(_p("Kostenaufstellung", h2))
+        cost_rows = [['Reifen-Kosten', format_eur(breakdown['reifen'])]]
+        if breakdown['montage'] > 0:
+            cost_rows.append(['Montage-Service', format_eur(breakdown['montage'])])
+        if breakdown['radwechsel'] > 0:
+            cost_rows.append(['Radwechsel-Service', format_eur(breakdown['radwechsel'])])
+        if breakdown['einlagerung'] > 0:
+            cost_rows.append(['Einlagerung', format_eur(breakdown['einlagerung'])])
 
-    cost_rows.append(['', ''])
-    cost_rows.append(['GESAMTSUMME', format_eur(total)])
+        cost_rows.append(['', ''])
+        cost_rows.append(['GESAMTSUMME', format_eur(total)])
 
-    cost_tbl = Table(cost_rows, colWidths=[12*cm, 5*cm])
-    cost_tbl.setStyle(TableStyle([
-        ('FONTNAME',(0,0),(-1,-2),'Helvetica'),
-        ('FONTSIZE',(0,0),(-1,-2),9),
-        ('TEXTCOLOR',(0,0),(-1,-2),colors.black),
-        ('ALIGN',(0,0),(0,-2),'LEFT'),
-        ('ALIGN',(1,0),(1,-2),'RIGHT'),
-        ('LINEBELOW',(0,-2),(-1,-2), 0.6, colors.black),
+        cost_tbl = Table(cost_rows, colWidths=[12*cm, 5*cm])
+        cost_tbl.setStyle(TableStyle([
+            ('FONTNAME',(0,0),(-1,-2),'Helvetica'),
+            ('FONTSIZE',(0,0),(-1,-2),9),
+            ('TEXTCOLOR',(0,0),(-1,-2),colors.black),
+            ('ALIGN',(0,0),(0,-2),'LEFT'),
+            ('ALIGN',(1,0),(1,-2),'RIGHT'),
+            ('LINEBELOW',(0,-2),(-1,-2), 0.6, colors.black),
 
-        # Gesamtsumme (einzige Farbe)
-        ('FONTNAME',(0,-1),(-1,-1),'Helvetica-Bold'),
-        ('FONTSIZE',(0,-1),(-1,-1),11),
-        ('BACKGROUND',(0,-1),(-1,-1), colors.HexColor('#f0fdf4')),
-        ('TEXTCOLOR',(0,-1),(-1,-1), colors.HexColor('#166534')),
-        ('ALIGN',(0,-1),(0,-1),'LEFT'),
-        ('ALIGN',(1,-1),(1,-1),'RIGHT'),
+            # Gesamtsumme (einzige Farbe)
+            ('FONTNAME',(0,-1),(-1,-1),'Helvetica-Bold'),
+            ('FONTSIZE',(0,-1),(-1,-1),11),
+            ('BACKGROUND',(0,-1),(-1,-1), colors.HexColor('#f0fdf4')),
+            ('TEXTCOLOR',(0,-1),(-1,-1), colors.HexColor('#166534')),
+            ('ALIGN',(0,-1),(0,-1),'LEFT'),
+            ('ALIGN',(1,-1),(1,-1),'RIGHT'),
 
-        ('TOPPADDING',(0,0),(-1,-1),3),
-        ('BOTTOMPADDING',(0,0),(-1,-1),3),
-        ('LEFTPADDING',(0,0),(-1,-1),3),
-        ('RIGHTPADDING',(0,0),(-1,-1),3),
-    ]))
-    story.append(KeepTogether(cost_tbl))
-    story.append(Spacer(1, 4))
+            ('TOPPADDING',(0,0),(-1,-1),3),
+            ('BOTTOMPADDING',(0,0),(-1,-1),3),
+            ('LEFTPADDING',(0,0),(-1,-1),3),
+            ('RIGHTPADDING',(0,0),(-1,-1),3),
+        ]))
+        story.append(KeepTogether(cost_tbl))
+        story.append(Spacer(1, 4))
 
     # Hinweise - kompakter
     bullets = []
@@ -517,6 +531,10 @@ def create_professional_pdf(customer_data=None, offer_scenario="vergleich", dete
         bullets.append("Sommerreifen bieten optimalen Grip und Fahrkomfort bei warmen Temperaturen und trockenen Straßen.")
     elif detected_season == "ganzjahres":
         bullets.append("Ganzjahresreifen sind eine praktische Lösung für das ganze Jahr ohne saisonalen Wechsel.")
+    
+    if offer_scenario == "vergleich":
+        bullets.append("Sie können sich für eine der angebotenen Reifenoptionen entscheiden.")
+    
     bullets.extend([
         "Alle Preise verstehen sich inklusive der gewählten Service-Leistungen.",
         "Montage und Service werden von unseren Fachkräften durchgeführt.",
