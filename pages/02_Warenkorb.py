@@ -566,7 +566,9 @@ def create_td_email_text(customer_data=None, detected_season="neutral"):
     # Kundendaten falls vorhanden
     if customer_data and (customer_data.get('name') or customer_data.get('kennzeichen') or customer_data.get('modell')):
         email_content += "KUNDENDATEN:\r\n"
-        if customer_data.get('name'):
+        if customer_data.get('anrede') and customer_data.get('name'):
+            email_content += f"Kunde: {customer_data['anrede']} {customer_data['name']}\r\n"
+        elif customer_data.get('name'):
             email_content += f"Kunde: {customer_data['name']}\r\n"
         if customer_data.get('kennzeichen'):
             email_content += f"Kennzeichen: {customer_data['kennzeichen']}\r\n"
