@@ -708,7 +708,7 @@ def render_actions(total, breakdown, detected_season):
                     st.session_state.offer_scenario,
                     detected_season
                 )
-                gmail_link = create_gmail_compose_link(customer_email, offer, detected_season)
+                gmail_link = create_gmail_link(customer_email, offer, detected_season)
                 if gmail_link:
                     st.success(f"Gmail wird mit E-Mail an {customer_email} geöffnet!")
                     st.markdown(f'**[📧 Gmail öffnen - Klicken Sie hier]({gmail_link})**', unsafe_allow_html=True)
