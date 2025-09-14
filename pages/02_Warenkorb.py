@@ -833,7 +833,7 @@ def _clear_item_widget_keys(item_id):
         st.session_state.pop(key, None)
 
 # ================================================================================================
-# RENDER FUNCTIONS - OHNE CONTAINER-DIVS
+# RENDER FUNCTIONS - MIT SCHÖNER POSITIONS-ABTRENNUNG
 # ================================================================================================
 def render_empty_cart():
     st.markdown("### Der Warenkorb ist leer")
@@ -845,6 +845,10 @@ def render_cart_content():
     st.markdown("#### Reifen im Warenkorb")
     for i, item in enumerate(st.session_state.cart_items, 1):
         render_cart_item(item, i)
+        
+        # Schöne Abtrennung zwischen Positionen (nur wenn nicht die letzte Position)
+        if i < len(st.session_state.cart_items):
+            st.markdown("---")
 
 def render_cart_item(item, position_number):
     st.markdown(f"### Position {position_number}")
