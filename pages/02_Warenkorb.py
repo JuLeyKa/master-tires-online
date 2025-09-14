@@ -24,11 +24,12 @@ st.set_page_config(
 )
 
 # ================================================================================================
-# CSS STYLES (App-UI bleibt wie gehabt)
+# CSS STYLES - EINHEITLICH MIT REIFEN-SUCHE
 # ================================================================================================
 MAIN_CSS = """
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+    
     :root {
         --primary-color: #0ea5e9;
         --primary-dark: #0284c7;
@@ -46,15 +47,17 @@ MAIN_CSS = """
         --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1);
         --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1);
     }
-    .main > div { padding-top: 1rem; }
-    .main-header {
-        background: linear-gradient(135deg, var(--primary-color), var(--primary-dark));
-        color: white; padding: 2rem; border-radius: 12px; text-align: center;
-        margin-bottom: 1.5rem; box-shadow: var(--shadow-lg);
+
+    /* WICHTIG 1: Globale Reduktion des Top-Paddings für den Haupt-Content,
+       damit das Logo höher startet (nahe der Sidebar-"app"-Zeile) */
+    [data-testid="stAppViewContainer"] .block-container {
+        padding-top: 0.5rem !important;   /* ggf. 0–1rem feinjustieren */
     }
-    .main-header h1 { margin: 0; font-size: 2.2rem; font-weight: 700; font-family: 'Inter', sans-serif; }
-    .main-header h1 { margin: 0; font-size: 2.2rem; font-weight: 700; font-family: 'Inter', sans-serif; }
-    .main-header p { margin: 0.5rem 0 0 0; font-size: 1.05rem; opacity: 0.95; }
+    
+    .main > div {
+        padding-top: 0.2rem;
+    }
+    
     .cart-container {
         background: linear-gradient(135deg, #f0f9ff, #e0f2fe);
         padding: 1.2rem; border-radius: 12px; margin: 1rem 0; border: 2px solid var(--primary-color);
@@ -87,6 +90,19 @@ MAIN_CSS = """
         padding: 1rem;
         margin: 0.5rem 0;
         background: var(--background-light);
+    }
+    
+    .logo-container {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        padding: 1.9rem 0 0.5rem 0;
+        margin: 0; /* kein Margin-Konflikt */
+    }
+
+    /* WICHTIG 2: definierter Abstand NACH dem Logo – kollabiert nicht */
+    .logo-spacer {
+        height: 64px; /* -> bei Bedarf 48–80px anpassen */
     }
 </style>
 """
@@ -1133,12 +1149,17 @@ def render_actions(total, breakdown, detected_season):
 def main():
     init_session_state()
 
-    st.markdown("""
-    <div class="main-header">
-        <h1>Warenkorb & Angebotserstellung</h1>
-        <p>Erstelle professionelle PDF-Angebote mit automatischer Saison-Erkennung und direktem E-Mail-Versand</p>
-    </div>
-    """, unsafe_allow_html=True)
+    # Logo Header ganz oben - EINHEITLICH WIE REIFEN-SUCHE
+    st.markdown('<div class="logo-container">', unsafe_allow_html=True)
+    try:
+        logo_path = "data/Logo_2.png"
+        st.image(logo_path, width=400)
+    except:
+        st.markdown("### Ramsperger Automobile")
+    st.markdown('</div>', unsafe_allow_html=True)
+
+    # Fester Abstand NACH dem Logo (robust gegen Margin-Collapse)
+    st.markdown('<div class="logo-spacer"></div>', unsafe_allow_html=True)
 
     if not st.session_state.cart_items:
         render_empty_cart()
