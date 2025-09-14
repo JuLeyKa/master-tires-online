@@ -38,7 +38,7 @@ MAIN_CSS = """
     }
     
     .main > div {
-        padding-top: 1rem;
+        padding-top: 0.2rem;
     }
     
     .warning-box {
@@ -114,8 +114,9 @@ MAIN_CSS = """
         display: flex;
         justify-content: center;
         align-items: center;
-        padding: 2.5rem 0 1rem 0;
-        margin-bottom: 2.5rem;
+        padding: 0.3rem 0 0.5rem 0;
+        margin-bottom: 2rem;
+        margin-top: 0;
     }
 </style>
 """
@@ -631,15 +632,15 @@ def render_legend(mit_bestand, saison_filter, zoll_filter):
             st.markdown(f"**Aktive Filter:** {' | '.join(filter_info)}")
 
 # ================================================================================================
-# MAIN FUNCTION - MIT LOGO UND VERBESSERTEM SPACING
+# MAIN FUNCTION - MIT LOGO GANZ OBEN UND LOGO_2.PNG
 # ================================================================================================
 def main():
     init_session_state()
 
-    # Logo Header mit verbessertem Spacing
+    # Logo Header ganz oben mit minimalem Spacing
     st.markdown('<div class="logo-container">', unsafe_allow_html=True)
     try:
-        logo_path = "data/Logo.png"
+        logo_path = "data/Logo_2.png"
         st.image(logo_path, width=400)
     except:
         st.markdown("### Ramsperger Automobile")
