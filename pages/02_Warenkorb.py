@@ -174,6 +174,24 @@ def get_season_greeting_text(detected_season):
     }
     return season_texts.get(detected_season, season_texts["neutral"])
 
+# ---------------------- Service Detection für dynamische Überschrift ----------------------
+def has_services_in_cart():
+    """Prüft ob Services im Warenkorb aktiviert sind"""
+    for item in st.session_state.cart_items:
+        item_services = st.session_state.cart_services.get(item['id'], {})
+        if (item_services.get('montage', False) or 
+            item_services.get('radwechsel', False) or 
+            item_services.get('einlagerung', False)):
+            return True
+    return False
+
+def get_dynamic_title():
+    """Generiert dynamische Überschrift basierend auf Warenkorb-Inhalt"""
+    if has_services_in_cart():
+        return "Angebot Reifen & Service"
+    else:
+        return "Angebot Reifen"
+
 # ---------------------- Cart Ops ----------------------
 def remove_from_cart(tire_id):
     st.session_state.cart_items = [item for item in st.session_state.cart_items if item['id'] != tire_id]
@@ -350,7 +368,14 @@ def create_professional_pdf(customer_data=None, offer_scenario="vergleich", dete
     story.append(Spacer(1, 15))
     story.append(Spacer(1, 15))
     
-    story.append(_p("Angebot Reifen & Service", h1))
+    # Dynamische Überschrift basierend auf Warenkorb-Inhalt
+    dynamic_title = get_dynamic_title()
+    story.append(_p(dynamic_title, h1))
+
+    # 3 zusätzliche Leerzeilen zwischen Überschrift und Metadaten
+    story.append(Spacer(1, 12))
+    story.append(Spacer(1, 12))
+    story.append(Spacer(1, 12))
 
     # Metadaten ohne Angebotsnummer
     meta_tbl = Table([
@@ -365,7 +390,11 @@ def create_professional_pdf(customer_data=None, offer_scenario="vergleich", dete
         ('ALIGN',(0,0),(0,-1),'LEFT'),
     ]))
     story.append(meta_tbl)
-    story.append(Spacer(1, 2))
+
+    # 3 zusätzliche Leerzeilen zwischen Metadaten und Anrede
+    story.append(Spacer(1, 12))
+    story.append(Spacer(1, 12))
+    story.append(Spacer(1, 12))
 
     # Kundendaten ohne Labels
     cust_lines = []
@@ -403,10 +432,10 @@ def create_professional_pdf(customer_data=None, offer_scenario="vergleich", dete
 
     # Positionsdarstellung ohne "Position X" Titel
     section_title = {
-        "vergleich": "Ihr individuelles Reifenangebot",
-        "separate": "Angebot für Ihre Fahrzeuge",
-        "einzelangebot": "Ihr individuelles Reifenangebot"
-    }.get(offer_scenario, "Ihr Reifenangebot")
+        "vergleich": f"Ihr individuelles {dynamic_title.split(' ', 1)[1]}",  # "Ihr individuelles Reifenangebot" oder "Ihr individuelles Reifen & Service"
+        "separate": f"Angebot für Ihre Fahrzeuge",
+        "einzelangebot": f"Ihr individuelles {dynamic_title.split(' ', 1)[1]}"
+    }.get(offer_scenario, f"Ihr {dynamic_title.split(' ', 1)[1]}")
     story.append(_p(section_title, h2))
     story.append(Spacer(1, 2))
 
