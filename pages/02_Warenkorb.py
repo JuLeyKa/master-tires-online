@@ -359,13 +359,10 @@ def create_professional_pdf(customer_data=None, offer_scenario="vergleich", dete
 
     story = []
 
-    # Kopf - mit mehr Abstand zum Logo
+    # Kopf - mit reduziertem Abstand zum Logo
     date_str = datetime.now().strftime('%d.%m.%Y')
 
-    # 4 Leerzeilen für größeren Abstand zwischen Logo und Überschrift
-    story.append(Spacer(1, 15))  
-    story.append(Spacer(1, 15))  
-    story.append(Spacer(1, 15))
+    # Nur 1 Leerzeile zwischen Logo und Überschrift (3 weniger als vorher)
     story.append(Spacer(1, 15))
     
     # Dynamische Überschrift basierend auf Warenkorb-Inhalt
@@ -391,7 +388,7 @@ def create_professional_pdf(customer_data=None, offer_scenario="vergleich", dete
     ]))
     story.append(meta_tbl)
 
-    # 3 zusätzliche Leerzeilen zwischen Metadaten und Anrede
+    # 3 zusätzliche Leerzeilen zwischen Metadaten und Kundendaten
     story.append(Spacer(1, 12))
     story.append(Spacer(1, 12))
     story.append(Spacer(1, 12))
@@ -418,7 +415,9 @@ def create_professional_pdf(customer_data=None, offer_scenario="vergleich", dete
     if cust_lines:
         for line in cust_lines:
             story.append(_p(line, normal))
-        story.append(Spacer(1, 3))
+        # 1-2 zusätzliche Leerzeilen zwischen Kundendaten und Anrede
+        story.append(Spacer(1, 6))
+        story.append(Spacer(1, 6))
 
     # Einleitung mit personalisierter Anrede
     personal_salutation = create_personalized_salutation(customer_data)
