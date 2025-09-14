@@ -114,8 +114,8 @@ MAIN_CSS = """
         display: flex;
         justify-content: center;
         align-items: center;
-        padding: 1rem 0;
-        margin-bottom: 1rem;
+        padding: 2.5rem 0 1rem 0;
+        margin-bottom: 2.5rem;
     }
 </style>
 """
@@ -631,12 +631,12 @@ def render_legend(mit_bestand, saison_filter, zoll_filter):
             st.markdown(f"**Aktive Filter:** {' | '.join(filter_info)}")
 
 # ================================================================================================
-# MAIN FUNCTION - MIT LOGO STATT HEADER
+# MAIN FUNCTION - MIT LOGO UND VERBESSERTEM SPACING
 # ================================================================================================
 def main():
     init_session_state()
 
-    # Logo Header statt des blauen Headers
+    # Logo Header mit verbessertem Spacing
     st.markdown('<div class="logo-container">', unsafe_allow_html=True)
     try:
         logo_path = "data/Logo.png"
