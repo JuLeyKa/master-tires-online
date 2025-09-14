@@ -53,6 +53,7 @@ MAIN_CSS = """
         margin-bottom: 1.5rem; box-shadow: var(--shadow-lg);
     }
     .main-header h1 { margin: 0; font-size: 2.2rem; font-weight: 700; font-family: 'Inter', sans-serif; }
+    .main-header h1 { margin: 0; font-size: 2.2rem; font-weight: 700; font-family: 'Inter', sans-serif; }
     .main-header p { margin: 0.5rem 0 0 0; font-size: 1.05rem; opacity: 0.95; }
     .cart-container {
         background: linear-gradient(135deg, #f0f9ff, #e0f2fe);
@@ -80,6 +81,13 @@ MAIN_CSS = """
         font-family: 'Inter', sans-serif;
     }
     .stButton > button:hover { transform: translateY(-1px); box-shadow: var(--shadow-md); }
+    .vehicle-section {
+        border: 1px solid var(--border-color);
+        border-radius: var(--border-radius);
+        padding: 1rem;
+        margin: 0.5rem 0;
+        background: var(--background-light);
+    }
 </style>
 """
 st.markdown(MAIN_CSS, unsafe_allow_html=True)
@@ -393,7 +401,7 @@ def create_professional_pdf(customer_data=None, offer_scenario="vergleich", dete
     story.append(Spacer(1, 12))
     story.append(Spacer(1, 12))
 
-    # Kundendaten ohne Labels
+    # Kundendaten ohne Labels - erweitert für separate Fahrzeuge
     cust_lines = []
     if customer_data:
         if customer_data.get('anrede') and customer_data.get('name'):
@@ -402,6 +410,8 @@ def create_professional_pdf(customer_data=None, offer_scenario="vergleich", dete
             cust_lines.append(f"{customer_data['name']}")
         if customer_data.get('email'):
             cust_lines.append(f"{customer_data['email']}")
+        
+        # Fahrzeug 1 Daten
         if customer_data.get('kennzeichen'):
             cust_lines.append(f"{customer_data['kennzeichen']}")
         extra = []
@@ -411,6 +421,18 @@ def create_professional_pdf(customer_data=None, offer_scenario="vergleich", dete
             extra.append(f"FIN: {customer_data['fahrgestellnummer']}")
         if extra:
             cust_lines.append(" · ".join(extra))
+        
+        # Fahrzeug 2 Daten (nur bei "separate" Szenario)
+        if offer_scenario == "separate":
+            if customer_data.get('kennzeichen_2'):
+                cust_lines.append(f"Fahrzeug 2: {customer_data['kennzeichen_2']}")
+            extra_2 = []
+            if customer_data.get('modell_2'):
+                extra_2.append(f"{customer_data['modell_2']}")
+            if customer_data.get('fahrgestellnummer_2'):
+                extra_2.append(f"FIN: {customer_data['fahrgestellnummer_2']}")
+            if extra_2:
+                cust_lines.append(" · ".join(extra_2))
 
     if cust_lines:
         for line in cust_lines:
@@ -700,6 +722,17 @@ def create_td_email_text(customer_data=None, detected_season="neutral"):
             email_content += f"Fahrzeug: {customer_data['modell']}\r\n"
         if customer_data.get('fahrgestellnummer'):
             email_content += f"Fahrgestellnummer: {customer_data['fahrgestellnummer']}\r\n"
+        
+        # Fahrzeug 2 Daten falls vorhanden
+        if customer_data.get('kennzeichen_2') or customer_data.get('modell_2') or customer_data.get('fahrgestellnummer_2'):
+            email_content += f"Fahrzeug 2:\r\n"
+            if customer_data.get('kennzeichen_2'):
+                email_content += f"Kennzeichen 2: {customer_data['kennzeichen_2']}\r\n"
+            if customer_data.get('modell_2'):
+                email_content += f"Fahrzeug 2: {customer_data['modell_2']}\r\n"
+            if customer_data.get('fahrgestellnummer_2'):
+                email_content += f"Fahrgestellnummer 2: {customer_data['fahrgestellnummer_2']}\r\n"
+        
         email_content += "\r\n"
     
     # Reifenpositionen
@@ -751,7 +784,10 @@ def create_td_mailto_link(td_email_text):
 # ================================================================================================
 def init_session_state():
     if 'customer_data' not in st.session_state:
-        st.session_state.customer_data = {'anrede':'','name':'','email':'','kennzeichen':'','modell':'','fahrgestellnummer':''}
+        st.session_state.customer_data = {
+            'anrede':'','name':'','email':'','kennzeichen':'','modell':'','fahrgestellnummer':'',
+            'kennzeichen_2':'','modell_2':'','fahrgestellnummer_2':''
+        }
 
     if 'cart_items' not in st.session_state: st.session_state.cart_items = []
     if 'cart_quantities' not in st.session_state: st.session_state.cart_quantities = {}
@@ -774,6 +810,11 @@ def init_session_state():
     st.session_state.setdefault('customer_kennzeichen', st.session_state.customer_data.get('kennzeichen',''))
     st.session_state.setdefault('customer_modell', st.session_state.customer_data.get('modell',''))
     st.session_state.setdefault('customer_fahrgestell', st.session_state.customer_data.get('fahrgestellnummer',''))
+    
+    # Fahrzeug 2 Session States
+    st.session_state.setdefault('customer_kennzeichen_2', st.session_state.customer_data.get('kennzeichen_2',''))
+    st.session_state.setdefault('customer_modell_2', st.session_state.customer_data.get('modell_2',''))
+    st.session_state.setdefault('customer_fahrgestell_2', st.session_state.customer_data.get('fahrgestellnummer_2',''))
 
 # ================================================================================================
 # INTERNAL UTILITIES FOR WIDGET-STATE
@@ -923,8 +964,23 @@ def render_customer_data():
         st.text_input("E-Mail-Adresse:", key="customer_email", placeholder="z.B. max@mustermann.de", help="Für den E-Mail-Versand des Angebots")
         st.text_input("Kennzeichen:", key="customer_kennzeichen", placeholder="z.B. GP-AB 123")
     with col2:
-        st.text_input("Fahrzeugmodell:", key="customer_modell", placeholder="z.B. BMW 3er E90")
+        st.text_input("Hersteller / Modell:", key="customer_modell", placeholder="z.B. BMW 3er E90")
         st.text_input("Fahrgestellnummer:", key="customer_fahrgestell", placeholder="z.B. WBAVA31070F123456")
+
+    # Fahrzeug 2 Felder nur bei "separate" Szenario
+    if st.session_state.offer_scenario == "separate":
+        st.markdown("---")
+        st.markdown("##### Fahrzeug 2 (Separate Fahrzeuge)")
+        st.markdown('<div class="vehicle-section">', unsafe_allow_html=True)
+        
+        col3, col4 = st.columns(2)
+        with col3:
+            st.text_input("Kennzeichen 2:", key="customer_kennzeichen_2", placeholder="z.B. GP-CD 456")
+            st.text_input("Hersteller / Modell 2:", key="customer_modell_2", placeholder="z.B. Audi A4 B9")
+        with col4:
+            st.text_input("Fahrgestellnummer 2:", key="customer_fahrgestell_2", placeholder="z.B. WAUEFE123456789")
+        
+        st.markdown('</div>', unsafe_allow_html=True)
 
     # Session State Update
     st.session_state.customer_data = {
@@ -933,7 +989,10 @@ def render_customer_data():
         'email': st.session_state.get('customer_email',''),
         'kennzeichen': st.session_state.get('customer_kennzeichen',''),
         'modell': st.session_state.get('customer_modell',''),
-        'fahrgestellnummer': st.session_state.get('customer_fahrgestell','')
+        'fahrgestellnummer': st.session_state.get('customer_fahrgestell',''),
+        'kennzeichen_2': st.session_state.get('customer_kennzeichen_2',''),
+        'modell_2': st.session_state.get('customer_modell_2',''),
+        'fahrgestellnummer_2': st.session_state.get('customer_fahrgestell_2','')
     }
 
 def render_scenario_selection():
