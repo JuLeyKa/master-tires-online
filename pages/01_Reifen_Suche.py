@@ -359,6 +359,26 @@ def add_to_cart_with_config(tire_data, quantity, services):
     st.session_state.cart_count = len(st.session_state.cart_items)
     return True, f"{quantity}x {cart_item['Reifengröße']} hinzugefügt"
 
+def remove_from_cart(tire_data):
+    """Entfernt einen Reifen aus dem Warenkorb"""
+    tire_id = f"{tire_data['Teilenummer']}_{tire_data['Preis_EUR']}"
+    
+    # Entferne aus cart_items
+    st.session_state.cart_items = [item for item in st.session_state.cart_items if item['id'] != tire_id]
+    
+    # Entferne aus cart_quantities
+    if tire_id in st.session_state.cart_quantities:
+        del st.session_state.cart_quantities[tire_id]
+    
+    # Entferne aus cart_services
+    if tire_id in st.session_state.cart_services:
+        del st.session_state.cart_services[tire_id]
+    
+    # Aktualisiere cart_count
+    st.session_state.cart_count = len(st.session_state.cart_items)
+    
+    return True, f"Reifen {tire_data['Fabrikat']} {tire_data['Profil']} aus Warenkorb entfernt"
+
 # ================================================================================================
 # SESSION STATE INITIALISIERUNG (Single Source of Truth für Widgets)
 # ================================================================================================
@@ -513,12 +533,18 @@ def render_tire_list(filtered_df):
     st.markdown("**Reifen auswählen und konfigurieren:**")
 
     for idx, row in display.iterrows():
-        col_info, col_button = st.columns([5, 1])
+        is_in_cart = is_tire_in_cart(row)
+        
+        # Layout: Info + Button + Remove Button (wenn im Warenkorb)
+        if is_in_cart:
+            col_info, col_button, col_remove = st.columns([4, 1, 1])
+        else:
+            col_info, col_button = st.columns([5, 1])
 
         with col_info:
             saison_badge = get_saison_badge_html(row.get('Saison', 'Unbekannt'))
             cart_indicator = ""
-            if is_tire_in_cart(row):
+            if is_in_cart:
                 cart_indicator = '<span class="cart-indicator">🛒 Im Warenkorb</span>'
             st.markdown(f"**{row['Reifengröße']}** - {row['Fabrikat']} {row['Profil']} {saison_badge} {cart_indicator}", unsafe_allow_html=True)
 
@@ -558,6 +584,21 @@ def render_tire_list(filtered_df):
                     st.session_state.opened_tire_cards.add(card_key)
                 st.rerun()
 
+        # Neuer Remove Button - nur wenn Reifen im Warenkorb ist
+        if is_in_cart:
+            with col_remove:
+                if st.button("🗑️", 
+                           key=f"remove_btn_{idx}",
+                           use_container_width=True,
+                           type="secondary",
+                           help="Aus Warenkorb entfernen"):
+                    success, message = remove_from_cart(row)
+                    if success:
+                        st.success(message)
+                        st.rerun()
+                    else:
+                        st.error("Fehler beim Entfernen aus dem Warenkorb")
+
         if card_key in st.session_state.opened_tire_cards:
             render_config_card(row, idx, filtered_df)
 
@@ -595,6 +636,7 @@ def render_legend(mit_bestand, saison_filter, zoll_filter):
         st.markdown("**Loadindex:** Tragfähigkeit pro Reifen in kg")
         st.markdown("**Bestand:** NACHBESTELLEN | AUSVERKAUFT | VERFÜGBAR | unbekannt")
         st.markdown("**🛒 Im Warenkorb:** Reifen bereits im Warenkorb hinzugefügt")
+        st.markdown("**🗑️ Button:** Reifen aus Warenkorb entfernen")
         filter_info = []
         if mit_bestand:
             filter_info.append("Bestandsfilter aktiv")
