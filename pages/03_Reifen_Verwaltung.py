@@ -284,6 +284,8 @@ def init_session_state():
         st.session_state.services_mode = False
     if 'stock_mode' not in st.session_state:
         st.session_state.stock_mode = False
+    if 'bulk_teilenummern' not in st.session_state:
+        st.session_state.bulk_teilenummern = []
 
 # ================================================================================================
 # SERVICE KONFIGURATION
@@ -485,6 +487,23 @@ def load_excel_vorlagen() -> pd.DataFrame:
         st.error(f"Fehler beim Laden der Excel-Datei: {e}")
         return pd.DataFrame()
 
+def parse_bulk_teilenummern(bulk_text):
+    """Parsiert Bulk-Teilenummern aus Textfeld"""
+    if not bulk_text or not bulk_text.strip():
+        return []
+    
+    teilenummern = []
+    
+    # Zeilenweise und kommagetrennt verarbeiten
+    for line in bulk_text.strip().split('\n'):
+        line_nums = [tn.strip() for tn in line.split(',') if tn.strip()]
+        teilenummern.extend(line_nums)
+    
+    # Duplikate entfernen und leere Strings ausfiltern
+    unique_teilenummern = list(set([tn for tn in teilenummern if tn]))
+    
+    return unique_teilenummern
+
 def load_excel_with_bulk_teilenummern(bulk_teilenummern_list):
     """Lädt Excel-Vorlagen und ergänzt fehlende Teilenummern als leere Vorlagen"""
     # Excel-Vorlagen laden
@@ -551,12 +570,12 @@ def add_new_columns(df):
     return df
 
 # ================================================================================================
-# FILTER FUNKTIONEN - ERWEITERT FÜR SAISON
+# FILTER FUNKTIONEN - GETRENNT VON BULK-EINGABE
 # ================================================================================================
 def apply_filters(df, hersteller_filter, zoll_filter, preis_range, runflat_filter, 
-                 breite_filter, hoehe_filter, teilenummer_search, speed_filter, 
+                 breite_filter, hoehe_filter, search_text, speed_filter, 
                  saison_filter="alle", stock_filter="alle"):
-    """Wendet Sidebar-Filter an - erweitert um Saison"""
+    """Wendet Sidebar-Filter an - getrennt von Bulk-Eingabe"""
     filtered_df = df.copy()
     
     if hersteller_filter and len(hersteller_filter) > 0:
@@ -585,8 +604,9 @@ def apply_filters(df, hersteller_filter, zoll_filter, preis_range, runflat_filte
     if saison_filter and saison_filter.lower() != "alle":
         filtered_df = filtered_df[filtered_df['Saison'] == saison_filter]
     
-    if teilenummer_search and teilenummer_search.strip() != "":
-        search_terms = [term.strip().upper() for term in teilenummer_search.split(',') if term.strip()]
+    # SUCH-FILTER (getrennt von Bulk-Eingabe)
+    if search_text and search_text.strip() != "":
+        search_terms = [term.strip().upper() for term in search_text.split(',') if term.strip()]
         
         if search_terms:
             mask = pd.Series([False] * len(filtered_df))
@@ -851,10 +871,10 @@ def render_stock_management():
         st.rerun()
 
 # ================================================================================================
-# MAIN REIFEN CONTENT - AUTO-LOAD EXCEL + BULK ERGÄNZUNG
+# MAIN REIFEN CONTENT - GETRENNTE BULK UND SUCH-LOGIK
 # ================================================================================================
 def render_reifen_content():
-    """Hauptinhalt der Reifen Verwaltung - mit automatischem Excel-Load"""
+    """Hauptinhalt der Reifen Verwaltung - mit getrennter Bulk- und Such-Logik"""
     
     # AUTO-LOAD: Excel-Vorlagen automatisch laden wenn noch nicht geladen
     if st.session_state.df_original is None or st.session_state.df_original.empty:
@@ -870,7 +890,7 @@ def render_reifen_content():
                 st.error("❌ Excel-Datei konnte nicht geladen werden. Bitte prüfe ob die Datei '2025-07-29_ReifenPremium_Winterreifen_2025-26.xlsx' im data/ Ordner existiert.")
                 return
     
-    # Sidebar Filter - ERWEITERT für Bulk-Teilenummer-Ergänzung
+    # Sidebar Filter - GETRENNTE BULK UND SUCH-LOGIK
     with st.sidebar:
         st.header("Workflow-Status")
         if not st.session_state.filter_applied:
@@ -958,18 +978,6 @@ def render_reifen_content():
                 key="hoehe_filter"
             )
             
-            # ERWEITERTE BULK-TEILENUMMER-EINGABE
-            st.markdown("---")
-            st.markdown("**📝 Zusätzliche Reifen hinzufügen:**")
-            
-            teilenummer_search = st.text_area(
-                "Teilenummern hinzufügen:",
-                placeholder="ZTW12345\nZTS67890\nZTR11111, ZTW22222\n\noder für Suche: Continental, WinterContact",
-                help="Eine Teilenummer pro Zeile oder kommagetrennt. Unbekannte Teilenummern werden als leere Vorlagen hinzugefügt.",
-                key="teilenummer_search",
-                height=100
-            )
-            
             alle_speed = sorted(df_orig['Speedindex'].unique())
             speed_filter = st.multiselect(
                 "Geschwindigkeitsindex:",
@@ -978,17 +986,33 @@ def render_reifen_content():
                 key="speed_filter"
             )
             
+            # SUCHFELD (getrennt von Bulk-Eingabe)
+            st.markdown("---")
+            st.markdown("**🔍 Suche in vorhandenen Reifen:**")
+            
+            search_text = st.text_input(
+                "Suche nach Hersteller, Profil oder Teilenummer:",
+                placeholder="z.B. Continental, WinterContact, ZTW12345",
+                help="Kommagetrennte Suche möglich",
+                key="search_text"
+            )
+            
+            # BULK-TEILENUMMER-EINGABE (komplett getrennt)
+            st.markdown("---")
+            st.markdown("**📝 Zusätzliche Reifen hinzufügen:**")
+            
+            bulk_teilenummern_input = st.text_area(
+                "Teilenummern hinzufügen:",
+                placeholder="ZTW12345\nZTS67890\nZTR11111, ZTW22222\n\nEine pro Zeile oder kommagetrennt",
+                help="Unbekannte Teilenummern werden als leere Vorlagen hinzugefügt.",
+                key="bulk_teilenummern_input",
+                height=100
+            )
+            
             if st.button("Filter anwenden", use_container_width=True, type="primary"):
                 # Parse zusätzliche Teilenummern
-                bulk_teilenummern = []
-                if teilenummer_search and teilenummer_search.strip():
-                    # Zeilenweise und kommagetrennt verarbeiten
-                    for line in teilenummer_search.strip().split('\n'):
-                        line_nums = [tn.strip() for tn in line.split(',') if tn.strip()]
-                        bulk_teilenummern.extend(line_nums)
-                    
-                    # Duplikate entfernen
-                    bulk_teilenummern = list(set(bulk_teilenummern))
+                bulk_teilenummern = parse_bulk_teilenummern(bulk_teilenummern_input)
+                st.session_state.bulk_teilenummern = bulk_teilenummern
                 
                 # Daten mit zusätzlichen Teilenummern laden
                 if bulk_teilenummern:
@@ -1004,10 +1028,10 @@ def render_reifen_content():
                 else:
                     working_df = df_orig
                 
-                # Filter anwenden
+                # Filter anwenden (GETRENNT - ohne Bulk-Teilenummern zu verwenden)
                 filtered_df = apply_filters(
                     working_df, hersteller_filter, zoll_filter, preis_range, 
-                    runflat_filter, breite_filter, hoehe_filter, teilenummer_search, 
+                    runflat_filter, breite_filter, hoehe_filter, search_text, 
                     speed_filter, saison_filter
                 )
                 
@@ -1020,6 +1044,7 @@ def render_reifen_content():
                 st.session_state.filter_applied = False
                 st.session_state.df_filtered = None
                 st.session_state.selected_indices = []
+                st.session_state.bulk_teilenummern = []
                 st.rerun()
     
     # STUFE 1: Automatisch geladen - nur Info anzeigen
@@ -1064,12 +1089,13 @@ def render_reifen_content():
         <div class="info-box">
             <h4>📋 Nächste Schritte:</h4>
             <p>1. Setze deine <strong>Filter in der Sidebar</strong></p>
-            <p>2. Optional: Füge <strong>zusätzliche Teilenummern</strong> hinzu (werden als leere Vorlagen erstellt wenn nicht in Excel)</p>
-            <p>3. Klicke <strong>"Filter anwenden"</strong></p>
+            <p>2. Optional: <strong>Suche</strong> in vorhandenen Reifen</p>
+            <p>3. Optional: Füge <strong>zusätzliche Teilenummern</strong> hinzu (werden als leere Vorlagen erstellt wenn nicht in Excel)</p>
+            <p>4. Klicke <strong>"Filter anwenden"</strong></p>
         </div>
         """, unsafe_allow_html=True)
     
-    # STUFE 2: Reifen-Auswahl - ERWEITERT FÜR MISSING TIRES
+    # STUFE 2: Reifen-Auswahl
     elif st.session_state.filter_applied and not st.session_state.selection_confirmed:
         st.markdown("### Schritt 2: Gefilterte Reifen auswählen")
         st.markdown(f"Wähle aus den {len(st.session_state.df_filtered)} gefilterten Reifen deine gewünschten aus")
@@ -1082,6 +1108,15 @@ def render_reifen_content():
                 st.session_state.filter_applied = False
                 st.rerun()
         else:
+            # Info über Bulk-Teilenummern falls vorhanden
+            if st.session_state.bulk_teilenummern:
+                st.markdown(f"""
+                <div class="info-box">
+                    <h4>📝 Zusätzliche Teilenummern erkannt:</h4>
+                    <p>{', '.join(st.session_state.bulk_teilenummern)}</p>
+                </div>
+                """, unsafe_allow_html=True)
+            
             # Schnell-Auswahl Buttons
             st.markdown("**Schnell-Auswahl:**")
             col1, col2, col3, col4 = st.columns(4)
@@ -1174,7 +1209,7 @@ def render_reifen_content():
                     </div>
                     """, unsafe_allow_html=True)
             
-            # Reifen-Liste mit Checkboxes - ERWEITERT FÜR SAISON UND MISSING
+            # Reifen-Liste mit Checkboxes
             st.markdown("**Reifen einzeln auswählen:**")
             
             items_per_page = 50
@@ -1231,7 +1266,7 @@ def render_reifen_content():
                 st.session_state.filter_applied = False
                 st.rerun()
     
-    # STUFE 3: Bearbeitung - ERWEITERT FÜR SAISON
+    # STUFE 3: Bearbeitung
     elif st.session_state.selection_confirmed and st.session_state.df_working is not None:
         st.markdown("### Schritt 3: EU-Labels hinzufügen, Preise anpassen & Saison verwalten")
         st.markdown(f"Bearbeite die {len(st.session_state.df_working)} ausgewählten Reifen")
@@ -1329,7 +1364,7 @@ def render_reifen_content():
                 </div>
                 """, unsafe_allow_html=True)
             
-            # Bearbeitungsbereich - ERWEITERT FÜR ALLE FELDER BEI LEEREN VORLAGEN
+            # Bearbeitungsbereich
             col1, col2 = st.columns(2)
             
             with col1:
@@ -1554,7 +1589,7 @@ def render_reifen_content():
         else:
             st.warning("Keine Reifen mehr vorhanden!")
         
-        # Action Buttons (REDUZIERT)
+        # Action Buttons
         col_btn1, col_btn2 = st.columns(2)
         
         with col_btn1:
@@ -1570,6 +1605,7 @@ def render_reifen_content():
                 st.session_state.df_filtered = None
                 st.session_state.df_working = None
                 st.session_state.selected_indices = []
+                st.session_state.bulk_teilenummern = []
                 st.session_state.current_tire_index = 0
                 st.rerun()
         
@@ -1595,7 +1631,7 @@ def render_reifen_content():
             st.warning("Keine Daten für GitHub-Export verfügbar")
         
         st.markdown("---")
-        st.info("🔄 **Automatisches System:** Excel wird beim Öffnen automatisch geladen. Zusätzliche Teilenummern können über die Sidebar hinzugefügt werden. Leere Vorlagen für unbekannte Teilenummern werden automatisch erstellt!")
+        st.info("🔄 **Getrenntes System:** Bulk-Teilenummern-Eingabe und Such-Funktion sind nun getrennt für bessere Übersichtlichkeit!")
 
 # ================================================================================================
 # MAIN TAB RENDER FUNCTION
@@ -1662,7 +1698,7 @@ def main():
     st.markdown("""
     <div class="main-header">
         <h1>Reifen Verwaltung</h1>
-        <p>Erweiterte Reifen- und Systemverwaltung mit automatischem Excel-Load</p>
+        <p>Erweiterte Reifen- und Systemverwaltung mit getrennter Bulk- und Such-Logik</p>
     </div>
     """, unsafe_allow_html=True)
     
