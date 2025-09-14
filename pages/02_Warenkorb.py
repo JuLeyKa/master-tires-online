@@ -9,6 +9,7 @@ import re
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import cm, mm
+from reportlab.lib.utils import ImageReader
 from reportlab.platypus import (
     SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, KeepTogether
 )
@@ -261,23 +262,43 @@ def format_eur(value: float) -> str:
 
 def _header_footer(canvas, doc):
     """
-    Minimaler B/W-Header + Footer, keine Adressen/Telefon.
-    Kopf: 'AUTOHAUS RAMSPERGER' in Schwarz, dünne Linie.
-    Fuß: Seitenzahl rechts.
+    Header mit Ramsperger Logo + Footer mit Seitenzahl.
     """
     canvas.saveState()
     width, height = A4
     margin = 20 * mm
 
-    # Header
-    canvas.setFont("Helvetica-Bold", 11)
-    canvas.setFillColor(colors.black)
-    canvas.drawString(margin, height - margin + 6, "AUTOHAUS RAMSPERGER")
+    # Header mit Logo
+    try:
+        # Logo laden und zeichnen
+        logo_path = Path("data/Logo.png")
+        if logo_path.exists():
+            logo = ImageReader(str(logo_path))
+            # Logo-Dimensionen anpassen (Breite: 50mm, Höhe proportional)
+            logo_width = 50 * mm
+            logo_height = 15 * mm  # Angepasste Höhe für Header
+            
+            # Logo links im Header positionieren
+            canvas.drawImage(logo, margin, height - margin + 2, 
+                           width=logo_width, height=logo_height, 
+                           mask='auto', preserveAspectRatio=True)
+        else:
+            # Fallback Text falls Logo nicht gefunden
+            canvas.setFont("Helvetica-Bold", 11)
+            canvas.setFillColor(colors.black)
+            canvas.drawString(margin, height - margin + 6, "AUTOHAUS RAMSPERGER")
+    except Exception:
+        # Fallback bei Fehlern
+        canvas.setFont("Helvetica-Bold", 11)
+        canvas.setFillColor(colors.black)
+        canvas.drawString(margin, height - margin + 6, "AUTOHAUS RAMSPERGER")
+
+    # Dünne Linie unter Header
     canvas.setStrokeColor(colors.black)
     canvas.setLineWidth(0.5)
     canvas.line(margin, height - margin + 2, width - margin, height - margin + 2)
 
-    # Footer
+    # Footer mit Seitenzahl
     canvas.setFont("Helvetica", 8.5)
     canvas.setFillColor(colors.black)
     canvas.drawRightString(width - margin, margin - 8, f"Seite {doc.page}")
