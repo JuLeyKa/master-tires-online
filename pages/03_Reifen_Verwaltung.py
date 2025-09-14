@@ -485,6 +485,40 @@ def load_excel_vorlagen() -> pd.DataFrame:
         st.error(f"Fehler beim Laden der Excel-Datei: {e}")
         return pd.DataFrame()
 
+def parse_bulk_teilenummern(teilenummer_input):
+    """Robustes Parsing der Bulk-Teilenummern aus Textarea - FIXED VERSION"""
+    if not teilenummer_input or not teilenummer_input.strip():
+        return []
+    
+    bulk_teilenummern = []
+    
+    # Text aufräumen
+    text = teilenummer_input.strip()
+    
+    # Sowohl Zeilen als auch Kommas als Trenner behandeln
+    # Erst nach Zeilenumbrüchen splitten
+    lines = text.split('\n')
+    
+    for line in lines:
+        line = line.strip()
+        if line:  # Nur nicht-leere Zeilen verarbeiten
+            # Dann nach Kommas splitten
+            parts = line.split(',')
+            for part in parts:
+                part = part.strip()
+                if part:  # Nur nicht-leere Teile hinzufügen
+                    bulk_teilenummern.append(part)
+    
+    # Duplikate entfernen aber Reihenfolge beibehalten
+    seen = set()
+    unique_teilenummern = []
+    for tn in bulk_teilenummern:
+        if tn not in seen:
+            seen.add(tn)
+            unique_teilenummern.append(tn)
+    
+    return unique_teilenummern
+
 def load_excel_with_bulk_teilenummern(bulk_teilenummern_list):
     """Lädt Excel-Vorlagen und ergänzt fehlende Teilenummern als leere Vorlagen"""
     # Excel-Vorlagen laden
@@ -979,16 +1013,8 @@ def render_reifen_content():
             )
             
             if st.button("Filter anwenden", use_container_width=True, type="primary"):
-                # Parse zusätzliche Teilenummern
-                bulk_teilenummern = []
-                if teilenummer_search and teilenummer_search.strip():
-                    # Zeilenweise und kommagetrennt verarbeiten
-                    for line in teilenummer_search.strip().split('\n'):
-                        line_nums = [tn.strip() for tn in line.split(',') if tn.strip()]
-                        bulk_teilenummern.extend(line_nums)
-                    
-                    # Duplikate entfernen
-                    bulk_teilenummern = list(set(bulk_teilenummern))
+                # Parse zusätzliche Teilenummern mit neuer robuster Funktion
+                bulk_teilenummern = parse_bulk_teilenummern(teilenummer_search)
                 
                 # Daten mit zusätzlichen Teilenummern laden
                 if bulk_teilenummern:
