@@ -36,6 +36,12 @@ MAIN_CSS = """
         --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1);
         --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1);
     }
+
+    /* WICHTIG 1: Globale Reduktion des Top-Paddings für den Haupt-Content,
+       damit das Logo höher startet (nahe der Sidebar-"app"-Zeile) */
+    [data-testid="stAppViewContainer"] .block-container {
+        padding-top: 0.5rem !important;   /* ggf. 0–1rem feinjustieren */
+    }
     
     .main > div {
         padding-top: 0.2rem;
@@ -115,16 +121,12 @@ MAIN_CSS = """
         justify-content: center;
         align-items: center;
         padding: 0.3rem 0 0.5rem 0;
-        /* WICHTIG: Abstand nach unten als Padding, Margin neutralisiert */
-        margin-bottom: 0 !important;
-        padding-bottom: 6rem !important; /* <- Abstand hier steuern (z.B. 6–8rem) */
-        margin-top: 0;
+        margin: 0; /* kein Margin-Konflikt */
     }
-    /* Fallback/Verstärker gegen evtl. Fremd-CSS: zusätzlicher Spacer via Pseudo-Element */
-    .logo-container::after{
-        content: "";
-        display: block;
-        height: 0;            /* standard 0, wird durch padding-bottom geregelt */
+
+    /* WICHTIG 2: definierter Abstand NACH dem Logo – kollabiert nicht */
+    .logo-spacer {
+        height: 64px; /* -> bei Bedarf 48–80px anpassen */
     }
 </style>
 """
@@ -609,7 +611,7 @@ def render_legend(mit_bestand, saison_filter, zoll_filter):
 def main():
     init_session_state()
 
-    # Logo Header ganz oben mit minimalem Spacing
+    # Logo Header ganz oben
     st.markdown('<div class="logo-container">', unsafe_allow_html=True)
     try:
         logo_path = "data/Logo_2.png"
@@ -617,6 +619,9 @@ def main():
     except:
         st.markdown("### Ramsperger Automobile")
     st.markdown('</div>', unsafe_allow_html=True)
+
+    # Fester Abstand NACH dem Logo (robust gegen Margin-Collapse)
+    st.markdown('<div class="logo-spacer"></div>', unsafe_allow_html=True)
 
     # Daten laden
     df = get_reifen_data()
@@ -658,12 +663,14 @@ def main():
             help="Nur Reifen mit positivem Lagerbestand anzeigen",
         )
 
+    # EINZIGE QUELLEN
     saison_filter = st.session_state.top_saison_filter
     zoll_filter   = st.session_state.top_zoll_filter
     mit_bestand   = st.session_state.top_bestand_filter
 
-    # FILTER FÜR DYNAMISCHE REIFENGRÖSSEN
+    # FILTER BEREITS HIER ANWENDEN FÜR DYNAMISCHE REIFENGRÖSSEN
     filtered_for_sizes = df.copy()
+
     if mit_bestand:
         filtered_for_sizes = filtered_for_sizes[(filtered_for_sizes['Bestand'].notna()) & (filtered_for_sizes['Bestand'] > 0)]
     if saison_filter != "Alle":
@@ -671,6 +678,7 @@ def main():
     if zoll_filter != "Alle":
         filtered_for_sizes = filtered_for_sizes[filtered_for_sizes["Zoll"] == int(zoll_filter)]
 
+    # AUFKLAPPBARE REIFENGRÖSSEN MIT DYNAMISCHER LISTE
     with st.expander("Gängige Reifengrößen", expanded=False):
         dynamic_sizes = get_dynamic_tire_sizes(filtered_for_sizes, max_sizes=12)
         if dynamic_sizes:
