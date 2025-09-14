@@ -120,7 +120,7 @@ MAIN_CSS = """
         display: flex;
         justify-content: center;
         align-items: center;
-        padding: 0.3rem 0 0.5rem 0;
+        padding: 0.9rem 0 0.5rem 0;
         margin: 0; /* kein Margin-Konflikt */
     }
 
