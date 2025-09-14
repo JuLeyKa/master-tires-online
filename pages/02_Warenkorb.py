@@ -262,21 +262,21 @@ def format_eur(value: float) -> str:
 
 def _header_footer(canvas, doc):
     """
-    Header mit Ramsperger Logo + Footer mit Seitenzahl.
+    Header mit Ramsperger Logo (20% größer) + Footer mit Seitenzahl.
     """
     canvas.saveState()
     width, height = A4
     margin = 20 * mm
 
-    # Header mit Logo
+    # Header mit Logo - 20% größer
     try:
         # Logo laden und zeichnen
         logo_path = Path("data/Logo.png")
         if logo_path.exists():
             logo = ImageReader(str(logo_path))
-            # Logo-Dimensionen anpassen (Breite: 50mm, Höhe proportional)
-            logo_width = 50 * mm
-            logo_height = 15 * mm  # Angepasste Höhe für Header
+            # Logo-Dimensionen 20% größer: 60mm x 18mm (war 50mm x 15mm)
+            logo_width = 60 * mm
+            logo_height = 18 * mm
             
             # Logo links im Header positionieren
             canvas.drawImage(logo, margin, height - margin + 2, 
@@ -341,9 +341,15 @@ def create_professional_pdf(customer_data=None, offer_scenario="vergleich", dete
 
     story = []
 
-    # Kopf
+    # Kopf - mit mehr Abstand zum Logo
     date_str = datetime.now().strftime('%d.%m.%Y')
 
+    # 4 Leerzeilen für größeren Abstand zwischen Logo und Überschrift
+    story.append(Spacer(1, 15))  
+    story.append(Spacer(1, 15))  
+    story.append(Spacer(1, 15))
+    story.append(Spacer(1, 15))
+    
     story.append(_p("Angebot Reifen & Service", h1))
 
     # Metadaten ohne Angebotsnummer
