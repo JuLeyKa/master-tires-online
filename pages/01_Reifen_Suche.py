@@ -41,23 +41,6 @@ MAIN_CSS = """
         padding-top: 1rem;
     }
     
-    .main-header {
-        background: linear-gradient(135deg, var(--primary-color), var(--primary-dark));
-        color: white;
-        padding: 2rem;
-        border-radius: 12px;
-        text-align: center;
-        margin-bottom: 2rem;
-        box-shadow: var(--shadow-lg);
-    }
-    
-    .main-header h1 {
-        margin: 0;
-        font-size: 2.5rem;
-        font-weight: 700;
-        font-family: 'Inter', sans-serif;
-    }
-    
     .warning-box {
         background: linear-gradient(135deg, #fef3c7, #fde68a);
         padding: 1rem;
@@ -100,16 +83,6 @@ MAIN_CSS = """
         color: #065f46;
     }
     
-    /* NAVIGATION & SCHNELLAUSWAHL CONTAINER */
-    .navigation-container {
-        background: var(--background-white);
-        padding: 1.5rem;
-        border-radius: 12px;
-        margin: 1rem 0;
-        border: 2px solid var(--primary-color);
-        box-shadow: var(--shadow-md);
-    }
-    
     [data-testid="metric-container"] {
         background: var(--background-white);
         border: 1px solid var(--border-color);
@@ -135,6 +108,14 @@ MAIN_CSS = """
         color: #16a34a;
         font-weight: bold;
         margin-left: 0.5rem;
+    }
+    
+    .logo-container {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        padding: 1rem 0;
+        margin-bottom: 1rem;
     }
 </style>
 """
@@ -650,17 +631,19 @@ def render_legend(mit_bestand, saison_filter, zoll_filter):
             st.markdown(f"**Aktive Filter:** {' | '.join(filter_info)}")
 
 # ================================================================================================
-# MAIN FUNCTION - KOMPLETT NEU OHNE DOPPEL-SPIEGELUNG
+# MAIN FUNCTION - MIT LOGO STATT HEADER
 # ================================================================================================
 def main():
     init_session_state()
 
-    # Header
-    st.markdown("""
-    <div class="main-header">
-        <h1>Reifen Suche</h1>
-    </div>
-    """, unsafe_allow_html=True)
+    # Logo Header statt des blauen Headers
+    st.markdown('<div class="logo-container">', unsafe_allow_html=True)
+    try:
+        logo_path = "data/Logo.png"
+        st.image(logo_path, width=400)
+    except:
+        st.markdown("### Ramsperger Automobile")
+    st.markdown('</div>', unsafe_allow_html=True)
 
     # Daten laden
     df = get_reifen_data()
@@ -668,10 +651,7 @@ def main():
         st.warning("Keine Reifen-Daten verfügbar. Bitte prüfe die CSV-Datei.")
         st.stop()
 
-    # NAVIGATION & SCHNELLAUSWAHL
-    st.markdown('<div class="navigation-container">', unsafe_allow_html=True)
-    st.markdown("### Navigation & Schnellauswahl")
-
+    # Top-Filter direkt ohne Container
     col1, col2, col3, col4 = st.columns(4)
 
     with col1:
@@ -704,8 +684,6 @@ def main():
             key="top_bestand_filter",
             help="Nur Reifen mit positivem Lagerbestand anzeigen",
         )
-
-    st.markdown('</div>', unsafe_allow_html=True)
 
     # EINZIGE QUELLEN (Werte nur lesen, nicht zurückschreiben!)
     saison_filter = st.session_state.top_saison_filter
