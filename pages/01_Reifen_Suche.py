@@ -115,7 +115,7 @@ MAIN_CSS = """
         justify-content: center;
         align-items: center;
         padding: 0.3rem 0 0.5rem 0;
-        margin-bottom: 3rem;
+        margin-bottom: 4rem;
         margin-top: 0;
     }
 </style>
