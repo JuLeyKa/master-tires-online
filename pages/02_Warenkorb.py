@@ -24,7 +24,7 @@ st.set_page_config(
 )
 
 # ================================================================================================
-# CSS STYLES - EINHEITLICH MIT REIFEN-SUCHE
+# CSS STYLES - EINHEITLICH MIT REIFEN-SUCHE (OHNE CONTAINER-BOXEN)
 # ================================================================================================
 MAIN_CSS = """
 <style>
@@ -58,39 +58,11 @@ MAIN_CSS = """
         padding-top: 0.2rem;
     }
     
-    .cart-container {
-        background: linear-gradient(135deg, #f0f9ff, #e0f2fe);
-        padding: 1.2rem; border-radius: 12px; margin: 1rem 0; border: 2px solid var(--primary-color);
-        box-shadow: var(--shadow-md);
-    }
-    .cart-item {
-        background: var(--background-white); padding: 1rem; border-radius: var(--border-radius);
-        margin: 0.5rem 0; border-left: 4px solid var(--primary-color); box-shadow: var(--shadow-sm);
-        transition: transform 0.1s ease;
-    }
-    .cart-item:hover { transform: translateX(2px); }
-    .total-box {
-        background: linear-gradient(135deg, #f0fdf4, #dcfce7);
-        padding: 1.2rem; border-radius: 12px; margin: 1rem 0; border: 2px solid var(--success-color);
-        box-shadow: var(--shadow-md);
-    }
-    .info-box {
-        background: linear-gradient(135deg, #f0fdf4, #dcfce7);
-        padding: 0.9rem; border-radius: var(--border-radius); border-left: 4px solid var(--success-color);
-        margin: 1rem 0; box-shadow: var(--shadow-sm);
-    }
     .stButton > button {
         border-radius: var(--border-radius); border: none; font-weight: 500; transition: all 0.2s ease;
         font-family: 'Inter', sans-serif;
     }
     .stButton > button:hover { transform: translateY(-1px); box-shadow: var(--shadow-md); }
-    .vehicle-section {
-        border: 1px solid var(--border-color);
-        border-radius: var(--border-radius);
-        padding: 1rem;
-        margin: 0.5rem 0;
-        background: var(--background-light);
-    }
     
     .logo-container {
         display: flex;
@@ -861,15 +833,11 @@ def _clear_item_widget_keys(item_id):
         st.session_state.pop(key, None)
 
 # ================================================================================================
-# RENDER FUNCTIONS
+# RENDER FUNCTIONS - OHNE CONTAINER-DIVS
 # ================================================================================================
 def render_empty_cart():
-    st.markdown("""
-    <div class="cart-container">
-        <h3>Der Warenkorb ist leer</h3>
-        <p>Gehe zur <strong>Reifen Suche</strong> und wähle Reifen für dein Angebot aus.</p>
-    </div>
-    """, unsafe_allow_html=True)
+    st.markdown("### Der Warenkorb ist leer")
+    st.markdown("Gehe zur **Reifen Suche** und wähle Reifen für dein Angebot aus.")
     if st.button("Zur Reifen Suche", use_container_width=True, type="primary"):
         st.switch_page("pages/01_Reifen_Suche.py")
 
@@ -879,7 +847,6 @@ def render_cart_content():
         render_cart_item(item, i)
 
 def render_cart_item(item, position_number):
-    st.markdown('<div class="cart-item">', unsafe_allow_html=True)
     st.markdown(f"### Position {position_number}")
 
     item_id = item['id']
@@ -912,8 +879,6 @@ def render_cart_item(item, position_number):
     reifen_kosten, service_kosten, position_total = calculate_position_total(item)
     st.markdown(f"### **Position {position_number} Gesamt: {position_total:.2f} EUR**")
     st.markdown(f"Reifen: {reifen_kosten:.2f}EUR + Services: {service_kosten:.2f}EUR")
-
-    st.markdown('</div>', unsafe_allow_html=True)
 
 def render_item_services(item):
     item_id = item['id']
@@ -949,7 +914,6 @@ def render_item_services(item):
 
 def render_price_summary(total, breakdown):
     st.markdown("---")
-    st.markdown('<div class="total-box">', unsafe_allow_html=True)
     st.markdown("#### Preisübersicht")
     col_breakdown, col_total = st.columns([2, 1])
     with col_breakdown:
@@ -959,7 +923,6 @@ def render_price_summary(total, breakdown):
         if breakdown['einlagerung']>0: st.markdown(f"**Einlagerung:** {breakdown['einlagerung']:.2f}EUR")
     with col_total:
         st.markdown(f"### **GESAMT: {total:.2f}EUR**")
-    st.markdown('</div>', unsafe_allow_html=True)
 
 def render_customer_data():
     st.markdown("---")
@@ -987,7 +950,6 @@ def render_customer_data():
     if st.session_state.offer_scenario == "separate":
         st.markdown("---")
         st.markdown("##### Fahrzeug 2 (Separate Fahrzeuge)")
-        st.markdown('<div class="vehicle-section">', unsafe_allow_html=True)
         
         col3, col4 = st.columns(2)
         with col3:
@@ -995,8 +957,6 @@ def render_customer_data():
             st.text_input("Hersteller / Modell 2:", key="customer_modell_2", placeholder="z.B. Audi A4 B9")
         with col4:
             st.text_input("Fahrgestellnummer 2:", key="customer_fahrgestell_2", placeholder="z.B. WAUEFE123456789")
-        
-        st.markdown('</div>', unsafe_allow_html=True)
 
     # Session State Update
     st.session_state.customer_data = {
@@ -1030,26 +990,11 @@ def render_scenario_selection():
     )
 
     if st.session_state.offer_scenario == "vergleich":
-        st.markdown(f"""
-        <div class="info-box">
-            <strong>Vergleichsangebot:</strong> Der Kunde bekommt mehrere {season_info['season_name']}-Reifenoptionen 
-            zur Auswahl präsentiert und kann sich für eine davon entscheiden.
-        </div>
-        """, unsafe_allow_html=True)
+        st.info(f"**Vergleichsangebot:** Der Kunde bekommt mehrere {season_info['season_name']}-Reifenoptionen zur Auswahl präsentiert und kann sich für eine davon entscheiden.")
     elif st.session_state.offer_scenario == "separate":
-        st.markdown(f"""
-        <div class="info-box">
-            <strong>Separate Fahrzeuge:</strong> Jede Position wird als separates Fahrzeug 
-            behandelt mit eigenständiger {season_info['season_name']}-Reifen-Berechnung.
-        </div>
-        """, unsafe_allow_html=True)
+        st.info(f"**Separate Fahrzeuge:** Jede Position wird als separates Fahrzeug behandelt mit eigenständiger {season_info['season_name']}-Reifen-Berechnung.")
     else:
-        st.markdown(f"""
-        <div class="info-box">
-            <strong>Einzelangebot:</strong> Direktes, spezifisches Angebot für die ausgewählten 
-            {season_info['season_name']}-Reifen ohne Vergleichsoptionen.
-        </div>
-        """, unsafe_allow_html=True)
+        st.info(f"**Einzelangebot:** Direktes, spezifisches Angebot für die ausgewählten {season_info['season_name']}-Reifen ohne Vergleichsoptionen.")
 
     return detected
 
