@@ -232,25 +232,25 @@ def get_saison_badge_html(saison):
         return '<span class="saison-badge">Unbekannt</span>'
 
 def create_empty_tire_template(teilenummer):
-    """Erstellt WIRKLICH LEERE Reifen-Vorlage für unbekannte Teilenummern"""
+    """Erstellt WIRKLICH LEERE Reifen-Vorlage mit 0-Werten für unbekannte Teilenummern"""
     return {
         'Dimension': f"Unbekannt ({teilenummer})",
         'Fabrikat': '',
         'Profil': '',
         'Teilenummer': teilenummer,
         'Preis_EUR': 0.0,
-        'Zoll': None,  # LEER
-        'Breite': None,  # LEER
-        'Hoehe': None,  # LEER
+        'Zoll': 0,  # STARTET BEI 0
+        'Breite': 0,  # STARTET BEI 0
+        'Hoehe': 0,  # STARTET BEI 0
         'RF': '',
         'Kennzeichen': '',
         'Speedindex': '',  # LEER
-        'Loadindex': None,  # LEER
+        'Loadindex': 0,  # STARTET BEI 0
         'Saison': get_saison_from_teilenummer(teilenummer),
         'Bestand': 0,
         'Kraftstoffeffizienz': '',
         'Nasshaftung': '',
-        'Geräuschklasse': None  # LEER
+        'Geräuschklasse': 0  # STARTET BEI 0
     }
 
 # ================================================================================================
@@ -1101,7 +1101,7 @@ def render_reifen_content():
         </div>
         """, unsafe_allow_html=True)
     
-    # STUFE 2: Reifen-Auswahl - ERWEITERTE SCHNELL-AUSWAHL MIT ENTFERNEN BUTTON
+    # STUFE 2: Reifen-Auswahl - ERWEITERTE SCHNELL-AUSWAHL MIT LÖSCHEN BUTTON (ROTE BUTTONS)
     elif st.session_state.filter_applied and not st.session_state.selection_confirmed:
         st.markdown("### Schritt 2: Gefilterte Reifen auswählen")
         st.markdown(f"Wähle aus den {len(st.session_state.df_filtered)} gefilterten Reifen deine gewünschten aus")
@@ -1114,41 +1114,43 @@ def render_reifen_content():
                 st.session_state.filter_applied = False
                 st.rerun()
         else:
-            # ERWEITERTE Schnell-Auswahl Buttons - ALLE ROT
+            # ERWEITERTE Schnell-Auswahl Buttons - ALLE MIT type="primary" für ROT
             st.markdown("**Schnell-Auswahl:**")
             col1, col2, col3, col4, col5 = st.columns(5)
             
             with col1:
-                if st.button("Alle auswählen", type="secondary"):
+                if st.button("Alle auswählen", type="primary"):
                     st.session_state.selected_indices = df_filtered.index.tolist()
                     st.rerun()
             
             with col2:
-                if st.button("Alle abwählen", type="secondary"):
+                if st.button("Alle abwählen", type="primary"):
                     st.session_state.selected_indices = []
                     st.rerun()
             
             with col3:
-                if st.button("Nur fehlende Reifen", type="secondary"):
+                if st.button("Nur fehlende Reifen", type="primary"):
                     # Nur Reifen ohne Fabrikat (= aus Bulk-Eingabe)
                     missing_tires = df_filtered[df_filtered['Fabrikat'] == '']
                     st.session_state.selected_indices = missing_tires.index.tolist()
                     st.rerun()
             
             with col4:
-                if st.button("Nur Excel-Reifen", type="secondary"):
+                if st.button("Nur Excel-Reifen", type="primary"):
                     # Nur Reifen mit Fabrikat (= aus Excel)
                     excel_tires = df_filtered[df_filtered['Fabrikat'] != '']
                     st.session_state.selected_indices = excel_tires.index.tolist()
                     st.rerun()
             
             with col5:
-                # NEUER BUTTON: Gewählte Reifen entfernen
-                if st.button("Gewählte entfernen", type="secondary", help="Entfernt alle aktuell ausgewählten Reifen aus der Auswahl"):
+                # NEUER BUTTON: Gewählte Reifen LÖSCHEN (aus Liste entfernen)
+                if st.button("Gewählte löschen", type="primary", help="Löscht die ausgewählten Reifen komplett aus der Liste"):
                     if st.session_state.selected_indices:
-                        # Alle außer den ausgewählten behalten
-                        all_indices = df_filtered.index.tolist()
-                        st.session_state.selected_indices = [idx for idx in all_indices if idx not in st.session_state.selected_indices]
+                        # Ausgewählte Reifen komplett aus df_filtered entfernen
+                        remaining_indices = [idx for idx in df_filtered.index if idx not in st.session_state.selected_indices]
+                        st.session_state.df_filtered = df_filtered.loc[remaining_indices].reset_index(drop=True)
+                        st.session_state.selected_indices = []
+                        st.success(f"Ausgewählte Reifen wurden aus der Liste gelöscht!")
                         st.rerun()
             
             # Auswahl-Statistiken
@@ -1272,7 +1274,7 @@ def render_reifen_content():
                 st.session_state.filter_applied = False
                 st.rerun()
     
-    # STUFE 3: Bearbeitung - ERWEITERT FÜR SAISON MIT LEEREN VORLAGEN
+    # STUFE 3: Bearbeitung - ERWEITERT FÜR SAISON MIT 0-WERTEN BEI LEEREN VORLAGEN
     elif st.session_state.selection_confirmed and st.session_state.df_working is not None:
         st.markdown("### Schritt 3: EU-Labels hinzufügen, Preise anpassen & Saison verwalten")
         st.markdown(f"Bearbeite die {len(st.session_state.df_working)} ausgewählten Reifen")
@@ -1370,14 +1372,14 @@ def render_reifen_content():
                 </div>
                 """, unsafe_allow_html=True)
             
-            # Bearbeitungsbereich - ERWEITERT FÜR ALLE FELDER BEI LEEREN VORLAGEN
+            # Bearbeitungsbereich - ERWEITERT FÜR ALLE FELDER BEI LEEREN VORLAGEN MIT 0-WERTEN
             col1, col2 = st.columns(2)
             
             with col1:
                 st.markdown("**Reifen Info:**")
                 
                 if is_missing_template:
-                    # Bei leerer Vorlage: alle Grunddaten editierbar - WIRKLICH LEER
+                    # Bei leerer Vorlage: alle Grunddaten editierbar - MIT 0-WERTEN
                     new_fabrikat = st.text_input(
                         "Hersteller:",
                         value=str(selected_row['Fabrikat']) if selected_row['Fabrikat'] != '' else '',
@@ -1390,45 +1392,45 @@ def render_reifen_content():
                         key=f"profil_{selected_idx}"
                     )
                     
-                    # LEERE FELDER - keine Standardwerte mehr
+                    # 0-WERTE für bessere User Experience
                     new_breite = st.number_input(
                         "Breite (mm):",
-                        min_value=125,
+                        min_value=0,
                         max_value=355,
-                        value=int(selected_row['Breite']) if selected_row['Breite'] and pd.notna(selected_row['Breite']) else 125,
+                        value=int(selected_row['Breite']) if selected_row['Breite'] and pd.notna(selected_row['Breite']) and selected_row['Breite'] != 0 else 0,
                         step=10,
                         key=f"breite_{selected_idx}"
                     )
                     
                     new_hoehe = st.number_input(
                         "Höhe (%):",
-                        min_value=25,
+                        min_value=0,
                         max_value=85,
-                        value=int(selected_row['Hoehe']) if selected_row['Hoehe'] and pd.notna(selected_row['Hoehe']) else 25,
+                        value=int(selected_row['Hoehe']) if selected_row['Hoehe'] and pd.notna(selected_row['Hoehe']) and selected_row['Hoehe'] != 0 else 0,
                         step=5,
                         key=f"hoehe_{selected_idx}"
                     )
                     
                     new_zoll = st.number_input(
                         "Zoll:",
-                        min_value=13,
+                        min_value=0,
                         max_value=24,
-                        value=int(selected_row['Zoll']) if selected_row['Zoll'] and pd.notna(selected_row['Zoll']) else 13,
+                        value=int(selected_row['Zoll']) if selected_row['Zoll'] and pd.notna(selected_row['Zoll']) and selected_row['Zoll'] != 0 else 0,
                         step=1,
                         key=f"zoll_{selected_idx}"
                     )
                     
                     new_loadindex = st.number_input(
                         "Loadindex:",
-                        min_value=60,
+                        min_value=0,
                         max_value=125,
-                        value=int(selected_row['Loadindex']) if pd.notna(selected_row['Loadindex']) else 60,
+                        value=int(selected_row['Loadindex']) if pd.notna(selected_row['Loadindex']) and selected_row['Loadindex'] != 0 else 0,
                         step=1,
                         key=f"loadindex_{selected_idx}"
                     )
                     
-                    speed_options = ['T', 'H', 'V', 'W', 'Y', 'Z', 'ZR']
-                    current_speed = selected_row['Speedindex'] if pd.notna(selected_row['Speedindex']) and selected_row['Speedindex'] != '' else 'T'
+                    speed_options = ['', 'T', 'H', 'V', 'W', 'Y', 'Z', 'ZR']
+                    current_speed = selected_row['Speedindex'] if pd.notna(selected_row['Speedindex']) and selected_row['Speedindex'] != '' else ''
                     speed_index = speed_options.index(current_speed) if current_speed in speed_options else 0
                     
                     new_speedindex = st.selectbox(
@@ -1516,16 +1518,16 @@ def render_reifen_content():
                     key=f"nasshaftung_{selected_idx}"
                 )
                 
-                # GERÄUSCHKLASSE AUCH LEER BEI LEEREN VORLAGEN
+                # GERÄUSCHKLASSE MIT 0-WERT BEI LEEREN VORLAGEN
                 current_geraeusch = selected_row.get('Geräuschklasse', None)
-                if pd.isna(current_geraeusch) or current_geraeusch == '' or current_geraeusch is None:
-                    geraeusch_value = 66  # Minimum statt 70
+                if pd.isna(current_geraeusch) or current_geraeusch == '' or current_geraeusch is None or current_geraeusch == 0:
+                    geraeusch_value = 0  # Startet bei 0 für leere Vorlagen
                 else:
                     geraeusch_value = int(current_geraeusch)
                     
                 new_geraeusch = st.number_input(
                     "Geräuschklasse (dB):",
-                    min_value=66,
+                    min_value=0,
                     max_value=75,
                     value=geraeusch_value,
                     step=1,
