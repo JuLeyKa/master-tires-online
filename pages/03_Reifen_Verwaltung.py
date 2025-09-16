@@ -585,12 +585,12 @@ def add_new_columns(df):
     return df
 
 # ================================================================================================
-# FILTER FUNKTIONEN - ERWEITERT FÜR SAISON
+# FILTER FUNKTIONEN - ERWEITERT FÜR SAISON - FIXED INDEX BUG
 # ================================================================================================
 def apply_filters(df, hersteller_filter, zoll_filter, preis_range, runflat_filter, 
                  breite_filter, hoehe_filter, teilenummer_search, speed_filter, 
                  saison_filter="alle", stock_filter="alle"):
-    """Wendet Sidebar-Filter an - erweitert um Saison"""
+    """Wendet Sidebar-Filter an - erweitert um Saison - FIXED INDEX BUG"""
     filtered_df = df.copy()
     
     if hersteller_filter and len(hersteller_filter) > 0:
@@ -619,10 +619,15 @@ def apply_filters(df, hersteller_filter, zoll_filter, preis_range, runflat_filte
     if saison_filter and saison_filter.lower() != "alle":
         filtered_df = filtered_df[filtered_df['Saison'] == saison_filter]
     
+    # TEILENUMMER-SUCHE - FIXED INDEX BUG
     if teilenummer_search and teilenummer_search.strip() != "":
         search_terms = [term.strip().upper() for term in teilenummer_search.split(',') if term.strip()]
         
         if search_terms:
+            # Index zurücksetzen BEVOR die Mask erstellt wird
+            filtered_df = filtered_df.reset_index(drop=True)
+            
+            # Jetzt ist der Index 0, 1, 2, 3... und die Mask passt
             mask = pd.Series([False] * len(filtered_df))
             
             for search_term in search_terms:
