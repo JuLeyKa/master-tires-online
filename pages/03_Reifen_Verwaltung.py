@@ -268,38 +268,104 @@ def create_empty_tire_template(teilenummer):
     }
 
 # ================================================================================================
-# ROBUSTES CSV LOADING
+# ULTRA-ROBUSTES CSV LOADING
 # ================================================================================================
-def robust_csv_loading(csv_path, encoding_options=['utf-8', 'iso-8859-1', 'windows-1252'], 
-                      delimiter_options=[',', ';', '\t']):
-    """Robustes CSV-Loading mit verschiedenen Delimitern und Encodings"""
-    for encoding in encoding_options:
-        for delimiter in delimiter_options:
-            try:
-                # Versuche verschiedene Kombinationen
-                df = pd.read_csv(csv_path, encoding=encoding, delimiter=delimiter, 
-                               on_bad_lines='skip', low_memory=False)
-                
-                # Prüfe ob DataFrame sinnvoll aussieht (mehr als 1 Spalte)
-                if len(df.columns) > 1 and len(df) > 0:
-                    st.info(f"CSV erfolgreich geladen mit {encoding} encoding und '{delimiter}' delimiter")
-                    return df, None
-                    
-            except Exception as e:
-                continue
+def ultra_robust_csv_loading(csv_path):
+    """Ultra-robustes CSV-Loading mit maximaler Fehlertoleranz"""
     
-    # Wenn alles fehlschlägt, versuche es mit error_bad_lines=False
+    # Strategie 1: Standard-Pandas mit verschiedenen Parametern
+    strategies = [
+        # Standard UTF-8 Versuche
+        {'encoding': 'utf-8', 'delimiter': ',', 'quoting': 0},
+        {'encoding': 'utf-8', 'delimiter': ';', 'quoting': 0},
+        {'encoding': 'utf-8', 'delimiter': '\t', 'quoting': 0},
+        {'encoding': 'utf-8', 'delimiter': ',', 'quoting': 3},  # QUOTE_NONE
+        
+        # ISO Encodings
+        {'encoding': 'iso-8859-1', 'delimiter': ',', 'quoting': 0},
+        {'encoding': 'iso-8859-1', 'delimiter': ';', 'quoting': 0},
+        {'encoding': 'windows-1252', 'delimiter': ',', 'quoting': 0},
+        {'encoding': 'windows-1252', 'delimiter': ';', 'quoting': 0},
+        
+        # Aggressive Fallbacks
+        {'encoding': 'utf-8', 'delimiter': ',', 'quoting': 3, 'engine': 'python'},
+        {'encoding': 'iso-8859-1', 'delimiter': ';', 'quoting': 3, 'engine': 'python'},
+    ]
+    
+    for i, strategy in enumerate(strategies):
+        try:
+            df = pd.read_csv(
+                csv_path, 
+                on_bad_lines='skip',
+                low_memory=False,
+                skip_blank_lines=True,
+                **strategy
+            )
+            
+            # Validierung: DataFrame muss sinnvoll aussehen
+            if len(df.columns) > 3 and len(df) > 10:
+                st.info(f"CSV erfolgreich geladen mit Strategie {i+1}: {strategy['encoding']} + '{strategy['delimiter']}'")
+                return df, None
+                
+        except Exception as e:
+            continue
+    
+    # Strategie 2: Zeilenweise lesen mit maximalem Error-Handling
     try:
-        df = pd.read_csv(csv_path, encoding='utf-8', on_bad_lines='skip', 
-                        low_memory=False, quoting=3)  # QUOTE_NONE
-        if len(df.columns) > 1 and len(df) > 0:
-            st.warning(f"CSV mit Fallback-Methode geladen - möglicherweise unvollständig")
-            return df, None
+        with open(csv_path, 'r', encoding='utf-8', errors='ignore') as f:
+            lines = f.readlines()
+        
+        # Erste Zeile als Header
+        if lines:
+            header_line = lines[0].strip()
+            # Delimiter erkennen
+            if ';' in header_line:
+                delimiter = ';'
+            elif '\t' in header_line:
+                delimiter = '\t'
+            else:
+                delimiter = ','
+            
+            # Zeilen manuell parsen
+            headers = header_line.split(delimiter)
+            data_rows = []
+            
+            for line in lines[1:]:
+                try:
+                    row = line.strip().split(delimiter)
+                    # Zeile nur hinzufügen wenn sie sinnvoll aussieht
+                    if len(row) >= len(headers) * 0.7:  # Mindestens 70% der Spalten gefüllt
+                        data_rows.append(row[:len(headers)])  # Auf Header-Länge kürzen
+                except:
+                    continue
+            
+            if data_rows:
+                df = pd.DataFrame(data_rows, columns=headers)
+                st.warning(f"CSV mit manueller Zeilenweise-Methode geladen ({len(data_rows)} Zeilen)")
+                return df, None
+    
     except Exception as e:
-        return pd.DataFrame(), f"CSV konnte nicht geladen werden: {str(e)}"
+        pass
+    
+    # Strategie 3: Nur erste N Zeilen laden
+    try:
+        df = pd.read_csv(
+            csv_path, 
+            encoding='utf-8', 
+            delimiter=',',
+            nrows=1000,  # Nur erste 1000 Zeilen
+            on_bad_lines='skip'
+        )
+        if not df.empty:
+            st.warning(f"CSV teilweise geladen (erste 1000 Zeilen)")
+            return df, None
+    except:
+        pass
+    
+    return pd.DataFrame(), "CSV konnte mit keiner Methode gelesen werden"
 
 # ================================================================================================
-# MULTI-SOURCE COLUMN MAPPING
+# MULTI-SOURCE COLUMN MAPPING - VERBESSERT
 # ================================================================================================
 def map_winter_excel_columns(df):
     """Mappt Winter-Excel Spalten auf einheitliches Schema"""
@@ -335,35 +401,41 @@ def map_winter_excel_columns(df):
     elif 'Preis_EUR' not in df.columns:
         df['Preis_EUR'] = 0.0
     
-    # Saison setzen
+    # Saison setzen - EXPLIZIT
     df['Saison'] = 'Winter'
     df['Quelle'] = 'Winter-Excel'
     
     return df
 
 def map_sommer_excel_columns(df):
-    """Mappt Sommer-Excel Spalten auf einheitliches Schema"""
+    """Mappt Sommer-Excel Spalten auf einheitliches Schema - VERBESSERT"""
     df = df.copy()
     
     # Spalten-Namen bereinigen
     df.columns = df.columns.str.replace(r'\r\n', ' ', regex=True).str.strip()
     
-    # Column Mapping für Sommer-Excel
+    # ALLE möglichen Column Mappings für Sommer-Excel
     column_mapping = {
         'Höhe': 'Hoehe',
         'Speed index': 'Speedindex', 
         'Load index': 'Loadindex',
         'Preis Leasing netto': 'Preis_EUR',
-        'Preis_Leasing_Netto': 'Preis_EUR'
+        'Preis_Leasing_Netto': 'Preis_EUR',
+        'Preis\nLeasing\nnetto': 'Preis_EUR',  # Mehrzeilige Header
+        'Speed\nindex': 'Speedindex',
+        'Load\nindex': 'Loadindex',
     }
     
-    # Spalten umbenennen
-    for old_col, new_col in column_mapping.items():
-        if old_col in df.columns:
-            df = df.rename(columns={old_col: new_col})
+    # Spalten umbenennen - case-insensitive
+    for old_col in list(df.columns):
+        for mapping_old, mapping_new in column_mapping.items():
+            if old_col.strip().lower().replace('\n', ' ') == mapping_old.strip().lower().replace('\n', ' '):
+                df = df.rename(columns={old_col: mapping_new})
+                break
     
     # Dimension zusammenbauen wenn nicht vorhanden
-    if 'Dimension' not in df.columns and all(col in df.columns for col in ['Breite', 'Hoehe', 'Zoll', 'Loadindex', 'Speedindex']):
+    required_cols = ['Breite', 'Hoehe', 'Zoll', 'Loadindex', 'Speedindex']
+    if 'Dimension' not in df.columns and all(col in df.columns for col in required_cols):
         # R-Spalte oder Standard R verwenden
         r_val = df['R'].astype(str) if 'R' in df.columns else 'R'
         
@@ -381,13 +453,18 @@ def map_sommer_excel_columns(df):
                 axis=1
             )
     
-    # Preis verarbeiten
-    if 'Preis_EUR' in df.columns:
-        df['Preis_EUR'] = pd.to_numeric(df['Preis_EUR'], errors='coerce')
+    # Preis verarbeiten - multiple Möglichkeiten
+    if 'Preis_EUR' not in df.columns:
+        # Suche nach Preis-Spalten
+        preis_candidates = [col for col in df.columns if 'preis' in col.lower() or 'leasing' in col.lower()]
+        if preis_candidates:
+            df['Preis_EUR'] = pd.to_numeric(df[preis_candidates[0]], errors='coerce')
+        else:
+            df['Preis_EUR'] = 0.0
     else:
-        df['Preis_EUR'] = 0.0
+        df['Preis_EUR'] = pd.to_numeric(df['Preis_EUR'], errors='coerce')
     
-    # Saison setzen
+    # Saison setzen - EXPLIZIT SOMMER
     df['Saison'] = 'Sommer'
     df['Quelle'] = 'Sommer-Excel'
     
@@ -421,11 +498,11 @@ def map_csv_columns(df):
     return df
 
 # ================================================================================================
-# MULTI-SOURCE LOADING - ROBUST
+# MULTI-SOURCE LOADING - VERBESSERT
 # ================================================================================================
 @st.cache_data(show_spinner=False)
 def load_all_sources() -> pd.DataFrame:
-    """Lädt alle verfügbaren Reifen-Quellen mit robustem Error-Handling"""
+    """Lädt alle verfügbaren Reifen-Quellen mit ultra-robustem Error-Handling"""
     all_dataframes = []
     source_stats = {
         'Winter': {'loaded': False, 'count': 0, 'file': WINTER_EXCEL, 'error': None},
@@ -459,9 +536,9 @@ def load_all_sources() -> pd.DataFrame:
     else:
         source_stats['Sommer']['error'] = "Datei nicht gefunden"
     
-    # 3. GANZJAHRES-CSV LADEN - ROBUST
+    # 3. GANZJAHRES-CSV LADEN - ULTRA-ROBUST
     if GANZJAHRES_CSV.exists():
-        df_ganzjahres, error = robust_csv_loading(GANZJAHRES_CSV)
+        df_ganzjahres, error = ultra_robust_csv_loading(GANZJAHRES_CSV)
         if error is None and not df_ganzjahres.empty:
             try:
                 df_ganzjahres = map_csv_columns(df_ganzjahres)
@@ -471,7 +548,7 @@ def load_all_sources() -> pd.DataFrame:
             except Exception as e:
                 source_stats['Ganzjahres']['error'] = f"Mapping-Fehler: {str(e)}"
         else:
-            source_stats['Ganzjahres']['error'] = error or "Unbekannter Fehler"
+            source_stats['Ganzjahres']['error'] = error or "Parsing fehlgeschlagen"
     else:
         source_stats['Ganzjahres']['error'] = "Datei nicht gefunden"
     
@@ -500,8 +577,8 @@ def load_all_sources() -> pd.DataFrame:
             else:
                 combined_df[col] = ''
     
-    # Datentypen bereinigen
-    combined_df = clean_dataframe(combined_df)
+    # Datentypen bereinigen - OHNE SAISON ZU ÜBERSCHREIBEN
+    combined_df = clean_dataframe_preserve_saison(combined_df)
     
     # Source Stats als Metadaten speichern
     combined_df.attrs['source_stats'] = source_stats
@@ -588,10 +665,10 @@ def save_services_config(services_df):
         return False
 
 # ================================================================================================
-# DATENBANK FUNKTIONEN
+# DATENBANK FUNKTIONEN - SAISON-PRESERVING
 # ================================================================================================
-def clean_dataframe(df: pd.DataFrame) -> pd.DataFrame:
-    """Bereinigt und normalisiert DataFrame"""
+def clean_dataframe_preserve_saison(df: pd.DataFrame) -> pd.DataFrame:
+    """Bereinigt und normalisiert DataFrame OHNE SAISON ZU ÜBERSCHREIBEN"""
     if df.empty:
         return df
     
@@ -618,9 +695,14 @@ def clean_dataframe(df: pd.DataFrame) -> pd.DataFrame:
         if c not in df.columns:
             df[c] = pd.NA
     
-    # Saison-Spalte hinzufügen wenn nicht vorhanden
-    if "Saison" not in df.columns:
+    # SAISON ONLY WENN KOMPLETT FEHLT ODER ALLE NA - NICHT ÜBERSCHREIBEN!
+    if "Saison" not in df.columns or df["Saison"].isna().all():
         df["Saison"] = df["Teilenummer"].apply(get_saison_from_teilenummer)
+    
+    # WICHTIG: Bei fehlenden/leeren Saisonen nur diese füllen, nicht alle überschreiben
+    saison_mask = df["Saison"].isna() | (df["Saison"] == '') | (df["Saison"] == 'Unbekannt')
+    if saison_mask.any() and "Teilenummer" in df.columns:
+        df.loc[saison_mask, "Saison"] = df.loc[saison_mask, "Teilenummer"].apply(get_saison_from_teilenummer)
 
     df = df.dropna(subset=["Preis_EUR", "Breite", "Hoehe", "Zoll"], how="any")
     if not df.empty:
@@ -637,7 +719,7 @@ def load_master_csv() -> pd.DataFrame:
         return pd.DataFrame()
 
     df = pd.read_csv(MASTER_CSV, encoding='utf-8')
-    return clean_dataframe(df)
+    return clean_dataframe_preserve_saison(df)
 
 def save_to_master_csv(df):
     """Speichert DataFrame direkt in die Master-CSV"""
@@ -794,8 +876,11 @@ def add_new_columns(df):
         df['Nasshaftung'] = ''
     if 'Geräuschklasse' not in df.columns:
         df['Geräuschklasse'] = pd.Series([70] * len(df), dtype='float64')
-    if 'Saison' not in df.columns:
+    
+    # SAISON NUR WENN FEHLT - NICHT ÜBERSCHREIBEN!
+    if 'Saison' not in df.columns or df['Saison'].isna().all():
         df['Saison'] = df['Teilenummer'].apply(get_saison_from_teilenummer)
+    
     if 'Quelle' not in df.columns:
         df['Quelle'] = 'Unbekannt'
     
@@ -1106,10 +1191,10 @@ def render_stock_management():
         st.rerun()
 
 # ================================================================================================
-# MAIN REIFEN CONTENT - ROBUST & REORGANISIERT
+# MAIN REIFEN CONTENT - SAISON-FIX
 # ================================================================================================
 def render_reifen_content():
-    """Hauptinhalt der Reifen Verwaltung - robust und reorganisiert"""
+    """Hauptinhalt der Reifen Verwaltung - mit Saison-Fix"""
     
     # AUTO-LOAD: Alle verfügbaren Quellen automatisch laden
     if st.session_state.df_original is None or st.session_state.df_original.empty:
@@ -1123,6 +1208,11 @@ def render_reifen_content():
                 
                 # Quellen-Statistiken anzeigen
                 source_stats = get_source_statistics(df_all_sources)
+                
+                # Debug: Saison-Verteilung prüfen
+                if 'Saison' in df_all_sources.columns:
+                    saison_counts = df_all_sources['Saison'].value_counts()
+                    st.info(f"Saison-Debug: {dict(saison_counts)}")
                 
                 # Erfolgs- und Fehlermeldungen
                 success_sources = []
@@ -1367,9 +1457,10 @@ def render_reifen_content():
         
         st.markdown("""
         <div class="source-info">
-            <h4>🎯 Robustes Multi-Source System aktiv!</h4>
+            <h4>🎯 Fixed Multi-Source System!</h4>
             <p><strong>Automatisch geladen:</strong> Winter-Excel, Sommer-Excel und Ganzjahres-CSV (soweit verfügbar)</p>
-            <p><strong>Saison-Filter:</strong> Steht jetzt an erster Stelle für bessere Usability</p>
+            <p><strong>Saison-Fix:</strong> Überschreibung der Saison-Werte behoben</p>
+            <p><strong>Ultra-robustes CSV-Loading:</strong> Maximale Fehlertoleranz</p>
             <p><strong>Nächste Schritte:</strong></p>
             <p>1. Wähle <strong>Saison-Typ</strong> (Winter/Sommer/Ganzjahres)</p>
             <p>2. Setze weitere <strong>Filter in der Sidebar</strong></p>
@@ -1917,7 +2008,7 @@ def render_reifen_content():
             st.warning("Keine Daten für GitHub-Export verfügbar")
         
         st.markdown("---")
-        st.info("🔄 **Robustes Multi-Source System:** Winter-Excel, Sommer-Excel und Ganzjahres-CSV werden automatisch geladen (soweit verfügbar). Saison-Filter steht jetzt an erster Stelle. Zusätzliche Teilenummern können über die Sidebar hinzugefügt werden.")
+        st.info("🔄 **Fixed Multi-Source System:** Saison-Überschreibung behoben, ultra-robustes CSV-Loading implementiert. Sommer-Filter sollte jetzt korrekt funktionieren!")
 
 # ================================================================================================
 # MAIN TAB RENDER FUNCTION
@@ -1984,7 +2075,7 @@ def main():
     st.markdown("""
     <div class="main-header">
         <h1>Reifen Verwaltung</h1>
-        <p>Robustes Multi-Source Reifen- und Systemverwaltung</p>
+        <p>Fixed Multi-Source Reifen- und Systemverwaltung</p>
     </div>
     """, unsafe_allow_html=True)
     
