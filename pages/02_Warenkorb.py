@@ -217,7 +217,7 @@ def get_filial_data():
                 {
                     "name": "Anesh Chandra Kumaran",
                     "position": "Serviceberatung",
-                    "durchwahl": "220",
+                    "durchwahl": "237",
                     "fax": "",
                     "mobil": "",
                     "email": "anesh.kumaran@ramsperger-automobile.de"
@@ -225,7 +225,7 @@ def get_filial_data():
                 {
                     "name": "Damiano De Biase",
                     "position": "Serviceberatung",
-                    "durchwahl": "221",
+                    "durchwahl": "238",
                     "fax": "",
                     "mobil": "",
                     "email": "damiano.debiase@ramsperger-automobile.de"
@@ -233,7 +233,7 @@ def get_filial_data():
                 {
                     "name": "Jörg Peter",
                     "position": "Serviceberatung",
-                    "durchwahl": "222",
+                    "durchwahl": "232",
                     "fax": "",
                     "mobil": "",
                     "email": "joerg.peter@ramsperger-automobile.de"
@@ -241,7 +241,7 @@ def get_filial_data():
                 {
                     "name": "Jannick Klosius",
                     "position": "Serviceberatung",
-                    "durchwahl": "223",
+                    "durchwahl": "231",
                     "fax": "",
                     "mobil": "",
                     "email": "jannick.klosius@ramsperger-automobile.de"
@@ -249,7 +249,7 @@ def get_filial_data():
                 {
                     "name": "Gabriele Randazzo",
                     "position": "Teiledienst",
-                    "durchwahl": "230",
+                    "durchwahl": "129",
                     "fax": "",
                     "mobil": "",
                     "email": "gabriele.randazzo@ramsperger-automobile.de"
@@ -257,7 +257,7 @@ def get_filial_data():
                 {
                     "name": "Horst Carrle",
                     "position": "Teiledienst",
-                    "durchwahl": "231",
+                    "durchwahl": "222",
                     "fax": "",
                     "mobil": "",
                     "email": "horst.carrle@ramsperger-automobile.de"
@@ -265,7 +265,7 @@ def get_filial_data():
                 {
                     "name": "Andreas Renz",
                     "position": "Teiledienst",
-                    "durchwahl": "232",
+                    "durchwahl": "225",
                     "fax": "",
                     "mobil": "",
                     "email": "andreas.renz@ramsperger-automobile.de"
@@ -273,7 +273,7 @@ def get_filial_data():
                 {
                     "name": "Enes Cetinkaya",
                     "position": "Teiledienst",
-                    "durchwahl": "233",
+                    "durchwahl": "226",
                     "fax": "",
                     "mobil": "",
                     "email": "enes.cetinkaya@ramsperger-automobile.de"
@@ -314,7 +314,7 @@ def get_filial_data():
                 {
                     "name": "Martin Rams",
                     "position": "Serviceberatung",
-                    "durchwahl": "320",
+                    "durchwahl": "332",
                     "fax": "",
                     "mobil": "",
                     "email": "martin.rams@ramsperger-automobile.de"
@@ -322,7 +322,7 @@ def get_filial_data():
                 {
                     "name": "Patrick Zeyfang",
                     "position": "Serviceberatung",
-                    "durchwahl": "321",
+                    "durchwahl": "334",
                     "fax": "",
                     "mobil": "",
                     "email": "patrick.zeyfang@ramsperger-automobile.de"
@@ -330,7 +330,7 @@ def get_filial_data():
                 {
                     "name": "Edmund Deuschle",
                     "position": "Serviceberatung",
-                    "durchwahl": "322",
+                    "durchwahl": "335",
                     "fax": "",
                     "mobil": "",
                     "email": "edmund.deuschle@ramsperger-automobile.de"
@@ -338,7 +338,7 @@ def get_filial_data():
                 {
                     "name": "Kaan Köse",
                     "position": "Serviceberatung",
-                    "durchwahl": "323",
+                    "durchwahl": "337",
                     "fax": "",
                     "mobil": "",
                     "email": "kaan.koese@ramsperger-automobile.de"
@@ -346,15 +346,15 @@ def get_filial_data():
                 {
                     "name": "Florian Neu",
                     "position": "Serviceberatung",
-                    "durchwahl": "324",
+                    "durchwahl": "331",
                     "fax": "",
                     "mobil": "",
                     "email": "florian.neu@ramsperger-automobile.de"
                 },
                 {
                     "name": "Tobias Sebert",
-                    "position": "Serviceberatung",
-                    "durchwahl": "325",
+                    "position": "Teiledienst",
+                    "durchwahl": "320",
                     "fax": "",
                     "mobil": "",
                     "email": "tobias.sebert@ramsperger-automobile.de"
@@ -362,7 +362,7 @@ def get_filial_data():
                 {
                     "name": "Philipp Häberle",
                     "position": "Teiledienst",
-                    "durchwahl": "330",
+                    "durchwahl": "323",
                     "fax": "",
                     "mobil": "",
                     "email": "philipp.haeberle@ramsperger-automobile.de"
@@ -370,7 +370,7 @@ def get_filial_data():
                 {
                     "name": "Krisztian Kopasz",
                     "position": "Teiledienst",
-                    "durchwahl": "331",
+                    "durchwahl": "322",
                     "fax": "",
                     "mobil": "",
                     "email": "krisztian.kopasz@ramsperger-automobile.de"
@@ -378,7 +378,7 @@ def get_filial_data():
                 {
                     "name": "Yilmaz Yildirim",
                     "position": "Teiledienst",
-                    "durchwahl": "332",
+                    "durchwahl": "321",
                     "fax": "",
                     "mobil": "",
                     "email": "yilmaz.yildirim@ramsperger-automobile.de"
@@ -386,7 +386,7 @@ def get_filial_data():
                 {
                     "name": "Kevin Simon",
                     "position": "Teiledienst",
-                    "durchwahl": "333",
+                    "durchwahl": "327",
                     "fax": "",
                     "mobil": "",
                     "email": "kevin.simon@ramsperger-automobile.de"
