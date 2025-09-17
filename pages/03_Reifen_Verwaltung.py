@@ -17,7 +17,7 @@ st.set_page_config(
 # ================================================================================================
 BASE_DIR = Path("data")
 MASTER_CSV = BASE_DIR / "Ramsperger_Reifen_Master_Database.csv"
-EXCEL_VORLAGEN = BASE_DIR / "20250729_ReifenPremium_Winterreifen_202526.xlsx"  # Enthält jetzt alle Saisons
+EXCEL_VORLAGEN = BASE_DIR / "2025-07-29_ReifenPremium_Winterreifen_2025-26.xlsx"  # Enthält jetzt alle Saisons
 SERVICES_CONFIG_CSV = BASE_DIR / "ramsperger_services_config.csv"
 
 # ================================================================================================
@@ -980,7 +980,7 @@ def render_reifen_content():
                 st.session_state.selection_confirmed = False
                 st.success(f"✅ {len(df_excel)} Reifen aus erweiteter Datenbank geladen!")
             else:
-                st.error("❌ Excel-Datei konnte nicht geladen werden. Bitte prüfe ob die Datei '20250729_ReifenPremium_Winterreifen_202526.xlsx' im data/ Ordner existiert.")
+                st.error("❌ Excel-Datei konnte nicht geladen werden. Bitte prüfe ob die Datei '2025-07-29_ReifenPremium_Winterreifen_2025-26.xlsx' im data/ Ordner existiert.")
                 return
     
     # Sidebar Filter - FIXED REIHENFOLGE
