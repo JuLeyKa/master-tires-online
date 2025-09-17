@@ -1725,4 +1725,301 @@ def render_item_services(item):
                      key=f"cart_radwechsel_type_{item_id}",
                      on_change=_update_radwechsel_type, args=(item_id,))
 
-    st
+    st.checkbox(f"Einlagerung ({sp.get('nur_einlagerung',55.00):.2f}EUR)",
+                key=f"einlagerung_{item_id}",
+                on_change=_update_service, args=(item_id,'einlagerung'))
+
+def render_price_summary(total, breakdown):
+    st.markdown("---")
+    st.markdown("#### Preisübersicht")
+    col_breakdown, col_total = st.columns([2, 1])
+    with col_breakdown:
+        st.markdown(f"**Reifen-Kosten:** {breakdown['reifen']:.2f}EUR")
+        if breakdown['montage']>0: st.markdown(f"**Montage:** {breakdown['montage']:.2f}EUR")
+        if breakdown['radwechsel']>0: st.markdown(f"**Radwechsel:** {breakdown['radwechsel']:.2f}EUR")
+        if breakdown['einlagerung']>0: st.markdown(f"**Einlagerung:** {breakdown['einlagerung']:.2f}EUR")
+    with col_total:
+        st.markdown(f"### **GESAMT: {total:.2f}EUR**")
+
+def render_customer_data():
+    st.markdown("---")
+    st.markdown("#### Kundendaten (optional)")
+    st.markdown("Diese Angaben werden in das Angebot aufgenommen, falls gewünscht:")
+
+    # Anrede-Dropdown prominent platziert - ganze Breite
+    anrede_options = ["", "Herr", "Frau", "Firma"]
+    st.selectbox("Anrede:", 
+                 options=anrede_options, 
+                 key="customer_anrede", 
+                 help="Für personalisierte Ansprache in Angeboten und E-Mails")
+
+    # Rest der Kundendaten in zwei Spalten
+    col1, col2 = st.columns(2)
+    with col1:
+        st.text_input("Kundenname:", key="customer_name", placeholder="z.B. Max Mustermann")
+        st.text_input("E-Mail-Adresse:", key="customer_email", placeholder="z.B. max@mustermann.de", help="Für den E-Mail-Versand des Angebots")
+        st.text_input("Kennzeichen:", key="customer_kennzeichen", placeholder="z.B. GP-AB 123")
+    with col2:
+        st.text_input("Hersteller / Modell:", key="customer_modell", placeholder="z.B. BMW 3er E90")
+        st.text_input("Fahrgestellnummer:", key="customer_fahrgestell", placeholder="z.B. WBAVA31070F123456")
+
+    # Fahrzeug 2 Felder nur bei "separate" Szenario
+    if st.session_state.offer_scenario == "separate":
+        st.markdown("---")
+        st.markdown("##### Fahrzeug 2 (Separate Fahrzeuge)")
+        
+        col3, col4 = st.columns(2)
+        with col3:
+            st.text_input("Kennzeichen 2:", key="customer_kennzeichen_2", placeholder="z.B. GP-CD 456")
+            st.text_input("Hersteller / Modell 2:", key="customer_modell_2", placeholder="z.B. Audi A4 B9")
+        with col4:
+            st.text_input("Fahrgestellnummer 2:", key="customer_fahrgestell_2", placeholder="z.B. WAUEFE123456789")
+
+    # Session State Update
+    st.session_state.customer_data = {
+        'anrede': st.session_state.get('customer_anrede',''),
+        'name': st.session_state.get('customer_name',''),
+        'email': st.session_state.get('customer_email',''),
+        'kennzeichen': st.session_state.get('customer_kennzeichen',''),
+        'modell': st.session_state.get('customer_modell',''),
+        'fahrgestellnummer': st.session_state.get('customer_fahrgestell',''),
+        'kennzeichen_2': st.session_state.get('customer_kennzeichen_2',''),
+        'modell_2': st.session_state.get('customer_modell_2',''),
+        'fahrgestellnummer_2': st.session_state.get('customer_fahrgestell_2','')
+    }
+
+def render_filial_mitarbeiter_selection():
+    """Filial- und Mitarbeiterauswahl mit festen Datenstrukturen"""
+    st.markdown("---")
+    st.markdown("#### Filiale und Ansprechpartner auswählen")
+    st.markdown("Diese Informationen werden in das Angebot und den Footer aufgenommen:")
+    
+    # Filial-Daten aus fester Struktur laden
+    filial_data = get_filial_data()
+    
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        # Filial-Dropdown
+        filial_options = get_filial_options()
+        selected_filial = st.selectbox(
+            "Filiale:",
+            options=[""] + [key for key, _ in filial_options],
+            format_func=lambda x: "Bitte wählen..." if x == "" else next((name for key, name in filial_options if key == x), x),
+            key="selected_filial_key",
+            help="Auswahl der Filiale für Adresse und Telefon im PDF"
+        )
+        
+        # Filial-Info in Session State speichern
+        if selected_filial:
+            st.session_state.selected_filial = selected_filial
+            st.session_state.selected_filial_info = get_filial_info(selected_filial)
+        else:
+            st.session_state.selected_filial = ""
+            st.session_state.selected_filial_info = {}
+    
+    with col2:
+        # Mitarbeiter-Dropdown (nur wenn Filiale gewählt)
+        if st.session_state.selected_filial:
+            mitarbeiter = get_mitarbeiter_for_filial(st.session_state.selected_filial)
+            
+            if mitarbeiter:
+                selected_mitarbeiter_idx = st.selectbox(
+                    "Ansprechpartner:",
+                    options=list(range(-1, len(mitarbeiter))),
+                    format_func=lambda x: ("Bitte wählen..." if x == -1 else 
+                                          f"{mitarbeiter[x]['name']}" if "E-Mail" in mitarbeiter[x]['position'] else
+                                          f"{mitarbeiter[x]['name']} ({mitarbeiter[x]['position']})" if x >= 0 else ""),
+                    key="selected_mitarbeiter_key",
+                    help="Auswahl des Ansprechpartners für das PDF"
+                )
+                
+                # Mitarbeiter-Info in Session State speichern
+                if selected_mitarbeiter_idx >= 0:
+                    st.session_state.selected_mitarbeiter = selected_mitarbeiter_idx
+                    st.session_state.selected_mitarbeiter_info = mitarbeiter[selected_mitarbeiter_idx]
+                else:
+                    st.session_state.selected_mitarbeiter = ""
+                    st.session_state.selected_mitarbeiter_info = {}
+            else:
+                st.info("Keine Mitarbeiter für diese Filiale verfügbar")
+        else:
+            st.selectbox("Ansprechpartner:", options=[], disabled=True, help="Bitte zuerst eine Filiale auswählen")
+    
+    # Vorschau der ausgewählten Informationen
+    if st.session_state.selected_filial_info and st.session_state.selected_mitarbeiter_info:
+        st.markdown("##### Vorschau der Auswahl:")
+        filial_info = st.session_state.selected_filial_info
+        mitarbeiter_info = st.session_state.selected_mitarbeiter_info
+        
+        col_preview1, col_preview2 = st.columns(2)
+        
+        with col_preview1:
+            st.markdown("**Filiale:**")
+            st.markdown(f"{filial_info.get('bereich', '')}")
+            st.markdown(f"{filial_info.get('adresse', '')}")
+            st.markdown(f"Telefon: {filial_info.get('zentrale', '')}")
+        
+        with col_preview2:
+            st.markdown("**Ansprechpartner:**")
+            st.markdown(f"**{mitarbeiter_info.get('name', '')}**")
+            if mitarbeiter_info.get('position') and not mitarbeiter_info.get('position', '').endswith("E-Mail"):
+                st.markdown(f"{mitarbeiter_info.get('position', '')}")
+            if mitarbeiter_info.get('durchwahl'):
+                telefon = build_phone_number(filial_info.get('zentrale', ''), mitarbeiter_info.get('durchwahl', ''))
+                st.markdown(f"Telefon: {telefon}")
+            if mitarbeiter_info.get('email'):
+                st.markdown(f"E-Mail: {mitarbeiter_info.get('email', '')}")
+
+def render_scenario_selection():
+    st.markdown("---")
+    st.markdown("#### Angebot-Typ auswählen")
+
+    detected = detect_cart_season()
+    season_info = get_season_greeting_text(detected)
+
+    st.radio(
+        "Angebot-Szenario:",
+        options=["vergleich","separate","einzelangebot"],
+        format_func=lambda x: {
+            "vergleich":"Vergleichsangebot - Verschiedene Reifenoptionen zur Auswahl für ein Fahrzeug",
+            "separate":"Separate Fahrzeuge - Jede Position ist für ein anderes Fahrzeug",
+            "einzelangebot":"Einzelangebot - Spezifisches Angebot für die ausgewählten Reifen"
+        }[x],
+        key="offer_scenario"
+    )
+
+    if st.session_state.offer_scenario == "vergleich":
+        st.info(f"**Vergleichsangebot:** Der Kunde bekommt mehrere {season_info['season_name']}-Reifenoptionen zur Auswahl präsentiert und kann sich für eine davon entscheiden.")
+    elif st.session_state.offer_scenario == "separate":
+        st.info(f"**Separate Fahrzeuge:** Jede Position wird als separates Fahrzeug behandelt mit eigenständiger {season_info['season_name']}-Reifen-Berechnung.")
+    else:
+        st.info(f"**Einzelangebot:** Direktes, spezifisches Angebot für die ausgewählten {season_info['season_name']}-Reifen ohne Vergleichsoptionen.")
+
+    return detected
+
+def render_actions(total, breakdown, detected_season):
+    st.markdown("---")
+    st.markdown("#### PDF-Angebot erstellen")
+
+    col1, col2, col3, col4, col5 = st.columns(5)
+
+    with col1:
+        if st.button("📄 PDF-Angebot erstellen", use_container_width=True, type="primary"):
+            pdf_data = create_professional_pdf(
+                st.session_state.customer_data,
+                st.session_state.offer_scenario,
+                detected_season
+            )
+            if pdf_data:
+                st.session_state.current_email_text = create_email_text(
+                    st.session_state.customer_data,
+                    detected_season
+                )
+                ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+                season_info = get_season_greeting_text(detected_season)
+                filename = f"Angebot_Ramsperger_{season_info['season_name']}_{ts}.pdf"
+
+                st.success("✅ PDF-Angebot erfolgreich erstellt!")
+                st.download_button(
+                    label="📥 PDF-Angebot herunterladen",
+                    data=pdf_data,
+                    file_name=filename,
+                    mime="application/pdf",
+                    use_container_width=True
+                )
+                st.session_state.pdf_created = True
+            else:
+                st.error("Fehler beim Erstellen der PDF-Datei")
+
+    with col2:
+        # Direkter mailto-Flow für Kundenangebot (mit Kunden-E-Mail)
+        customer_email = st.session_state.customer_data.get('email', '').strip()
+        if not customer_email:
+            st.button("📧 E-Mail fehlt", use_container_width=True, disabled=True,
+                      help="Bitte E-Mail-Adresse bei Kundendaten eingeben")
+        elif not st.session_state.pdf_created:
+            st.button("📧 Erst PDF erstellen", use_container_width=True, disabled=True,
+                      help="Bitte zuerst PDF-Angebot erstellen")
+        else:
+            mailto_link = create_mailto_link(
+                customer_email,
+                st.session_state.get('current_email_text', create_email_text(st.session_state.customer_data, detected_season)),
+                detected_season
+            )
+            if mailto_link:
+                st.link_button("📧 Per E-Mail senden", mailto_link,
+                               use_container_width=True, type="secondary",
+                               help="Öffnet Ihren Standard-Mailclient (z. B. Outlook Desktop)")
+            else:
+                st.button("📧 Ungültige E-Mail", use_container_width=True, disabled=True,
+                          help="Bitte E-Mail-Adresse prüfen")
+
+    with col3:
+        # TD-Anfrage Button - IMMER AKTIV, KEIN Empfänger vorgefüllt
+        td_email_text = create_td_email_text(st.session_state.customer_data, detected_season)
+        td_mailto_link = create_td_mailto_link(td_email_text)
+        
+        st.link_button("🔍 Reifen über TD anfragen", td_mailto_link,
+                       use_container_width=True, type="secondary",
+                       help="Anfrage an Teiledienst - Öffnet Outlook mit leerem An-Feld")
+
+    with col4:
+        if st.button("Warenkorb leeren", use_container_width=True, type="secondary"):
+            clear_cart()
+            st.session_state.pdf_created = False
+            st.success("Warenkorb geleert!")
+            st.rerun()
+
+    with col5:
+        if st.button("Weitere Reifen", use_container_width=True):
+            st.switch_page("pages/01_Reifen_Suche.py")
+
+    # Zweite Reihe für weniger wichtige Aktionen
+    col6, col7, col8, col9, col10 = st.columns(5)
+    
+    with col10:
+        if st.button("Reifen ausbuchen", use_container_width=True, type="primary"):
+            if st.session_state.cart_items:
+                st.success("Reifen erfolgreich ausgebucht!")
+                clear_cart()
+                st.session_state.pdf_created = False
+                st.rerun()
+            else:
+                st.warning("Warenkorb ist leer!")
+
+# ================================================================================================
+# MAIN
+# ================================================================================================
+def main():
+    init_session_state()
+
+    # Logo Header ganz oben - EINHEITLICH WIE REIFEN-SUCHE
+    st.markdown('<div class="logo-container">', unsafe_allow_html=True)
+    try:
+        logo_path = "data/Logo_2.png"
+        st.image(logo_path, width=400)
+    except:
+        st.markdown("### Ramsperger Automobile")
+    st.markdown('</div>', unsafe_allow_html=True)
+
+    # Fester Abstand NACH dem Logo (robust gegen Margin-Collapse)
+    st.markdown('<div class="logo-spacer"></div>', unsafe_allow_html=True)
+
+    if not st.session_state.cart_items:
+        render_empty_cart()
+        return
+
+    render_cart_content()
+    total, breakdown = get_cart_total()
+    render_price_summary(total, breakdown)
+    render_customer_data()
+    
+    # Filial- und Mitarbeiterauswahl mit festen Datenstrukturen
+    render_filial_mitarbeiter_selection()
+    
+    detected = render_scenario_selection()
+    render_actions(total, breakdown, detected)
+
+if __name__ == "__main__":
+    main()
