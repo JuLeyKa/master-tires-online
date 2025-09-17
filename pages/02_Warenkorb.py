@@ -162,27 +162,18 @@ def load_excel_data():
                         else:
                             email = ""
                         
-                        # VERSCHÄRFTE FILTERUNG: Nur Serviceberatung und Teiledienst
+                        # Nur relevante Positionen filtern
                         relevante_positionen = [
-                            "serviceberatung", 
-                            "teiledienst", 
-                            "teil",  # für Teiledienst-Variationen
-                            "sammel-e-mail",  # für Sammel-E-Mails
-                            "verteiler"  # für E-Mail-Verteiler
+                            "serviceberatung", "service", "teiledienst", "teil", 
+                            "gewährleistung", "verkauf", "leitung", "info", "assistenz",
+                            "sammel-e-mail", "verteiler"
                         ]
                         
                         is_relevant = any(keyword in position.lower() for keyword in relevante_positionen) or \
                                      any(keyword in name.lower() for keyword in relevante_positionen) or \
-                                     (email and ("sb-" in email or "td-" in email or "service" in email or "teiledienst" in email))
+                                     "@ramsperger-automobile.de" in email
                         
-                        # Zusätzlicher Check: Explizit Gewährleistung, Verkauf, Verwaltung etc. ausschließen
-                        ausschliessen = [
-                            "gewährleistung", "verkauf", "verwaltung", "info", "assistenz", 
-                            "leitung", "personal", "lohnbüro", "marketing", "finanz"
-                        ]
-                        is_excluded = any(keyword in position.lower() for keyword in ausschliessen)
-                        
-                        if is_relevant and not is_excluded:
+                        if is_relevant or position or email:
                             mitarbeiter.append({
                                 "name": name.strip(),
                                 "position": position.strip(),
@@ -1203,7 +1194,7 @@ def render_customer_data():
     }
 
 def render_filial_mitarbeiter_selection():
-    """Neue Funktion für die Filial- und Mitarbeiterauswahl mit korrigierter Filterung"""
+    """Neue Funktion für die Filial- und Mitarbeiterauswahl mit dynamischen Excel-Daten"""
     st.markdown("---")
     st.markdown("#### Filiale und Ansprechpartner auswählen")
     st.markdown("Diese Informationen werden in das Angebot und den Footer aufgenommen:")
@@ -1258,7 +1249,7 @@ def render_filial_mitarbeiter_selection():
                     st.session_state.selected_mitarbeiter = ""
                     st.session_state.selected_mitarbeiter_info = {}
             else:
-                st.info("Keine Serviceberatung oder Teiledienst-Mitarbeiter für diese Filiale verfügbar")
+                st.info("Keine Mitarbeiter für diese Filiale verfügbar")
         else:
             st.selectbox("Ansprechpartner:", options=[], disabled=True, help="Bitte zuerst eine Filiale auswählen")
     
@@ -1430,7 +1421,7 @@ def main():
     render_price_summary(total, breakdown)
     render_customer_data()
     
-    # NEUE SEKTION: Filial- und Mitarbeiterauswahl mit verschärfter Filterung
+    # NEUE SEKTION: Filial- und Mitarbeiterauswahl mit dynamischen Excel-Daten
     render_filial_mitarbeiter_selection()
     
     detected = render_scenario_selection()
