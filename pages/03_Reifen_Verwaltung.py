@@ -13,16 +13,11 @@ st.set_page_config(
 )
 
 # ================================================================================================
-# BASISKONFIGURATION - ERWEITERT FÜR MULTI-SOURCE
+# BASISKONFIGURATION
 # ================================================================================================
 BASE_DIR = Path("data")
 MASTER_CSV = BASE_DIR / "Ramsperger_Winterreifen_20250826_160010.csv"
-
-# MULTI-SOURCE DATEIEN
-WINTER_EXCEL = BASE_DIR / "2025-07-29_ReifenPremium_Winterreifen_2025-26.xlsx"
-SOMMER_EXCEL = BASE_DIR / "2025_08_19_ReifenPremium_Sommerreifen_2025.xlsx"
-GANZJAHRES_CSV = BASE_DIR / "reifen_export_20250916_2341.csv"
-
+EXCEL_VORLAGEN = BASE_DIR / "2025-07-29_ReifenPremium_Winterreifen_2025-26.xlsx"
 SERVICES_CONFIG_CSV = BASE_DIR / "ramsperger_services_config.csv"
 
 # ================================================================================================
@@ -77,12 +72,83 @@ CUSTOM_CSS = """
         opacity: 0.9;
     }
     
-    .source-info {
+    .workflow-step {
+        background: linear-gradient(135deg, #dbeafe, #bfdbfe);
+        padding: 1.5rem;
+        border-radius: 12px;
+        margin: 1rem 0;
+        border-left: 4px solid #2563eb;
+        font-family: Arial, sans-serif;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    
+    .stats-container {
         background: linear-gradient(135deg, #f0f9ff, #e0f2fe);
+        padding: 1rem;
+        border-radius: 10px;
+        margin: 1rem 0;
+        border: 1px solid #0ea5e9;
+    }
+    
+    .filter-info {
+        background: linear-gradient(135deg, #fef3c7, #fde68a);
         padding: 1rem;
         border-radius: 8px;
         margin: 1rem 0;
-        border-left: 4px solid #0ea5e9;
+        border-left: 4px solid #f59e0b;
+    }
+    
+    .database-info {
+        background: linear-gradient(135deg, #f0fdf4, #dcfce7);
+        padding: 1rem;
+        border-radius: 8px;
+        margin: 1rem 0;
+        border-left: 4px solid #16a34a;
+    }
+    
+    .info-box {
+        background: linear-gradient(135deg, #f0fdf4, #dcfce7);
+        padding: 1rem;
+        border-radius: var(--border-radius);
+        border-left: 4px solid var(--success-color);
+        margin: 1rem 0;
+        box-shadow: var(--shadow-sm);
+    }
+    
+    .warning-box {
+        background: linear-gradient(135deg, #fef3c7, #fde68a);
+        padding: 1rem;
+        border-radius: var(--border-radius);
+        border-left: 4px solid var(--warning-color);
+        margin: 1rem 0;
+        box-shadow: var(--shadow-sm);
+    }
+    
+    .error-box {
+        background: linear-gradient(135deg, #fef2f2, #fee2e2);
+        padding: 1rem;
+        border-radius: var(--border-radius);
+        border-left: 4px solid var(--error-color);
+        margin: 1rem 0;
+        box-shadow: var(--shadow-sm);
+    }
+    
+    .duplicate-warning {
+        background: linear-gradient(135deg, #fef2f2, #fee2e2);
+        padding: 1.5rem;
+        border-radius: 12px;
+        border: 2px solid var(--error-color);
+        margin: 1rem 0;
+        box-shadow: var(--shadow-md);
+    }
+    
+    .missing-warning {
+        background: linear-gradient(135deg, #fffbeb, #fef3c7);
+        padding: 1.5rem;
+        border-radius: 12px;
+        border: 2px solid var(--warning-color);
+        margin: 1rem 0;
+        box-shadow: var(--shadow-md);
     }
     
     .saison-badge {
@@ -107,24 +173,6 @@ CUSTOM_CSS = """
     .saison-ganzjahres {
         background-color: #d1fae5;
         color: #065f46;
-    }
-    
-    .duplicate-warning {
-        background: linear-gradient(135deg, #fef2f2, #fee2e2);
-        padding: 1.5rem;
-        border-radius: 12px;
-        border: 2px solid var(--error-color);
-        margin: 1rem 0;
-        box-shadow: var(--shadow-md);
-    }
-    
-    .missing-warning {
-        background: linear-gradient(135deg, #fffbeb, #fef3c7);
-        padding: 1.5rem;
-        border-radius: 12px;
-        border: 2px solid var(--warning-color);
-        margin: 1rem 0;
-        box-shadow: var(--shadow-md);
     }
     
     [data-testid="metric-container"] {
@@ -191,411 +239,29 @@ def create_empty_tire_template(teilenummer):
         'Profil': '',
         'Teilenummer': teilenummer,
         'Preis_EUR': 0.0,
-        'Zoll': 16,
-        'Breite': 205,
-        'Hoehe': 55,
+        'Zoll': 16,  # Standardwert
+        'Breite': 205,  # Standardwert
+        'Hoehe': 55,    # Standardwert
         'RF': '',
         'Kennzeichen': '',
-        'Speedindex': 'H',
-        'Loadindex': 91,
+        'Speedindex': 'H',  # Standardwert
+        'Loadindex': 91,    # Standardwert
         'Saison': get_saison_from_teilenummer(teilenummer),
         'Bestand': 0,
         'Kraftstoffeffizienz': '',
         'Nasshaftung': '',
-        'Geräuschklasse': 70,
-        'Quelle': 'Bulk-Eingabe'
+        'Geräuschklasse': 70
     }
 
 # ================================================================================================
-# ULTRA-ROBUSTES CSV LOADING
-# ================================================================================================
-def ultra_robust_csv_loading(csv_path):
-    """Ultra-robustes CSV-Loading mit maximaler Fehlertoleranz"""
-    
-    strategies = [
-        {'encoding': 'utf-8', 'delimiter': ',', 'quoting': 0},
-        {'encoding': 'utf-8', 'delimiter': ';', 'quoting': 0},
-        {'encoding': 'utf-8', 'delimiter': '\t', 'quoting': 0},
-        {'encoding': 'iso-8859-1', 'delimiter': ';', 'quoting': 0},
-        {'encoding': 'windows-1252', 'delimiter': ';', 'quoting': 0},
-    ]
-    
-    for i, strategy in enumerate(strategies):
-        try:
-            df = pd.read_csv(
-                csv_path, 
-                on_bad_lines='skip',
-                low_memory=False,
-                skip_blank_lines=True,
-                **strategy
-            )
-            
-            if len(df.columns) > 3 and len(df) > 10:
-                st.info(f"✅ CSV erfolgreich geladen mit Strategie {i+1}: {strategy['encoding']} + '{strategy['delimiter']}'")
-                return df, None
-                
-        except Exception as e:
-            continue
-    
-    return pd.DataFrame(), "CSV konnte mit keiner Methode gelesen werden"
-
-# ================================================================================================
-# ROBUSTE EXCEL LOADING - GEFIXT FÜR MULTI-HEADER
-# ================================================================================================
-def robust_excel_loading(excel_path, expected_columns=None):
-    """Robustes Excel-Loading mit automatischer Header-Erkennung"""
-    
-    try:
-        # Erste 5 Zeilen lesen um Header zu finden
-        df_preview = pd.read_excel(excel_path, sheet_name=0, nrows=5, header=None)
-        
-        st.info(f"🔍 Excel Struktur-Analyse: {excel_path.name}")
-        
-        # Suche nach der echten Header-Zeile
-        header_row = None
-        for row_idx in range(len(df_preview)):
-            row_values = df_preview.iloc[row_idx].astype(str).tolist()
-            
-            # Prüfe ob diese Zeile wie ein Header aussieht
-            if expected_columns:
-                matches = sum(1 for col in expected_columns if any(col.lower() in val.lower() for val in row_values if pd.notna(val)))
-                if matches >= len(expected_columns) * 0.5:  # Mindestens 50% der erwarteten Spalten
-                    header_row = row_idx
-                    st.info(f"✅ Header gefunden in Zeile {row_idx + 1}: {row_values}")
-                    break
-            else:
-                # Allgemeine Header-Erkennung
-                if any(word in ' '.join(row_values).lower() for word in ['breite', 'höhe', 'zoll', 'fabrikat', 'preis']):
-                    header_row = row_idx
-                    st.info(f"✅ Header gefunden in Zeile {row_idx + 1}: {row_values}")
-                    break
-        
-        # Excel mit gefundenem Header laden
-        if header_row is not None:
-            df = pd.read_excel(excel_path, sheet_name=0, header=header_row)
-        else:
-            # Fallback: Standard Header (0)
-            df = pd.read_excel(excel_path, sheet_name=0, header=0)
-            st.warning(f"⚠️ Kein spezifischer Header gefunden, verwende Zeile 1")
-        
-        # Spalten-Namen bereinigen
-        df.columns = [str(col).replace('\r\n', ' ').replace('\n', ' ').replace('\r', ' ').strip() for col in df.columns]
-        df.columns = [' '.join(col.split()) for col in df.columns]  # Mehrfache Leerzeichen entfernen
-        
-        st.info(f"✅ Excel-Spalten nach Bereinigung: {list(df.columns)}")
-        
-        return df, None
-        
-    except Exception as e:
-        return pd.DataFrame(), f"Excel-Loading Fehler: {str(e)}"
-
-# ================================================================================================
-# MULTI-SOURCE COLUMN MAPPING - KOMPLETT ÜBERARBEITET
-# ================================================================================================
-def map_winter_excel_columns(df):
-    """Mappt Winter-Excel Spalten auf einheitliches Schema"""
-    df = df.copy()
-    
-    # Standard-Mappings
-    column_mapping = {
-        'Höhe': 'Hoehe',
-        'Speed index': 'Speedindex',
-        'Load index': 'Loadindex',
-    }
-    
-    # Spalten umbenennen
-    for old_col, new_col in column_mapping.items():
-        if old_col in df.columns:
-            df = df.rename(columns={old_col: new_col})
-    
-    # Preis-Spalte finden
-    preis_col = None
-    for col in df.columns:
-        if 'preis' in col.lower() and 'netto' in col.lower():
-            preis_col = col
-            break
-    
-    if preis_col:
-        df['Preis_EUR'] = pd.to_numeric(df[preis_col], errors='coerce')
-    else:
-        df['Preis_EUR'] = 0.0
-    
-    # Dimension erstellen falls nötig
-    if 'Dimension' not in df.columns:
-        required_cols = ['Breite', 'Hoehe', 'Zoll', 'Loadindex', 'Speedindex']
-        if all(col in df.columns for col in required_cols):
-            r_val = df['R'].astype(str) if 'R' in df.columns else 'R'
-            df['Dimension'] = (
-                df['Breite'].astype(str) + '/' + 
-                df['Hoehe'].astype(str) + ' ' + 
-                r_val + df['Zoll'].astype(str) + ' ' + 
-                df['Loadindex'].astype(str) + df['Speedindex'].astype(str)
-            )
-    
-    # Saison setzen
-    df['Saison'] = 'Winter'
-    df['Quelle'] = 'Winter-Excel'
-    
-    return df
-
-def map_sommer_excel_columns(df):
-    """Mappt Sommer-Excel Spalten auf einheitliches Schema - KOMPLETT GEFIXT"""
-    df = df.copy()
-    
-    st.info(f"🔍 Sommer-Excel Original-Spalten: {list(df.columns)}")
-    
-    # Robustes Column-Mapping
-    column_mapping = {
-        'DIM': 'Dimension',
-        'Höhe': 'Hoehe', 
-        'Speed index': 'Speedindex',
-        'Load index': 'Loadindex',
-        'Preis Leasing netto': 'Preis_EUR',
-        'Preis_Leasing_Netto': 'Preis_EUR',
-    }
-    
-    # Flexible Spalten-Erkennung
-    for col in df.columns:
-        col_lower = col.lower().strip()
-        
-        # Speed Index Varianten
-        if 'speed' in col_lower and ('index' in col_lower or 'idx' in col_lower):
-            df = df.rename(columns={col: 'Speedindex'})
-            st.info(f"✅ Sommer: '{col}' → 'Speedindex'")
-        
-        # Load Index Varianten
-        elif 'load' in col_lower and ('index' in col_lower or 'idx' in col_lower):
-            df = df.rename(columns={col: 'Loadindex'})
-            st.info(f"✅ Sommer: '{col}' → 'Loadindex'")
-        
-        # Preis Varianten
-        elif 'preis' in col_lower and ('leasing' in col_lower or 'netto' in col_lower):
-            df = df.rename(columns={col: 'Preis_EUR'})
-            st.info(f"✅ Sommer: '{col}' → 'Preis_EUR'")
-        
-        # Höhe
-        elif col_lower == 'höhe':
-            df = df.rename(columns={col: 'Hoehe'})
-            st.info(f"✅ Sommer: '{col}' → 'Hoehe'")
-    
-    # Preis verarbeiten
-    if 'Preis_EUR' in df.columns:
-        df['Preis_EUR'] = pd.to_numeric(df['Preis_EUR'], errors='coerce')
-    else:
-        # Fallback: Erste numerische Spalte die wie Preis aussieht
-        for col in df.columns:
-            if df[col].dtype in ['float64', 'int64'] or pd.to_numeric(df[col], errors='coerce').notna().any():
-                try:
-                    numeric_vals = pd.to_numeric(df[col], errors='coerce')
-                    if numeric_vals.mean() > 10 and numeric_vals.mean() < 2000:  # Preis-ähnlich
-                        df['Preis_EUR'] = numeric_vals
-                        st.info(f"✅ Sommer: Preis-Fallback '{col}' → 'Preis_EUR'")
-                        break
-                except:
-                    continue
-        else:
-            df['Preis_EUR'] = 0.0
-    
-    # Dimension erstellen falls nötig
-    if 'Dimension' not in df.columns:
-        required_cols = ['Breite', 'Hoehe', 'Zoll', 'Loadindex', 'Speedindex']
-        if all(col in df.columns for col in required_cols):
-            r_val = df['R'].astype(str) if 'R' in df.columns else 'R'
-            df['Dimension'] = (
-                df['Breite'].astype(str) + '/' + 
-                df['Hoehe'].astype(str) + ' ' + 
-                r_val + df['Zoll'].astype(str) + ' ' + 
-                df['Loadindex'].astype(str) + df['Speedindex'].astype(str)
-            )
-    
-    # KRITISCH: Saison explizit setzen
-    df['Saison'] = 'Sommer'
-    df['Quelle'] = 'Sommer-Excel'
-    
-    st.success(f"✅ Sommer-Excel gemappt: {len(df)} Reifen mit Saison=Sommer")
-    
-    return df
-
-def map_csv_columns(df):
-    """Mappt CSV Spalten auf einheitliches Schema"""
-    df = df.copy()
-    
-    # Robustes Column mapping
-    column_mapping = {
-        'Höhe': 'Hoehe',
-        'Speed_Index': 'Speedindex',
-        'Load_Index': 'Loadindex',
-        'Preis_Leasing_Netto': 'Preis_EUR',
-    }
-    
-    for old_col, new_col in column_mapping.items():
-        if old_col in df.columns:
-            df = df.rename(columns={old_col: new_col})
-            st.info(f"✅ CSV: '{old_col}' → '{new_col}'")
-    
-    # Preis verarbeiten
-    if 'Preis_EUR' in df.columns:
-        df['Preis_EUR'] = pd.to_numeric(df['Preis_EUR'], errors='coerce')
-    
-    # Dimension erstellen falls nötig
-    if 'Dimension' not in df.columns:
-        required_cols = ['Breite', 'Hoehe', 'Zoll', 'Loadindex', 'Speedindex']
-        if all(col in df.columns for col in required_cols):
-            r_val = df['R'].astype(str) if 'R' in df.columns else 'R'
-            df['Dimension'] = (
-                df['Breite'].astype(str) + '/' + 
-                df['Hoehe'].astype(str) + ' ' + 
-                r_val + df['Zoll'].astype(str) + ' ' + 
-                df['Loadindex'].astype(str) + df['Speedindex'].astype(str)
-            )
-    
-    # Saison aus Teilenummer ermitteln
-    if 'Teilenummer' in df.columns:
-        df['Saison'] = df['Teilenummer'].apply(get_saison_from_teilenummer)
-    else:
-        df['Saison'] = 'Ganzjahres'
-    
-    df['Quelle'] = 'Ganzjahres-CSV'
-    
-    return df
-
-# ================================================================================================
-# MULTI-SOURCE LOADING - KOMPLETT ÜBERARBEITET
-# ================================================================================================
-@st.cache_data(show_spinner=False)
-def load_all_sources() -> pd.DataFrame:
-    """Lädt alle verfügbaren Reifen-Quellen mit ultra-robustem Error-Handling"""
-    all_dataframes = []
-    source_stats = {
-        'Winter': {'loaded': False, 'count': 0, 'file': WINTER_EXCEL, 'error': None},
-        'Sommer': {'loaded': False, 'count': 0, 'file': SOMMER_EXCEL, 'error': None}, 
-        'Ganzjahres': {'loaded': False, 'count': 0, 'file': GANZJAHRES_CSV, 'error': None}
-    }
-    
-    st.info("🔄 Lade Multi-Source Reifen-Daten...")
-    
-    # 1. WINTER-EXCEL LADEN
-    if WINTER_EXCEL.exists():
-        try:
-            df_winter, error = robust_excel_loading(WINTER_EXCEL, ['Breite', 'Höhe', 'Zoll', 'Fabrikat'])
-            if error is None and not df_winter.empty:
-                df_winter = map_winter_excel_columns(df_winter)
-                all_dataframes.append(df_winter)
-                source_stats['Winter']['loaded'] = True
-                source_stats['Winter']['count'] = len(df_winter)
-                st.success(f"✅ Winter-Excel geladen: {len(df_winter)} Reifen")
-            else:
-                source_stats['Winter']['error'] = error or "Leer"
-        except Exception as e:
-            source_stats['Winter']['error'] = str(e)
-    else:
-        source_stats['Winter']['error'] = "Datei nicht gefunden"
-    
-    # 2. SOMMER-EXCEL LADEN - MIT SPEZIELLEM HEADER-HANDLING
-    if SOMMER_EXCEL.exists():
-        try:
-            df_sommer, error = robust_excel_loading(SOMMER_EXCEL, ['Breite', 'Höhe', 'Speed index', 'Load index', 'Preis'])
-            if error is None and not df_sommer.empty:
-                df_sommer = map_sommer_excel_columns(df_sommer)
-                all_dataframes.append(df_sommer)
-                source_stats['Sommer']['loaded'] = True
-                source_stats['Sommer']['count'] = len(df_sommer)
-                st.success(f"✅ Sommer-Excel geladen: {len(df_sommer)} Reifen")
-            else:
-                source_stats['Sommer']['error'] = error or "Leer"
-        except Exception as e:
-            source_stats['Sommer']['error'] = str(e)
-    else:
-        source_stats['Sommer']['error'] = "Datei nicht gefunden"
-    
-    # 3. GANZJAHRES-CSV LADEN
-    if GANZJAHRES_CSV.exists():
-        try:
-            df_ganzjahres, error = ultra_robust_csv_loading(GANZJAHRES_CSV)
-            if error is None and not df_ganzjahres.empty:
-                df_ganzjahres = map_csv_columns(df_ganzjahres)
-                all_dataframes.append(df_ganzjahres)
-                source_stats['Ganzjahres']['loaded'] = True
-                source_stats['Ganzjahres']['count'] = len(df_ganzjahres)
-                st.success(f"✅ Ganzjahres-CSV geladen: {len(df_ganzjahres)} Reifen")
-            else:
-                source_stats['Ganzjahres']['error'] = error or "Leer"
-        except Exception as e:
-            source_stats['Ganzjahres']['error'] = str(e)
-    else:
-        source_stats['Ganzjahres']['error'] = "Datei nicht gefunden"
-    
-    # KOMBINIEREN UND STANDARDISIEREN
-    if not all_dataframes:
-        st.error("❌ Keine Datenquellen erfolgreich geladen!")
-        return pd.DataFrame()
-    
-    st.info(f"🔗 Kombiniere {len(all_dataframes)} Datenquellen...")
-    
-    # DataFrames kombinieren
-    combined_df = pd.concat(all_dataframes, ignore_index=True)
-    
-    # Standardisierte Spalten sicherstellen
-    required_columns = [
-        'Dimension', 'Fabrikat', 'Profil', 'Teilenummer', 'Preis_EUR',
-        'Zoll', 'Breite', 'Hoehe', 'RF', 'Kennzeichen', 'Speedindex', 
-        'Loadindex', 'Saison', 'Quelle', 'Bestand', 'Kraftstoffeffizienz', 
-        'Nasshaftung', 'Geräuschklasse'
-    ]
-    
-    for col in required_columns:
-        if col not in combined_df.columns:
-            if col == 'Bestand':
-                combined_df[col] = 0
-            elif col in ['Kraftstoffeffizienz', 'Nasshaftung', 'RF', 'Kennzeichen']:
-                combined_df[col] = ''
-            elif col == 'Geräuschklasse':
-                combined_df[col] = 70
-            else:
-                combined_df[col] = ''
-    
-    # Datentypen bereinigen
-    combined_df = clean_dataframe_preserve_saison(combined_df)
-    
-    # Debug: Saison-Verteilung nach Loading
-    if 'Saison' in combined_df.columns:
-        saison_counts = combined_df['Saison'].value_counts()
-        st.info(f"🔍 Saison-Verteilung nach Loading: {dict(saison_counts)}")
-    
-    # Source Stats als Metadaten speichern
-    combined_df.attrs['source_stats'] = source_stats
-    
-    st.success(f"🎯 Multi-Source Loading erfolgreich: {len(combined_df)} Reifen geladen")
-    
-    return combined_df
-
-def get_source_statistics(df):
-    """Extrahiert Quellen-Statistiken aus dem DataFrame"""
-    if hasattr(df, 'attrs') and 'source_stats' in df.attrs:
-        return df.attrs['source_stats']
-    
-    # Fallback: Aus Daten berechnen
-    stats = {}
-    if 'Quelle' in df.columns:
-        source_counts = df['Quelle'].value_counts()
-        for quelle, count in source_counts.items():
-            if 'Winter' in quelle:
-                stats['Winter'] = {'loaded': True, 'count': count}
-            elif 'Sommer' in quelle:
-                stats['Sommer'] = {'loaded': True, 'count': count}
-            elif 'Ganzjahres' in quelle or 'CSV' in quelle:
-                stats['Ganzjahres'] = {'loaded': True, 'count': count}
-    
-    return stats
-
-# ================================================================================================
-# SESSION STATE & BASIC FUNCTIONS
+# SESSION STATE INITIALISIERUNG
 # ================================================================================================
 def init_session_state():
     """Initialisiert den Session State"""
     if 'authenticated' not in st.session_state:
         st.session_state.authenticated = False
     
+    # Reifen Verwaltung
     if 'df_original' not in st.session_state:
         st.session_state.df_original = None
     if 'df_filtered' not in st.session_state:
@@ -619,12 +285,42 @@ def init_session_state():
     if 'stock_mode' not in st.session_state:
         st.session_state.stock_mode = False
 
-def clean_dataframe_preserve_saison(df: pd.DataFrame) -> pd.DataFrame:
-    """Bereinigt und normalisiert DataFrame OHNE SAISON ZU ÜBERSCHREIBEN"""
+# ================================================================================================
+# SERVICE KONFIGURATION
+# ================================================================================================
+def load_services_config():
+    """Lädt oder erstellt die Service-Konfiguration"""
+    if not SERVICES_CONFIG_CSV.exists():
+        default_services = pd.DataFrame({
+            'service_name': ['montage_bis_17', 'montage_18_19', 'montage_ab_20', 'radwechsel_1_rad', 'radwechsel_2_raeder', 'radwechsel_3_raeder', 'radwechsel_4_raeder', 'nur_einlagerung'],
+            'service_label': ['Montage bis 17 Zoll', 'Montage 18-19 Zoll', 'Montage ab 20 Zoll', 'Radwechsel 1 Rad', 'Radwechsel 2 Räder', 'Radwechsel 3 Räder', 'Radwechsel 4 Räder', 'Nur Einlagerung'],
+            'price': [25.0, 30.0, 40.0, 9.95, 19.95, 29.95, 39.90, 55.00],
+            'unit': ['pro Reifen', 'pro Reifen', 'pro Reifen', 'pauschal', 'pauschal', 'pauschal', 'pauschal', 'pauschal']
+        })
+        SERVICES_CONFIG_CSV.parent.mkdir(parents=True, exist_ok=True)
+        default_services.to_csv(SERVICES_CONFIG_CSV, index=False, encoding='utf-8')
+        return default_services
+    else:
+        return pd.read_csv(SERVICES_CONFIG_CSV, encoding='utf-8')
+
+def save_services_config(services_df):
+    """Speichert die Service-Konfiguration"""
+    try:
+        SERVICES_CONFIG_CSV.parent.mkdir(parents=True, exist_ok=True)
+        services_df.to_csv(SERVICES_CONFIG_CSV, index=False, encoding='utf-8')
+        return True
+    except Exception as e:
+        st.error(f"Fehler beim Speichern der Service-Konfiguration: {e}")
+        return False
+
+# ================================================================================================
+# DATENBANK FUNKTIONEN (VEREINFACHT - NUR MASTER CSV)
+# ================================================================================================
+def clean_dataframe(df: pd.DataFrame) -> pd.DataFrame:
+    """Bereinigt und normalisiert DataFrame"""
     if df.empty:
         return df
     
-    # Preis bereinigen
     if "Preis_EUR" in df.columns:
         if df["Preis_EUR"].dtype == object:
             df["Preis_EUR"] = (
@@ -636,7 +332,6 @@ def clean_dataframe_preserve_saison(df: pd.DataFrame) -> pd.DataFrame:
             )
         df["Preis_EUR"] = pd.to_numeric(df["Preis_EUR"], errors="coerce")
 
-    # Numerische Spalten
     for c in ["Breite", "Hoehe", "Zoll"]:
         if c in df.columns:
             df[c] = pd.to_numeric(df[c], errors="coerce").astype("Int64")
@@ -644,36 +339,23 @@ def clean_dataframe_preserve_saison(df: pd.DataFrame) -> pd.DataFrame:
     if "Bestand" in df.columns:
         df["Bestand"] = pd.to_numeric(df["Bestand"], errors="coerce")
 
-    # String-Spalten
     for c in ["Fabrikat", "Profil", "Kraftstoffeffizienz", "Nasshaftung", 
               "Loadindex", "Speedindex", "Teilenummer"]:
         if c not in df.columns:
             df[c] = pd.NA
-
-    # Saison nur bei komplett fehlenden Werten setzen
-    if "Saison" not in df.columns or df["Saison"].isna().all():
-        if "Teilenummer" in df.columns:
-            df["Saison"] = df["Teilenummer"].apply(get_saison_from_teilenummer)
     
-    # Nur fehlende Saison-Werte füllen
-    if "Saison" in df.columns and "Teilenummer" in df.columns:
-        saison_mask = df["Saison"].isna() | (df["Saison"] == '') | (df["Saison"] == 'Unbekannt')
-        if saison_mask.any():
-            df.loc[saison_mask, "Saison"] = df.loc[saison_mask, "Teilenummer"].apply(get_saison_from_teilenummer)
+    # Saison-Spalte hinzufügen wenn nicht vorhanden
+    if "Saison" not in df.columns:
+        df["Saison"] = df["Teilenummer"].apply(get_saison_from_teilenummer)
 
-    # Zeilen mit fehlenden kritischen Werten entfernen
     df = df.dropna(subset=["Preis_EUR", "Breite", "Hoehe", "Zoll"], how="any")
-    
     if not df.empty:
         df["Breite"] = df["Breite"].astype(int)
-        df["Hoehe"] = df["Hoehe"].astype(int)  
+        df["Hoehe"] = df["Hoehe"].astype(int)
         df["Zoll"] = df["Zoll"].astype(int)
 
     return df
 
-# ================================================================================================
-# DATABASE FUNCTIONS
-# ================================================================================================
 @st.cache_data(show_spinner=False)
 def load_master_csv() -> pd.DataFrame:
     """Lädt die Master-CSV"""
@@ -681,14 +363,17 @@ def load_master_csv() -> pd.DataFrame:
         return pd.DataFrame()
 
     df = pd.read_csv(MASTER_CSV, encoding='utf-8')
-    return clean_dataframe_preserve_saison(df)
+    return clean_dataframe(df)
 
 def save_to_master_csv(df):
     """Speichert DataFrame direkt in die Master-CSV"""
     try:
         MASTER_CSV.parent.mkdir(parents=True, exist_ok=True)
         df.to_csv(MASTER_CSV, index=False, encoding='utf-8')
+        
+        # Cache leeren damit neue Daten geladen werden
         load_master_csv.clear()
+        
         return True
     except Exception as e:
         st.error(f"Fehler beim Speichern in Master-CSV: {e}")
@@ -700,20 +385,25 @@ def update_master_csv_with_tire(tire_data):
         master_df = load_master_csv()
         
         if master_df.empty:
+            # Neue CSV erstellen
             new_df = pd.DataFrame([tire_data])
             return save_to_master_csv(new_df)
         else:
+            # Prüfen ob Reifen bereits existiert (basierend auf Teilenummer)
             if 'Teilenummer' in tire_data and tire_data['Teilenummer']:
                 existing_mask = master_df['Teilenummer'] == tire_data['Teilenummer']
                 
                 if existing_mask.any():
+                    # Bestehenden Reifen aktualisieren
                     for col, value in tire_data.items():
                         if col in master_df.columns:
                             master_df.loc[existing_mask, col] = value
                 else:
+                    # Neuen Reifen hinzufügen
                     new_row_df = pd.DataFrame([tire_data])
                     master_df = pd.concat([master_df, new_row_df], ignore_index=True)
             else:
+                # Neuen Reifen hinzufügen
                 new_row_df = pd.DataFrame([tire_data])
                 master_df = pd.concat([master_df, new_row_df], ignore_index=True)
             
@@ -734,6 +424,272 @@ def check_duplicate_in_master(teilenummer):
     return teilenummer in master_df['Teilenummer'].values
 
 # ================================================================================================
+# EXCEL DATEN LADEN (VORLAGEN) - AUTOMATISCHER LOAD
+# ================================================================================================
+@st.cache_data(show_spinner=False)
+def load_excel_vorlagen() -> pd.DataFrame:
+    """Lädt die Excel-Vorlagen für neue Reifen"""
+    if not EXCEL_VORLAGEN.exists():
+        st.error(f"Excel-Datei nicht gefunden: {EXCEL_VORLAGEN}")
+        return pd.DataFrame()
+    
+    try:
+        df = pd.read_excel(EXCEL_VORLAGEN, sheet_name=0)
+        
+        # Spalten-Namen bereinigen
+        df.columns = df.columns.str.replace(r'\r\n', ' ', regex=True).str.strip()
+        
+        # Dimension zusammenbauen
+        df['Dimension'] = (
+            df['Breite'].astype(str) + '/' + 
+            df['Hoehe'].astype(str) + ' ' + 
+            df['R'].astype(str) + df['Zoll'].astype(str) + ' ' + 
+            df['Loadindex'].astype(str) + df['Speedindex'].astype(str)
+        )
+        
+        # Runflat-Kennzeichnung
+        df['Dimension'] = df.apply(
+            lambda row: row['Dimension'] + (' RF' if pd.notna(row['RF']) and row['RF'] != '' else ''), 
+            axis=1
+        )
+        
+        # Preis-Spalte finden
+        preis_col = None
+        for col in df.columns:
+            if 'Preis' in col and 'netto' in col:
+                preis_col = col
+                break
+        
+        if preis_col:
+            df['Preis_EUR'] = pd.to_numeric(df[preis_col], errors='coerce')
+        else:
+            df['Preis_EUR'] = 0.0
+        
+        # Spalten umbenennen/erstellen
+        required_cols = ['Dimension', 'Fabrikat', 'Profil', 'Teilenummer', 'Preis_EUR', 
+                        'Zoll', 'Breite', 'Hoehe', 'RF', 'Kennzeichen']
+        for col in required_cols:
+            if col not in df.columns:
+                df[col] = ''
+        
+        # Nur relevante Spalten
+        df = df[['Dimension', 'Fabrikat', 'Profil', 'Teilenummer', 'Preis_EUR', 'Zoll', 
+                'Breite', 'Hoehe', 'RF', 'Kennzeichen', 'Speedindex', 'Loadindex']]
+        df = df.fillna('')
+        
+        # Saison basierend auf Teilenummer hinzufügen
+        df['Saison'] = df['Teilenummer'].apply(get_saison_from_teilenummer)
+        
+        return df
+    except Exception as e:
+        st.error(f"Fehler beim Laden der Excel-Datei: {e}")
+        return pd.DataFrame()
+
+def parse_bulk_teilenummern(teilenummer_input):
+    """Robustes Parsing der Bulk-Teilenummern aus Textarea - FIXED VERSION"""
+    if not teilenummer_input or not teilenummer_input.strip():
+        return []
+    
+    bulk_teilenummern = []
+    
+    # Text aufräumen
+    text = teilenummer_input.strip()
+    
+    # Sowohl Zeilen als auch Kommas als Trenner behandeln
+    # Erst nach Zeilenumbrüchen splitten
+    lines = text.split('\n')
+    
+    for line in lines:
+        line = line.strip()
+        if line:  # Nur nicht-leere Zeilen verarbeiten
+            # Dann nach Kommas splitten
+            parts = line.split(',')
+            for part in parts:
+                part = part.strip()
+                if part:  # Nur nicht-leere Teile hinzufügen
+                    bulk_teilenummern.append(part)
+    
+    # Duplikate entfernen aber Reihenfolge beibehalten
+    seen = set()
+    unique_teilenummern = []
+    for tn in bulk_teilenummern:
+        if tn not in seen:
+            seen.add(tn)
+            unique_teilenummern.append(tn)
+    
+    return unique_teilenummern
+
+def load_excel_with_bulk_teilenummern(bulk_teilenummern_list):
+    """Lädt Excel-Vorlagen und ergänzt fehlende Teilenummern als leere Vorlagen"""
+    # Excel-Vorlagen laden
+    df_excel = load_excel_vorlagen()
+    
+    if bulk_teilenummern_list:
+        # Prüfen welche Teilenummern nicht in Excel sind
+        excel_teilenummern = set(df_excel['Teilenummer'].tolist()) if not df_excel.empty else set()
+        missing_teilenummern = []
+        
+        for tn in bulk_teilenummern_list:
+            tn_clean = str(tn).strip()
+            if tn_clean and tn_clean not in excel_teilenummern:
+                missing_teilenummern.append(tn_clean)
+        
+        # Leere Vorlagen für fehlende Teilenummern erstellen
+        if missing_teilenummern:
+            missing_templates = []
+            for tn in missing_teilenummern:
+                template = create_empty_tire_template(tn)
+                missing_templates.append(template)
+            
+            df_missing = pd.DataFrame(missing_templates)
+            
+            # Excel-Daten und fehlende Vorlagen kombinieren
+            if df_excel.empty:
+                return df_missing
+            else:
+                # Spalten angleichen
+                all_columns = list(set(df_excel.columns.tolist() + df_missing.columns.tolist()))
+                for col in all_columns:
+                    if col not in df_excel.columns:
+                        df_excel[col] = ''
+                    if col not in df_missing.columns:
+                        df_missing[col] = ''
+                
+                # Reihenfolge der Spalten angleichen
+                df_missing = df_missing[df_excel.columns]
+                
+                # Zusammenführen
+                combined_df = pd.concat([df_excel, df_missing], ignore_index=True)
+                return combined_df
+    
+    return df_excel
+
+def add_new_columns(df):
+    """Fügt EU-Label Spalten hinzu"""
+    required_original_cols = ['Dimension', 'Fabrikat', 'Profil', 'Teilenummer', 'Preis_EUR']
+    for col in required_original_cols:
+        if col not in df.columns:
+            df[col] = ''
+    
+    if 'Bestand' not in df.columns:
+        df['Bestand'] = pd.Series([0] * len(df), dtype='float64')
+    if 'Kraftstoffeffizienz' not in df.columns:
+        df['Kraftstoffeffizienz'] = ''
+    if 'Nasshaftung' not in df.columns:
+        df['Nasshaftung'] = ''
+    if 'Geräuschklasse' not in df.columns:
+        df['Geräuschklasse'] = pd.Series([70] * len(df), dtype='float64')
+    if 'Saison' not in df.columns:
+        df['Saison'] = df['Teilenummer'].apply(get_saison_from_teilenummer)
+    
+    return df
+
+# ================================================================================================
+# FILTER FUNKTIONEN - ERWEITERT FÜR SAISON - FIXED INDEX BUG
+# ================================================================================================
+def apply_filters(df, hersteller_filter, zoll_filter, preis_range, runflat_filter, 
+                 breite_filter, hoehe_filter, teilenummer_search, speed_filter, 
+                 saison_filter="alle", stock_filter="alle"):
+    """Wendet Sidebar-Filter an - erweitert um Saison - FIXED INDEX BUG"""
+    filtered_df = df.copy()
+    
+    if hersteller_filter and len(hersteller_filter) > 0:
+        filtered_df = filtered_df[filtered_df['Fabrikat'].isin(hersteller_filter)]
+    
+    if zoll_filter and len(zoll_filter) > 0:
+        filtered_df = filtered_df[filtered_df['Zoll'].isin(zoll_filter)]
+    
+    filtered_df = filtered_df[
+        (filtered_df['Preis_EUR'] >= preis_range[0]) & 
+        (filtered_df['Preis_EUR'] <= preis_range[1])
+    ]
+    
+    if runflat_filter == "Nur Runflat":
+        filtered_df = filtered_df[filtered_df['RF'] != '']
+    elif runflat_filter == "Ohne Runflat":
+        filtered_df = filtered_df[filtered_df['RF'] == '']
+    
+    if breite_filter and len(breite_filter) > 0:
+        filtered_df = filtered_df[filtered_df['Breite'].isin(breite_filter)]
+    
+    if hoehe_filter and len(hoehe_filter) > 0:
+        filtered_df = filtered_df[filtered_df['Hoehe'].isin(hoehe_filter)]
+    
+    # SAISON-FILTER
+    if saison_filter and saison_filter.lower() != "alle":
+        filtered_df = filtered_df[filtered_df['Saison'] == saison_filter]
+    
+    # TEILENUMMER-SUCHE - FIXED INDEX BUG
+    if teilenummer_search and teilenummer_search.strip() != "":
+        search_terms = [term.strip().upper() for term in teilenummer_search.split(',') if term.strip()]
+        
+        if search_terms:
+            # Index zurücksetzen BEVOR die Mask erstellt wird
+            filtered_df = filtered_df.reset_index(drop=True)
+            
+            # Jetzt ist der Index 0, 1, 2, 3... und die Mask passt
+            mask = pd.Series([False] * len(filtered_df))
+            
+            for search_term in search_terms:
+                term_mask = (
+                    filtered_df['Teilenummer'].str.upper().str.contains(search_term, na=False, regex=False) |
+                    filtered_df['Fabrikat'].str.upper().str.contains(search_term, na=False, regex=False) |
+                    filtered_df['Profil'].str.upper().str.contains(search_term, na=False, regex=False)
+                )
+                mask = mask | term_mask
+            
+            filtered_df = filtered_df[mask]
+    
+    if speed_filter and len(speed_filter) > 0:
+        filtered_df = filtered_df[filtered_df['Speedindex'].isin(speed_filter)]
+    
+    return filtered_df
+
+# ================================================================================================
+# BESTANDSMANAGEMENT
+# ================================================================================================
+def get_stock_statistics(df):
+    """Berechnet Bestandsstatistiken"""
+    stats = {}
+    
+    if 'Bestand' not in df.columns:
+        return {'total': len(df), 'with_stock': 0, 'negative': 0, 'zero': 0, 'positive': 0, 'no_info': len(df)}
+    
+    stats['total'] = len(df)
+    stats['with_stock'] = len(df[df['Bestand'].notna()])
+    stats['no_info'] = len(df[df['Bestand'].isna()])
+    
+    stock_data = df[df['Bestand'].notna()]
+    stats['negative'] = len(stock_data[stock_data['Bestand'] < 0])
+    stats['zero'] = len(stock_data[stock_data['Bestand'] == 0])
+    stats['positive'] = len(stock_data[stock_data['Bestand'] > 0])
+    
+    stats['total_stock'] = stock_data['Bestand'].sum()
+    
+    return stats
+
+# ================================================================================================
+# EXPORT FUNKTIONEN
+# ================================================================================================
+def create_github_export():
+    """Erstellt GitHub-Export der Master-CSV"""
+    try:
+        master_df = load_master_csv()
+        
+        if master_df.empty:
+            return None
+        
+        # CSV erstellen
+        csv_buffer = io.StringIO()
+        master_df.to_csv(csv_buffer, index=False, encoding='utf-8')
+        
+        return csv_buffer.getvalue()
+        
+    except Exception as e:
+        st.error(f"Fehler beim Erstellen des GitHub-Exports: {e}")
+        return None
+
+# ================================================================================================
 # AUTHENTICATION
 # ================================================================================================
 def check_authentication():
@@ -743,6 +699,13 @@ def check_authentication():
         <div class="main-header">
             <h1>Reifen Verwaltung</h1>
             <p>Passwort-geschützter Adminbereich</p>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        st.markdown("""
+        <div class="warning-box">
+            <h4>Authentifizierung erforderlich</h4>
+            <p>Dieser Bereich ist nur für autorisierte Benutzer zugänglich.</p>
         </div>
         """, unsafe_allow_html=True)
         
@@ -768,230 +731,185 @@ def check_authentication():
     return True
 
 # ================================================================================================
-# FILTER FUNKTIONEN
+# SERVICE MANAGEMENT
 # ================================================================================================
-def apply_filters(df, saison_filter, hersteller_filter, zoll_filter, preis_range, runflat_filter, 
-                 breite_filter, hoehe_filter, teilenummer_search, speed_filter):
-    """Wendet Sidebar-Filter an - mit robustem Error-Handling"""
-    filtered_df = df.copy()
+def render_services_management():
+    """Service-Preise Verwaltung"""
+    st.markdown("#### ⚙️ Service-Preise verwalten")
+    st.markdown("Hier können die Preise für Montage, Radwechsel und Einlagerung angepasst werden.")
     
-    st.info(f"🔍 Filter-Debug: Start mit {len(filtered_df)} Reifen")
+    services_df = load_services_config()
     
-    # SAISON-FILTER
-    if saison_filter and saison_filter.lower() != "alle":
-        before_count = len(filtered_df)
-        available_seasons = filtered_df['Saison'].value_counts()
-        st.info(f"🔍 Verfügbare Saisonen: {dict(available_seasons)}")
+    st.markdown("**Aktuelle Service-Preise:**")
+    
+    current_prices = {}
+    for _, row in services_df.iterrows():
+        current_prices[row['service_name']] = float(row['price'])
+    
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        st.markdown("**Montage-Preise:**")
         
-        filtered_df = filtered_df[filtered_df['Saison'] == saison_filter]
-        st.info(f"🔍 Saison-Filter '{saison_filter}': {before_count} → {len(filtered_df)} Reifen")
+        montage_17 = st.number_input(
+            "Montage bis 17 Zoll (€ pro Reifen):",
+            min_value=0.0,
+            max_value=100.0,
+            value=current_prices.get('montage_bis_17', 25.0),
+            step=0.10,
+            key="service_montage_17"
+        )
+        
+        montage_18 = st.number_input(
+            "Montage 18-19 Zoll (€ pro Reifen):",
+            min_value=0.0,
+            max_value=100.0,
+            value=current_prices.get('montage_18_19', 30.0),
+            step=0.10,
+            key="service_montage_18"
+        )
+        
+        montage_20 = st.number_input(
+            "Montage ab 20 Zoll (€ pro Reifen):",
+            min_value=0.0,
+            max_value=100.0,
+            value=current_prices.get('montage_ab_20', 40.0),
+            step=0.10,
+            key="service_montage_20"
+        )
     
-    # Weitere Filter nur wenn noch Reifen vorhanden
-    if len(filtered_df) == 0:
-        return filtered_df
+    with col2:
+        st.markdown("**Radwechsel & Einlagerung:**")
+        
+        radwechsel_1 = st.number_input(
+            "Radwechsel 1 Rad (€):",
+            min_value=0.0,
+            max_value=50.0,
+            value=current_prices.get('radwechsel_1_rad', 9.95),
+            step=0.05,
+            key="service_radwechsel_1"
+        )
+        
+        radwechsel_2 = st.number_input(
+            "Radwechsel 2 Räder (€):",
+            min_value=0.0,
+            max_value=50.0,
+            value=current_prices.get('radwechsel_2_raeder', 19.95),
+            step=0.05,
+            key="service_radwechsel_2"
+        )
+        
+        radwechsel_3 = st.number_input(
+            "Radwechsel 3 Räder (€):",
+            min_value=0.0,
+            max_value=50.0,
+            value=current_prices.get('radwechsel_3_raeder', 29.95),
+            step=0.05,
+            key="service_radwechsel_3"
+        )
+        
+        radwechsel_4 = st.number_input(
+            "Radwechsel 4 Räder (€):",
+            min_value=0.0,
+            max_value=100.0,
+            value=current_prices.get('radwechsel_4_raeder', 39.90),
+            step=0.10,
+            key="service_radwechsel_4"
+        )
+        
+        einlagerung = st.number_input(
+            "Nur Einlagerung (€ pauschal):",
+            min_value=0.0,
+            max_value=200.0,
+            value=current_prices.get('nur_einlagerung', 55.00),
+            step=0.10,
+            key="service_einlagerung"
+        )
     
-    if hersteller_filter and len(hersteller_filter) > 0:
-        before_count = len(filtered_df)
-        filtered_df = filtered_df[filtered_df['Fabrikat'].isin(hersteller_filter)]
-        st.info(f"🔍 Hersteller-Filter: {before_count} → {len(filtered_df)} Reifen")
+    if st.button("💾 Preise speichern", use_container_width=True, type="primary"):
+        services_df.loc[services_df['service_name'] == 'montage_bis_17', 'price'] = montage_17
+        services_df.loc[services_df['service_name'] == 'montage_18_19', 'price'] = montage_18
+        services_df.loc[services_df['service_name'] == 'montage_ab_20', 'price'] = montage_20
+        services_df.loc[services_df['service_name'] == 'radwechsel_1_rad', 'price'] = radwechsel_1
+        services_df.loc[services_df['service_name'] == 'radwechsel_2_raeder', 'price'] = radwechsel_2
+        services_df.loc[services_df['service_name'] == 'radwechsel_3_raeder', 'price'] = radwechsel_3
+        services_df.loc[services_df['service_name'] == 'radwechsel_4_raeder', 'price'] = radwechsel_4
+        services_df.loc[services_df['service_name'] == 'nur_einlagerung', 'price'] = einlagerung
+        
+        if save_services_config(services_df):
+            st.success("Service-Preise erfolgreich aktualisiert!")
+            st.rerun()
+        else:
+            st.error("Fehler beim Speichern der Service-Preise!")
     
-    if zoll_filter and len(zoll_filter) > 0:
-        before_count = len(filtered_df)
-        filtered_df = filtered_df[filtered_df['Zoll'].isin(zoll_filter)]
-        st.info(f"🔍 Zoll-Filter: {before_count} → {len(filtered_df)} Reifen")
-    
-    if len(filtered_df) > 0:
-        before_count = len(filtered_df)
-        filtered_df = filtered_df[
-            (filtered_df['Preis_EUR'] >= preis_range[0]) & 
-            (filtered_df['Preis_EUR'] <= preis_range[1])
-        ]
-        st.info(f"🔍 Preis-Filter: {before_count} → {len(filtered_df)} Reifen")
-    
-    if runflat_filter == "Nur Runflat" and len(filtered_df) > 0:
-        before_count = len(filtered_df)
-        filtered_df = filtered_df[filtered_df['RF'] != '']
-        st.info(f"🔍 Runflat-Filter: {before_count} → {len(filtered_df)} Reifen")
-    elif runflat_filter == "Ohne Runflat" and len(filtered_df) > 0:
-        before_count = len(filtered_df)
-        filtered_df = filtered_df[filtered_df['RF'] == '']
-        st.info(f"🔍 Runflat-Filter: {before_count} → {len(filtered_df)} Reifen")
-    
-    if breite_filter and len(breite_filter) > 0 and len(filtered_df) > 0:
-        before_count = len(filtered_df)
-        filtered_df = filtered_df[filtered_df['Breite'].isin(breite_filter)]
-        st.info(f"🔍 Breite-Filter: {before_count} → {len(filtered_df)} Reifen")
-    
-    if hoehe_filter and len(hoehe_filter) > 0 and len(filtered_df) > 0:
-        before_count = len(filtered_df)
-        filtered_df = filtered_df[filtered_df['Hoehe'].isin(hoehe_filter)]
-        st.info(f"🔍 Höhe-Filter: {before_count} → {len(filtered_df)} Reifen")
-    
-    if speed_filter and len(speed_filter) > 0 and len(filtered_df) > 0:
-        before_count = len(filtered_df)
-        filtered_df = filtered_df[filtered_df['Speedindex'].isin(speed_filter)]
-        st.info(f"🔍 Speed-Filter: {before_count} → {len(filtered_df)} Reifen")
-    
-    st.success(f"🎯 Filter-Ergebnis: {len(filtered_df)} Reifen gefunden")
-    
-    return filtered_df
+    if st.button("🔧 Zur Reifen-Verwaltung", use_container_width=True):
+        st.session_state.services_mode = False
+        st.rerun()
 
 # ================================================================================================
-# BULK FUNCTIONS
+# STOCK MANAGEMENT
 # ================================================================================================
-def parse_bulk_teilenummern(teilenummer_input):
-    """Robustes Parsing der Bulk-Teilenummern"""
-    if not teilenummer_input or not teilenummer_input.strip():
-        return []
+def render_stock_management():
+    """Bestandsmanagement & Nachbestellungen"""
+    st.markdown("#### 📦 Bestandsmanagement & Nachbestellungen")
+    st.markdown("Überblick über Lagerbestände und automatische Nachbestelllisten.")
     
-    bulk_teilenummern = []
-    text = teilenummer_input.strip()
-    lines = text.split('\n')
+    master_data = load_master_csv()
     
-    for line in lines:
-        line = line.strip()
-        if line:
-            parts = line.split(',')
-            for part in parts:
-                part = part.strip()
-                if part:
-                    bulk_teilenummern.append(part)
+    if master_data.empty:
+        st.warning("Keine Daten für Bestandsanalysis verfügbar.")
+        return
     
-    # Duplikate entfernen
-    seen = set()
-    unique_teilenummern = []
-    for tn in bulk_teilenummern:
-        if tn not in seen:
-            seen.add(tn)
-            unique_teilenummern.append(tn)
+    stats = get_stock_statistics(master_data)
     
-    return unique_teilenummern
-
-def load_with_bulk_teilenummern(bulk_teilenummern_list):
-    """Lädt Multi-Source Daten und ergänzt fehlende Teilenummern"""
-    df_all_sources = load_all_sources()
+    st.markdown("**📊 Bestandsübersicht:**")
     
-    if bulk_teilenummern_list:
-        existing_teilenummern = set(df_all_sources['Teilenummer'].tolist()) if not df_all_sources.empty else set()
-        missing_teilenummern = []
-        
-        for tn in bulk_teilenummern_list:
-            tn_clean = str(tn).strip()
-            if tn_clean and tn_clean not in existing_teilenummern:
-                missing_teilenummern.append(tn_clean)
-        
-        if missing_teilenummern:
-            missing_templates = []
-            for tn in missing_teilenummern:
-                template = create_empty_tire_template(tn)
-                missing_templates.append(template)
-            
-            df_missing = pd.DataFrame(missing_templates)
-            
-            if df_all_sources.empty:
-                return df_missing
-            else:
-                all_columns = list(set(df_all_sources.columns.tolist() + df_missing.columns.tolist()))
-                for col in all_columns:
-                    if col not in df_all_sources.columns:
-                        df_all_sources[col] = ''
-                    if col not in df_missing.columns:
-                        df_missing[col] = ''
-                
-                df_missing = df_missing[df_all_sources.columns]
-                combined_df = pd.concat([df_all_sources, df_missing], ignore_index=True)
-                return combined_df
+    col1, col2, col3, col4, col5 = st.columns(5)
+    with col1:
+        st.metric("Reifen gesamt", stats['total'])
+    with col2:
+        st.metric("Mit Bestandsinfo", stats['with_stock'])
+    with col3:
+        if stats['negative'] > 0:
+            st.metric("🔴 Nachbestellung", stats['negative'])
+        else:
+            st.metric("✅ Keine Nachbestellung", stats['negative'])
+    with col4:
+        st.metric("🟡 Bestand = 0", stats['zero'])
+    with col5:
+        st.metric("🟢 Verfügbar", stats['positive'])
     
-    return df_all_sources
-
-def add_new_columns(df):
-    """Fügt EU-Label Spalten hinzu"""
-    required_original_cols = ['Dimension', 'Fabrikat', 'Profil', 'Teilenummer', 'Preis_EUR']
-    for col in required_original_cols:
-        if col not in df.columns:
-            df[col] = ''
+    if stats['total_stock'] < 0:
+        st.error(f"⚠️ Gesamtbestand: {stats['total_stock']:.0f} (Negative Bilanz!)")
+    else:
+        st.success(f"✅ Gesamtbestand: {stats['total_stock']:.0f}")
     
-    if 'Bestand' not in df.columns:
-        df['Bestand'] = pd.Series([0] * len(df), dtype='float64')
-    if 'Kraftstoffeffizienz' not in df.columns:
-        df['Kraftstoffeffizienz'] = ''
-    if 'Nasshaftung' not in df.columns:
-        df['Nasshaftung'] = ''
-    if 'Geräuschklasse' not in df.columns:
-        df['Geräuschklasse'] = pd.Series([70] * len(df), dtype='float64')
-    
-    if 'Saison' not in df.columns or df['Saison'].isna().all():
-        df['Saison'] = df['Teilenummer'].apply(get_saison_from_teilenummer)
-    
-    if 'Quelle' not in df.columns:
-        df['Quelle'] = 'Unbekannt'
-    
-    return df
+    if st.button("🔧 Zur Reifen-Verwaltung", use_container_width=True):
+        st.session_state.services_mode = False
+        st.session_state.stock_mode = False
+        st.rerun()
 
 # ================================================================================================
-# EXPORT FUNCTIONS
-# ================================================================================================
-def create_github_export():
-    """Erstellt GitHub-Export der Master-CSV"""
-    try:
-        master_df = load_master_csv()
-        
-        if master_df.empty:
-            return None
-        
-        csv_buffer = io.StringIO()
-        master_df.to_csv(csv_buffer, index=False, encoding='utf-8')
-        
-        return csv_buffer.getvalue()
-        
-    except Exception as e:
-        st.error(f"Fehler beim Erstellen des GitHub-Exports: {e}")
-        return None
-
-# ================================================================================================
-# MAIN REIFEN CONTENT
+# MAIN REIFEN CONTENT - AUTO-LOAD EXCEL + BULK ERGÄNZUNG
 # ================================================================================================
 def render_reifen_content():
-    """Hauptinhalt der Reifen Verwaltung"""
+    """Hauptinhalt der Reifen Verwaltung - mit automatischem Excel-Load"""
     
-    # AUTO-LOAD: Alle verfügbaren Quellen automatisch laden
+    # AUTO-LOAD: Excel-Vorlagen automatisch laden wenn noch nicht geladen
     if st.session_state.df_original is None or st.session_state.df_original.empty:
-        with st.spinner('Lade alle verfügbaren Reifen-Quellen...'):
-            df_all_sources = load_all_sources()
-            if not df_all_sources.empty:
-                st.session_state.df_original = df_all_sources.copy()
+        with st.spinner('Lade Excel-Vorlagen automatisch...'):
+            df_excel = load_excel_vorlagen()
+            if not df_excel.empty:
+                st.session_state.df_original = df_excel.copy()
                 st.session_state.file_uploaded = True
                 st.session_state.filter_applied = False
                 st.session_state.selection_confirmed = False
-                
-                # Quellen-Statistiken anzeigen
-                source_stats = get_source_statistics(df_all_sources)
-                
-                success_sources = []
-                error_sources = []
-                
-                for source_name, stats in source_stats.items():
-                    if stats.get('loaded', False):
-                        success_sources.append(f"{source_name}: {stats['count']}")
-                    elif stats.get('error'):
-                        error_sources.append(f"{source_name}: {stats['error']}")
-                
-                if success_sources:
-                    total_loaded = sum(stat.get('count', 0) for stat in source_stats.values() if stat.get('loaded', False))
-                    st.success(f"✅ {total_loaded} Reifen aus {len(success_sources)} Quellen geladen: {', '.join(success_sources)}")
-                
-                if error_sources:
-                    for error in error_sources:
-                        st.error(f"❌ {error}")
-                
-                if not success_sources:
-                    st.error("❌ Keine Reifen-Dateien erfolgreich geladen!")
-                    return
+                st.success(f"✅ {len(df_excel)} Reifen aus Excel-Vorlagen automatisch geladen!")
             else:
-                st.error("❌ Keine Reifen-Dateien gefunden oder alle Dateien fehlerhaft!")
+                st.error("❌ Excel-Datei konnte nicht geladen werden. Bitte prüfe ob die Datei '2025-07-29_ReifenPremium_Winterreifen_2025-26.xlsx' im data/ Ordner existiert.")
                 return
     
-    # Sidebar Filter
+    # Sidebar Filter - ERWEITERT für Bulk-Teilenummer-Ergänzung
     with st.sidebar:
         st.header("Workflow-Status")
         if not st.session_state.filter_applied:
@@ -1013,21 +931,7 @@ def render_reifen_content():
             
             df_orig = st.session_state.df_original
             
-            # SAISON-FILTER
-            SAISON_OPTIONS = ["Alle", "Winter", "Sommer", "Ganzjahres", "Unbekannt"]
-            saison_filter = st.selectbox(
-                "Saison-Typ:",
-                options=SAISON_OPTIONS,
-                index=0,
-                key="saison_filter_select"
-            )
-            
-            # Sichere Filter-Optionen mit Error-Handling
-            try:
-                alle_hersteller = sorted([h for h in df_orig['Fabrikat'].unique() if pd.notna(h) and h != ''])
-            except:
-                alle_hersteller = []
-                
+            alle_hersteller = sorted(df_orig['Fabrikat'].unique())
             hersteller_filter = st.multiselect(
                 "Hersteller wählen:",
                 options=alle_hersteller,
@@ -1035,16 +939,21 @@ def render_reifen_content():
                 key="hersteller_filter"
             )
             
-            try:
-                alle_zolle = sorted([z for z in df_orig['Zoll'].unique() if pd.notna(z)])
-            except:
-                alle_zolle = []
-                
+            alle_zolle = sorted(df_orig['Zoll'].unique())
             zoll_filter = st.multiselect(
                 "Zoll-Größen:",
                 options=alle_zolle,
                 default=[],
                 key="zoll_filter"
+            )
+            
+            # SAISON-FILTER
+            alle_saisonen = sorted(df_orig['Saison'].unique()) if 'Saison' in df_orig.columns else ['Winter', 'Sommer', 'Ganzjahres']
+            saison_filter = st.selectbox(
+                "Saison-Typ:",
+                options=["Alle"] + alle_saisonen,
+                index=0,
+                key="saison_filter_select"
             )
             
             st.markdown("**Preisfilter:**")
@@ -1072,11 +981,7 @@ def render_reifen_content():
                 key="runflat_filter"
             )
             
-            try:
-                alle_breiten = sorted([b for b in df_orig['Breite'].unique() if pd.notna(b)])
-            except:
-                alle_breiten = []
-                
+            alle_breiten = sorted(df_orig['Breite'].unique())
             breite_filter = st.multiselect(
                 "Reifenbreite:",
                 options=alle_breiten,
@@ -1084,11 +989,7 @@ def render_reifen_content():
                 key="breite_filter"
             )
             
-            try:
-                alle_hoehen = sorted([h for h in df_orig['Hoehe'].unique() if pd.notna(h)])
-            except:
-                alle_hoehen = []
-                
+            alle_hoehen = sorted(df_orig['Hoehe'].unique())
             hoehe_filter = st.multiselect(
                 "Reifenhöhe:",
                 options=alle_hoehen,
@@ -1096,22 +997,19 @@ def render_reifen_content():
                 key="hoehe_filter"
             )
             
+            # ERWEITERTE BULK-TEILENUMMER-EINGABE
             st.markdown("---")
             st.markdown("**📝 Zusätzliche Reifen hinzufügen:**")
             
             teilenummer_search = st.text_area(
                 "Teilenummern hinzufügen:",
-                placeholder="ZTW12345\nZTS67890\nZTR11111, ZTW22222",
-                help="Eine Teilenummer pro Zeile oder kommagetrennt",
+                placeholder="ZTW12345\nZTS67890\nZTR11111, ZTW22222\n\noder für Suche: Continental, WinterContact",
+                help="Eine Teilenummer pro Zeile oder kommagetrennt. Unbekannte Teilenummern werden als leere Vorlagen hinzugefügt.",
                 key="teilenummer_search",
                 height=100
             )
             
-            try:
-                alle_speed = sorted([s for s in df_orig['Speedindex'].unique() if pd.notna(s) and s != ''])
-            except:
-                alle_speed = []
-                
+            alle_speed = sorted(df_orig['Speedindex'].unique())
             speed_filter = st.multiselect(
                 "Geschwindigkeitsindex:",
                 options=alle_speed,
@@ -1120,14 +1018,15 @@ def render_reifen_content():
             )
             
             if st.button("Filter anwenden", use_container_width=True, type="primary"):
-                # Parse zusätzliche Teilenummern
+                # Parse zusätzliche Teilenummern mit neuer robuster Funktion
                 bulk_teilenummern = parse_bulk_teilenummern(teilenummer_search)
                 
                 # Daten mit zusätzlichen Teilenummern laden
                 if bulk_teilenummern:
-                    df_with_bulk = load_with_bulk_teilenummern(bulk_teilenummern)
+                    df_with_bulk = load_excel_with_bulk_teilenummern(bulk_teilenummern)
                     working_df = df_with_bulk
                     
+                    # Info über hinzugefügte leere Vorlagen
                     excel_count = len(working_df[working_df['Fabrikat'] != '']) if 'Fabrikat' in working_df.columns else 0
                     missing_count = len(working_df) - excel_count
                     
@@ -1138,8 +1037,9 @@ def render_reifen_content():
                 
                 # Filter anwenden
                 filtered_df = apply_filters(
-                    working_df, saison_filter, hersteller_filter, zoll_filter, preis_range, 
-                    runflat_filter, breite_filter, hoehe_filter, teilenummer_search, speed_filter
+                    working_df, hersteller_filter, zoll_filter, preis_range, 
+                    runflat_filter, breite_filter, hoehe_filter, teilenummer_search, 
+                    speed_filter, saison_filter
                 )
                 
                 st.session_state.df_filtered = filtered_df
@@ -1153,70 +1053,54 @@ def render_reifen_content():
                 st.session_state.selected_indices = []
                 st.rerun()
     
-    # STUFE 1: Multi-Source automatisch geladen
+    # STUFE 1: Automatisch geladen - nur Info anzeigen
     if not st.session_state.filter_applied:
-        st.markdown("### ✅ Multi-Source Reifen automatisch geladen - KOMPLETT GEFIXT!")
+        st.markdown("### ✅ Excel-Vorlagen automatisch geladen")
+        st.markdown(f"Aus {len(st.session_state.df_original)} Reifen die gewünschten herausfiltern")
         
-        df_orig = st.session_state.df_original
-        source_stats = get_source_statistics(df_orig)
-        
-        # Quellen-Übersicht
-        st.markdown("#### 📊 Geladene Datenquellen:")
         col1, col2, col3, col4 = st.columns(4)
+        df_orig = st.session_state.df_original
         
         with col1:
-            winter_count = source_stats.get('Winter', {}).get('count', 0)
-            winter_loaded = source_stats.get('Winter', {}).get('loaded', False)
-            if winter_loaded:
-                st.metric("❄️ Winter", winter_count)
-            else:
-                st.metric("❄️ Winter", "Fehler")
-        
+            st.metric("Gesamt Reifen", len(df_orig))
         with col2:
-            sommer_count = source_stats.get('Sommer', {}).get('count', 0)  
-            sommer_loaded = source_stats.get('Sommer', {}).get('loaded', False)
-            if sommer_loaded:
-                st.metric("☀️ Sommer", sommer_count)
-            else:
-                st.metric("☀️ Sommer", "Fehler")
-        
+            st.metric("Hersteller", df_orig['Fabrikat'].nunique())
         with col3:
-            ganzjahres_count = source_stats.get('Ganzjahres', {}).get('count', 0)
-            ganzjahres_loaded = source_stats.get('Ganzjahres', {}).get('loaded', False)
-            if ganzjahres_loaded:
-                st.metric("🌍 Ganzjahres", ganzjahres_count)
-            else:
-                st.metric("🌍 Ganzjahres", "Fehler")
-        
+            st.metric("Zoll-Größen", df_orig['Zoll'].nunique())
         with col4:
-            total_count = winter_count + sommer_count + ganzjahres_count
-            st.metric("🎯 Gesamt", total_count)
+            avg_preis = df_orig[df_orig['Preis_EUR'] > 0]['Preis_EUR'].mean()
+            st.metric("Durchschnittspreis", f"{avg_preis:.0f} Euro")
         
-        # Saison-Verteilung nach Quelle
-        if 'Saison' in df_orig.columns and 'Quelle' in df_orig.columns:
-            st.markdown("#### 🔄 Saison-Verteilung nach Quelle:")
+        # Saison-Verteilung anzeigen
+        if 'Saison' in df_orig.columns:
+            st.markdown("**Saison-Verteilung:**")
+            saison_counts = df_orig['Saison'].value_counts()
+            col_s1, col_s2, col_s3, col_s4 = st.columns(4)
             
-            try:
-                saison_quelle_stats = df_orig.groupby(['Quelle', 'Saison']).size().unstack(fill_value=0)
-                if not saison_quelle_stats.empty:
-                    st.dataframe(saison_quelle_stats, use_container_width=True)
-                
-                overall_saison_counts = df_orig['Saison'].value_counts()
-                st.info(f"🔍 Gesamte Saison-Verteilung: {dict(overall_saison_counts)}")
-            except Exception as e:
-                st.error(f"Fehler bei Saison-Analyse: {e}")
+            with col_s1:
+                winter_count = saison_counts.get('Winter', 0)
+                st.markdown(f"❄️ **Winter:** {winter_count}")
+            with col_s2:
+                sommer_count = saison_counts.get('Sommer', 0)
+                st.markdown(f"☀️ **Sommer:** {sommer_count}")
+            with col_s3:
+                ganzjahres_count = saison_counts.get('Ganzjahres', 0)
+                st.markdown(f"🌍 **Ganzjahres:** {ganzjahres_count}")
+            with col_s4:
+                unbekannt_count = saison_counts.get('Unbekannt', 0)
+                if unbekannt_count > 0:
+                    st.markdown(f"❓ **Unbekannt:** {unbekannt_count}")
         
         st.markdown("""
-        <div class="source-info">
-            <h4>🎯 KOMPLETT GEFIXTES Multi-Source System!</h4>
-            <p><strong>✅ Automatisch geladen:</strong> Winter-Excel, Sommer-Excel und Ganzjahres-CSV</p>
-            <p><strong>🔧 Excel-Header-Problem gefixt:</strong> Automatische Header-Erkennung</p>
-            <p><strong>🛡️ Ultra-robustes Error-Handling:</strong> Alle Filter sind sicher</p>
-            <p><strong>✨ Alle Saison-Filter funktionieren jetzt!</strong></p>
+        <div class="info-box">
+            <h4>📋 Nächste Schritte:</h4>
+            <p>1. Setze deine <strong>Filter in der Sidebar</strong></p>
+            <p>2. Optional: Füge <strong>zusätzliche Teilenummern</strong> hinzu (werden als leere Vorlagen erstellt wenn nicht in Excel)</p>
+            <p>3. Klicke <strong>"Filter anwenden"</strong></p>
         </div>
         """, unsafe_allow_html=True)
     
-    # STUFE 2: Reifen-Auswahl
+    # STUFE 2: Reifen-Auswahl - ERWEITERT FÜR MISSING TIRES
     elif st.session_state.filter_applied and not st.session_state.selection_confirmed:
         st.markdown("### Schritt 2: Gefilterte Reifen auswählen")
         st.markdown(f"Wähle aus den {len(st.session_state.df_filtered)} gefilterten Reifen deine gewünschten aus")
@@ -1245,18 +1129,20 @@ def render_reifen_content():
             
             with col3:
                 if st.button("Nur fehlende Reifen"):
+                    # Nur Reifen ohne Fabrikat (= aus Bulk-Eingabe)
                     missing_tires = df_filtered[df_filtered['Fabrikat'] == '']
                     st.session_state.selected_indices = missing_tires.index.tolist()
                     st.rerun()
             
             with col4:
-                if st.button("Nur Katalog-Reifen"):
-                    catalog_tires = df_filtered[df_filtered['Fabrikat'] != '']
-                    st.session_state.selected_indices = catalog_tires.index.tolist()
+                if st.button("Nur Excel-Reifen"):
+                    # Nur Reifen mit Fabrikat (= aus Excel)
+                    excel_tires = df_filtered[df_filtered['Fabrikat'] != '']
+                    st.session_state.selected_indices = excel_tires.index.tolist()
                     st.rerun()
             
             # Auswahl-Statistiken
-            col1, col2, col3, col4 = st.columns(4)
+            col1, col2, col3 = st.columns(3)
             with col1:
                 st.metric("Gefiltert", len(df_filtered))
             with col2:
@@ -1265,15 +1151,61 @@ def render_reifen_content():
                 if len(st.session_state.selected_indices) > 0:
                     selected_df = df_filtered.loc[st.session_state.selected_indices]
                     avg_preis = selected_df[selected_df['Preis_EUR'] > 0]['Preis_EUR'].mean()
-                    st.metric("Durchschnittspreis", f"{avg_preis:.0f} Euro" if not pd.isna(avg_preis) else "0 Euro")
-            with col4:
-                if 'Quelle' in df_filtered.columns and len(st.session_state.selected_indices) > 0:
-                    selected_df = df_filtered.loc[st.session_state.selected_indices]
-                    quelle_counts = selected_df['Quelle'].value_counts()
-                    main_quelle = quelle_counts.index[0] if len(quelle_counts) > 0 else "Gemischt"
-                    st.metric("Hauptquelle", main_quelle.replace('-Excel', '').replace('-CSV', ''))
+                    st.metric("Durchschnittspreis Auswahl", f"{avg_preis:.0f} Euro" if not pd.isna(avg_preis) else "0 Euro")
             
-            # Reifen-Liste mit Checkboxes (vereinfacht)
+            # Duplikaten und fehlende Reifen Warnungen
+            if len(st.session_state.selected_indices) > 0:
+                selected_df = df_filtered.loc[st.session_state.selected_indices]
+                
+                duplicates = []
+                missing_tires = []
+                
+                for idx in st.session_state.selected_indices:
+                    tire = df_filtered.loc[idx]
+                    
+                    # Prüfung auf Duplikate in Master-CSV
+                    if check_duplicate_in_master(tire['Teilenummer']):
+                        duplicates.append(tire['Teilenummer'])
+                    
+                    # Prüfung auf fehlende Excel-Daten
+                    if tire['Fabrikat'] == '' or tire['Fabrikat'] is None:
+                        missing_tires.append(tire['Teilenummer'])
+                
+                # Duplikaten-Warnung
+                if duplicates:
+                    st.markdown(f"""
+                    <div class="duplicate-warning">
+                        <h4>⚠️ DUPLIKATE GEFUNDEN!</h4>
+                        <p>Die folgenden Teilenummern existieren bereits in der Master-Datenbank:</p>
+                        <ul>
+                    """, unsafe_allow_html=True)
+                    for tn in duplicates:
+                        st.markdown(f"<li><strong>{tn}</strong></li>", unsafe_allow_html=True)
+                    st.markdown("""
+                        </ul>
+                        <p>Beim Speichern werden diese Reifen <strong>aktualisiert</strong> statt neu hinzugefügt.</p>
+                    </div>
+                    """, unsafe_allow_html=True)
+                
+                # Fehlende Reifen Info
+                if missing_tires:
+                    st.markdown(f"""
+                    <div class="missing-warning">
+                        <h4>📝 LEERE VORLAGEN GEFUNDEN!</h4>
+                        <p>Die folgenden Teilenummern waren nicht in der Excel-Datei und wurden als leere Vorlagen erstellt:</p>
+                        <ul>
+                    """, unsafe_allow_html=True)
+                    for tn in missing_tires:
+                        saison = get_saison_from_teilenummer(tn)
+                        badge = get_saison_badge_html(saison)
+                        st.markdown(f"<li><strong>{tn}</strong> {badge}</li>", unsafe_allow_html=True)
+                    st.markdown("""
+                        </ul>
+                        <p>Diese Reifen können manuell bearbeitet werden um fehlende Informationen zu ergänzen.</p>
+                    </div>
+                    """, unsafe_allow_html=True)
+            
+            # Reifen-Liste mit Checkboxes - ERWEITERT FÜR SAISON UND MISSING
             st.markdown("**Reifen einzeln auswählen:**")
             
             items_per_page = 50
@@ -1303,15 +1235,17 @@ def render_reifen_content():
                             st.session_state.selected_indices.remove(idx)
                 
                 with col_info:
+                    runflat_info = " **RF**" if row['RF'] != '' else ""
                     duplicate_info = " ⚠️ **DUPLIKAT**" if is_duplicate else ""
                     missing_info = " 📝 **LEERE VORLAGE**" if is_missing else ""
                     saison_badge = get_saison_badge_html(row.get('Saison', 'Unbekannt'))
-                    quelle_info = f" ({row.get('Quelle', 'Unbekannt').replace('-Excel', '').replace('-CSV', '')})" if 'Quelle' in row else ""
                     
                     if is_missing:
-                        st.markdown(f"**{row['Dimension']}** - {row['Teilenummer']} {saison_badge}{quelle_info}{duplicate_info}{missing_info}", unsafe_allow_html=True)
+                        # Leere Vorlage - nur Teilenummer und Saison
+                        st.markdown(f"**{row['Dimension']}**{runflat_info} - {row['Teilenummer']} {saison_badge}{duplicate_info}{missing_info}", unsafe_allow_html=True)
                     else:
-                        st.markdown(f"**{row['Dimension']}** - {row['Fabrikat']} {row['Profil']} - **{row['Preis_EUR']:.2f}€** - {row['Teilenummer']} {saison_badge}{quelle_info}{duplicate_info}", unsafe_allow_html=True)
+                        # Vollständiger Reifen
+                        st.markdown(f"**{row['Dimension']}**{runflat_info} - {row['Fabrikat']} {row['Profil']} - **{row['Preis_EUR']:.2f}€** - {row['Teilenummer']} {saison_badge}{duplicate_info}", unsafe_allow_html=True)
             
             # Auswahl bestätigen
             if len(st.session_state.selected_indices) > 0:
@@ -1328,21 +1262,27 @@ def render_reifen_content():
                 st.session_state.filter_applied = False
                 st.rerun()
     
-    # STUFE 3: Bearbeitung (vereinfacht)
+    # STUFE 3: Bearbeitung - ERWEITERT FÜR SAISON
     elif st.session_state.selection_confirmed and st.session_state.df_working is not None:
-        st.markdown("### Schritt 3: Reifen bearbeiten und speichern")
+        st.markdown("### Schritt 3: EU-Labels hinzufügen, Preise anpassen & Saison verwalten")
         st.markdown(f"Bearbeite die {len(st.session_state.df_working)} ausgewählten Reifen")
         
         # Anzeige-Tabelle
         st.markdown("#### Ausgewählte Reifen")
+        
         display_df = st.session_state.df_working.copy()
+        
         display_columns = ['Breite', 'Hoehe', 'Zoll', 'Loadindex', 'Speedindex', 'Fabrikat', 
-                          'Profil', 'Teilenummer', 'Saison', 'Quelle', 'Preis_EUR', 'Bestand']
+                          'Profil', 'Teilenummer', 'Saison', 'Preis_EUR', 'Bestand', 'Kraftstoffeffizienz', 
+                          'Nasshaftung', 'Geräuschklasse']
         available_display_columns = [col for col in display_columns if col in display_df.columns]
         display_df = display_df[available_display_columns]
+        
         st.dataframe(display_df, use_container_width=True, hide_index=True)
         
-        # Einzelnen Reifen bearbeiten (vereinfacht)
+        # Einzelnen Reifen bearbeiten
+        st.markdown("#### Einzelnen Reifen bearbeiten")
+        
         if len(st.session_state.df_working) > 0:
             max_index = len(st.session_state.df_working) - 1
             if st.session_state.current_tire_index > max_index:
@@ -1350,35 +1290,158 @@ def render_reifen_content():
             if st.session_state.current_tire_index < 0:
                 st.session_state.current_tire_index = 0
             
-            # Navigation
-            col_nav1, col_nav2, col_nav3 = st.columns([2, 1, 1])
+            # Navigation-Controls
+            col_nav1, col_nav2, col_nav3, col_nav4, col_nav5 = st.columns([2, 1, 1, 1, 2])
+            
             with col_nav1:
                 st.info(f"Reifen {st.session_state.current_tire_index + 1} von {len(st.session_state.df_working)}")
+            
             with col_nav2:
                 if st.button("< Vorheriger", disabled=(st.session_state.current_tire_index == 0)):
                     st.session_state.current_tire_index -= 1
                     st.rerun()
+            
             with col_nav3:
                 if st.button("Nächster >", disabled=(st.session_state.current_tire_index >= max_index)):
                     st.session_state.current_tire_index += 1
                     st.rerun()
             
-            # Aktuellen Reifen bearbeiten (stark vereinfacht)
-            df_working_list = list(st.session_state.df_working.iterrows())
-            selected_idx, selected_row = df_working_list[st.session_state.current_tire_index]
+            with col_nav5:
+                st.session_state.auto_advance = st.checkbox("Auto-Advance", value=st.session_state.auto_advance, 
+                                                          help="Automatisch zum nächsten Reifen nach dem Speichern")
             
+            # Reifen-Liste für Dropdown
+            reifen_options = []
+            df_working_list = list(st.session_state.df_working.iterrows())
+            
+            for i, (idx, row) in enumerate(df_working_list):
+                if row['Fabrikat'] == '':
+                    option_text = f"{i+1}: {row['Teilenummer']} (Leere Vorlage - {row['Saison']})"
+                else:
+                    option_text = f"{i+1}: {row['Dimension']} - {row['Fabrikat']} {row['Profil']} ({row['Preis_EUR']:.2f}€)"
+                reifen_options.append((option_text, i))
+            
+            # Dropdown
+            selected_dropdown_index = st.selectbox(
+                "Oder Reifen aus Liste auswählen:",
+                options=range(len(reifen_options)),
+                index=st.session_state.current_tire_index,
+                format_func=lambda x: reifen_options[x][0],
+                key="reifen_select"
+            )
+            
+            if selected_dropdown_index != st.session_state.current_tire_index:
+                st.session_state.current_tire_index = selected_dropdown_index
+                st.rerun()
+            
+            # Aktuellen Reifen holen
+            current_position = st.session_state.current_tire_index
+            selected_idx, selected_row = df_working_list[current_position]
+            
+            # Duplikaten-Warnung für aktuellen Reifen
             is_duplicate = check_duplicate_in_master(selected_row['Teilenummer'])
+            is_missing_template = (selected_row['Fabrikat'] == '' or selected_row['Fabrikat'] is None)
             
             if is_duplicate:
-                st.warning(f"⚠️ DUPLIKAT: Teilenummer {selected_row['Teilenummer']} existiert bereits in der Master-Datenbank.")
+                st.markdown(f"""
+                <div class="duplicate-warning">
+                    <h4>⚠️ DUPLIKAT ERKANNT</h4>
+                    <p>Teilenummer <strong>{selected_row['Teilenummer']}</strong> existiert bereits in der Master-Datenbank.</p>
+                    <p>Beim Speichern wird der bestehende Reifen <strong>aktualisiert</strong>.</p>
+                </div>
+                """, unsafe_allow_html=True)
             
+            if is_missing_template:
+                st.markdown(f"""
+                <div class="missing-warning">
+                    <h4>📝 LEERE VORLAGE</h4>
+                    <p>Dieser Reifen <strong>{selected_row['Teilenummer']}</strong> war nicht in der Excel-Datei.</p>
+                    <p>Bitte ergänze die fehlenden Informationen manuell.</p>
+                </div>
+                """, unsafe_allow_html=True)
+            
+            # Bearbeitungsbereich - ERWEITERT FÜR ALLE FELDER BEI LEEREN VORLAGEN
             col1, col2 = st.columns(2)
             
             with col1:
                 st.markdown("**Reifen Info:**")
+                
+                if is_missing_template:
+                    # Bei leerer Vorlage: alle Grunddaten editierbar
+                    new_fabrikat = st.text_input(
+                        "Hersteller:",
+                        value=str(selected_row['Fabrikat']) if selected_row['Fabrikat'] != '' else '',
+                        key=f"fabrikat_{selected_idx}"
+                    )
+                    
+                    new_profil = st.text_input(
+                        "Profil:",
+                        value=str(selected_row['Profil']) if selected_row['Profil'] != '' else '',
+                        key=f"profil_{selected_idx}"
+                    )
+                    
+                    new_breite = st.number_input(
+                        "Breite (mm):",
+                        min_value=125,
+                        max_value=355,
+                        value=int(selected_row['Breite']) if selected_row['Breite'] != '' else 205,
+                        step=10,
+                        key=f"breite_{selected_idx}"
+                    )
+                    
+                    new_hoehe = st.number_input(
+                        "Höhe (%):",
+                        min_value=25,
+                        max_value=85,
+                        value=int(selected_row['Hoehe']) if selected_row['Hoehe'] != '' else 55,
+                        step=5,
+                        key=f"hoehe_{selected_idx}"
+                    )
+                    
+                    new_zoll = st.number_input(
+                        "Zoll:",
+                        min_value=13,
+                        max_value=24,
+                        value=int(selected_row['Zoll']) if selected_row['Zoll'] != '' else 16,
+                        step=1,
+                        key=f"zoll_{selected_idx}"
+                    )
+                    
+                    new_loadindex = st.number_input(
+                        "Loadindex:",
+                        min_value=60,
+                        max_value=125,
+                        value=int(selected_row['Loadindex']) if pd.notna(selected_row['Loadindex']) else 91,
+                        step=1,
+                        key=f"loadindex_{selected_idx}"
+                    )
+                    
+                    speed_options = ['T', 'H', 'V', 'W', 'Y', 'Z', 'ZR']
+                    current_speed = selected_row['Speedindex'] if pd.notna(selected_row['Speedindex']) else 'H'
+                    speed_index = speed_options.index(current_speed) if current_speed in speed_options else 1
+                    
+                    new_speedindex = st.selectbox(
+                        "Speedindex:",
+                        options=speed_options,
+                        index=speed_index,
+                        key=f"speedindex_{selected_idx}"
+                    )
+                    
+                else:
+                    # Bei Excel-Reifen: nur Info anzeigen
+                    st.write(f"**Dimension:** {selected_row['Dimension']}")
+                    st.write(f"**Hersteller:** {selected_row['Fabrikat']}")
+                    st.write(f"**Profil:** {selected_row['Profil']}")
+                    # Standardwerte für nicht-editierbare Felder
+                    new_fabrikat = selected_row['Fabrikat']
+                    new_profil = selected_row['Profil']
+                    new_breite = selected_row['Breite']
+                    new_hoehe = selected_row['Hoehe']
+                    new_zoll = selected_row['Zoll']
+                    new_loadindex = selected_row['Loadindex']
+                    new_speedindex = selected_row['Speedindex']
+                
                 st.write(f"**Teilenummer:** {selected_row['Teilenummer']}")
-                st.write(f"**Fabrikat:** {selected_row['Fabrikat']}")
-                st.write(f"**Profil:** {selected_row['Profil']}")
                 
                 new_preis = st.number_input(
                     "Preis:",
@@ -1390,8 +1453,9 @@ def render_reifen_content():
                 )
             
             with col2:
-                st.markdown("**Saison & Bestand:**")
+                st.markdown("**Saison, EU-Labels & Bestand:**")
                 
+                # SAISON-DROPDOWN mit automatischer Vorselektion
                 saison_options = ['Winter', 'Sommer', 'Ganzjahres', 'Unbekannt']
                 current_saison = selected_row.get('Saison', 'Unbekannt')
                 saison_index = saison_options.index(current_saison) if current_saison in saison_options else 3
@@ -1400,11 +1464,15 @@ def render_reifen_content():
                     "Saison:",
                     options=saison_options,
                     index=saison_index,
-                    key=f"saison_{selected_idx}"
+                    key=f"saison_{selected_idx}",
+                    help="Automatisch basierend auf Teilenummer vorselektiert (ZTW=Winter, ZTS=Sommer, ZTR=Ganzjahres)"
                 )
                 
                 current_bestand = selected_row.get('Bestand', 0)
-                bestand_value = int(current_bestand) if pd.notna(current_bestand) else 0
+                if pd.isna(current_bestand) or current_bestand == '':
+                    bestand_value = 0
+                else:
+                    bestand_value = int(current_bestand)
                     
                 new_bestand = st.number_input(
                     "Bestand:",
@@ -1412,52 +1480,122 @@ def render_reifen_content():
                     max_value=1000,
                     value=bestand_value,
                     step=1,
-                    key=f"bestand_{selected_idx}"
+                    key=f"bestand_{selected_idx}",
+                    help="Negative Werte = Nachbestellung nötig"
+                )
+                
+                current_kraftstoff = selected_row.get('Kraftstoffeffizienz', '')
+                kraftstoff_options = ['', 'A', 'B', 'C', 'D', 'E', 'F', 'G']
+                kraftstoff_index = kraftstoff_options.index(current_kraftstoff) if current_kraftstoff in kraftstoff_options else 0
+                
+                new_kraftstoff = st.selectbox(
+                    "Kraftstoffeffizienz:",
+                    options=kraftstoff_options,
+                    index=kraftstoff_index,
+                    key=f"kraftstoff_{selected_idx}"
+                )
+                
+                current_nasshaftung = selected_row.get('Nasshaftung', '')
+                nasshaftung_index = kraftstoff_options.index(current_nasshaftung) if current_nasshaftung in kraftstoff_options else 0
+                
+                new_nasshaftung = st.selectbox(
+                    "Nasshaftung:",
+                    options=kraftstoff_options,
+                    index=nasshaftung_index,
+                    key=f"nasshaftung_{selected_idx}"
+                )
+                
+                current_geraeusch = selected_row.get('Geräuschklasse', 70)
+                if pd.isna(current_geraeusch) or current_geraeusch == '':
+                    geraeusch_value = 70
+                else:
+                    geraeusch_value = int(current_geraeusch)
+                    
+                new_geraeusch = st.number_input(
+                    "Geräuschklasse (dB):",
+                    min_value=66,
+                    max_value=75,
+                    value=geraeusch_value,
+                    step=1,
+                    key=f"geraeusch_{selected_idx}"
                 )
             
-            # Speichern Button
-            if st.button("Änderungen speichern", use_container_width=True, type="primary"):
-                # Vereinfachte Reifen-Daten
-                tire_data = {
-                    'Breite': selected_row['Breite'],
-                    'Hoehe': selected_row['Hoehe'], 
-                    'Zoll': selected_row['Zoll'],
-                    'Loadindex': selected_row['Loadindex'],
-                    'Speedindex': selected_row['Speedindex'],
-                    'Fabrikat': selected_row['Fabrikat'],
-                    'Profil': selected_row['Profil'],
-                    'Teilenummer': selected_row['Teilenummer'],
-                    'Preis_EUR': new_preis,
-                    'Bestand': new_bestand,
-                    'Saison': new_saison
-                }
-                
-                if update_master_csv_with_tire(tire_data):
-                    st.session_state.df_working.loc[selected_idx, 'Preis_EUR'] = new_preis
-                    st.session_state.df_working.loc[selected_idx, 'Bestand'] = new_bestand
-                    st.session_state.df_working.loc[selected_idx, 'Saison'] = new_saison
+            # Speichern Button (AUTO-SAVE in Master-CSV)
+            col_save, col_remove = st.columns(2)
+            
+            with col_save:
+                if st.button("Änderungen speichern", use_container_width=True, type="primary"):
+                    # Reifen-Daten für Master-CSV vorbereiten
+                    tire_data = {
+                        'Breite': new_breite,
+                        'Hoehe': new_hoehe, 
+                        'Zoll': new_zoll,
+                        'Loadindex': new_loadindex,
+                        'Speedindex': new_speedindex,
+                        'Fabrikat': new_fabrikat,
+                        'Profil': new_profil,
+                        'Teilenummer': selected_row['Teilenummer'],
+                        'Preis_EUR': new_preis,
+                        'Bestand': new_bestand,
+                        'Kraftstoffeffizienz': new_kraftstoff,
+                        'Nasshaftung': new_nasshaftung,
+                        'Geräuschklasse': new_geraeusch if new_geraeusch > 0 else None,
+                        'Saison': new_saison
+                    }
                     
-                    if st.session_state.current_tire_index < len(st.session_state.df_working) - 1:
-                        st.session_state.current_tire_index += 1
-                        st.success(f"Reifen gespeichert! Automatisch zu Reifen {st.session_state.current_tire_index + 1} gewechselt.")
+                    # AUTO-SAVE: Direkt in Master-CSV speichern
+                    if update_master_csv_with_tire(tire_data):
+                        # Working DataFrame aktualisieren
+                        st.session_state.df_working.loc[selected_idx, 'Fabrikat'] = new_fabrikat
+                        st.session_state.df_working.loc[selected_idx, 'Profil'] = new_profil
+                        st.session_state.df_working.loc[selected_idx, 'Breite'] = new_breite
+                        st.session_state.df_working.loc[selected_idx, 'Hoehe'] = new_hoehe
+                        st.session_state.df_working.loc[selected_idx, 'Zoll'] = new_zoll
+                        st.session_state.df_working.loc[selected_idx, 'Loadindex'] = new_loadindex
+                        st.session_state.df_working.loc[selected_idx, 'Speedindex'] = new_speedindex
+                        st.session_state.df_working.loc[selected_idx, 'Preis_EUR'] = new_preis
+                        st.session_state.df_working.loc[selected_idx, 'Bestand'] = new_bestand
+                        st.session_state.df_working.loc[selected_idx, 'Kraftstoffeffizienz'] = new_kraftstoff
+                        st.session_state.df_working.loc[selected_idx, 'Nasshaftung'] = new_nasshaftung
+                        st.session_state.df_working.loc[selected_idx, 'Geräuschklasse'] = new_geraeusch if new_geraeusch > 0 else None
+                        st.session_state.df_working.loc[selected_idx, 'Saison'] = new_saison
+                        
+                        if st.session_state.auto_advance and st.session_state.current_tire_index < len(st.session_state.df_working) - 1:
+                            st.session_state.current_tire_index += 1
+                            st.success(f"Reifen erfolgreich in Master-CSV gespeichert! Automatisch zu Reifen {st.session_state.current_tire_index + 1} gewechselt.")
+                        else:
+                            st.success("Reifen erfolgreich in Master-CSV gespeichert!")
                     else:
-                        st.success("Reifen erfolgreich gespeichert!")
-                else:
-                    st.error("Fehler beim Speichern!")
-                
-                st.rerun()
+                        st.error("Fehler beim Speichern in Master-CSV!")
+                    
+                    st.rerun()
+            
+            with col_remove:
+                if st.button("Reifen entfernen", use_container_width=True, type="secondary"):
+                    st.session_state.df_working = st.session_state.df_working.drop(index=[selected_idx])
+                    
+                    if selected_idx in st.session_state.selected_indices:
+                        st.session_state.selected_indices.remove(selected_idx)
+                    
+                    if st.session_state.current_tire_index >= len(st.session_state.df_working):
+                        st.session_state.current_tire_index = max(0, len(st.session_state.df_working) - 1)
+                    
+                    st.success(f"Reifen aus Bearbeitung entfernt! Noch {len(st.session_state.df_working)} Reifen in der Liste.")
+                    st.rerun()
+        else:
+            st.warning("Keine Reifen mehr vorhanden!")
         
-        # Action Buttons
+        # Action Buttons (REDUZIERT)
         col_btn1, col_btn2 = st.columns(2)
         
         with col_btn1:
-            if st.button("Zurück zur Auswahl"):
+            if st.button("Zurück zur Auswahl", help="Neue Reifen auswählen"):
                 st.session_state.selection_confirmed = False
                 st.session_state.current_tire_index = 0
                 st.rerun()
         
         with col_btn2:
-            if st.button("Workflow zurücksetzen"):
+            if st.button("Workflow zurücksetzen", help="Komplett von vorne beginnen"):
                 st.session_state.filter_applied = False
                 st.session_state.selection_confirmed = False
                 st.session_state.df_filtered = None
@@ -1468,24 +1606,82 @@ def render_reifen_content():
         
         # GitHub Export
         st.markdown("---")
-        st.markdown("#### 🔄 GitHub Export")
+        st.markdown("#### 🔄 Vollständige Datenbank für GitHub Update")
         
         github_data = create_github_export()
         if github_data:
-            st.download_button(
-                label="📥 Master-DB herunterladen",
-                data=github_data,
-                file_name="Ramsperger_Winterreifen_20250826_160010.csv",
-                mime="text/csv",
-                help="Master-Datenbank für GitHub Update",
-                use_container_width=True
-            )
+            col_info, col_download = st.columns([2, 1])
+            with col_info:
+                st.info("Lädt die komplette Master-Datenbank für das GitHub Update herunter.")
+            with col_download:
+                st.download_button(
+                    label="📥 Master-DB herunterladen",
+                    data=github_data,
+                    file_name="Ramsperger_Winterreifen_20250826_160010.csv",
+                    mime="text/csv",
+                    help="Master-Datenbank für GitHub Update",
+                    use_container_width=True
+                )
+        else:
+            st.warning("Keine Daten für GitHub-Export verfügbar")
         
         st.markdown("---")
-        st.success("🎯 **ALLE PROBLEME GEFIXT:** Sommer-, Winter- und Ganzjahres-Filter funktionieren perfekt!")
+        st.info("🔄 **Automatisches System:** Excel wird beim Öffnen automatisch geladen. Zusätzliche Teilenummern können über die Sidebar hinzugefügt werden. Leere Vorlagen für unbekannte Teilenummern werden automatisch erstellt!")
 
 # ================================================================================================
-# MAIN FUNCTIONS
+# MAIN TAB RENDER FUNCTION
+# ================================================================================================
+def render_reifen_tab():
+    """Hauptfunktion für Reifen Verwaltung Tab"""
+    st.markdown("### Reifen Verwaltung")
+    
+    # Sidebar Navigation
+    with st.sidebar:
+        st.markdown("---")
+        if st.button("← Zurück zur Reifen Suche", use_container_width=True):
+            st.switch_page("pages/01_Reifen_Suche.py")
+        
+        if st.button("🛒 Zum Warenkorb", use_container_width=True, type="primary"):
+            st.switch_page("pages/02_Warenkorb.py")
+        
+        if st.button("🗄️ Datenbank Verwaltung", use_container_width=True, type="secondary"):
+            st.switch_page("pages/04_Datenbank_Verwaltung.py")
+        
+        # Modus-Auswahl
+        st.markdown("---")
+        st.header("Verwaltungsmodus")
+        
+        modus_options = ["Reifen Verwaltung", "Service-Preise", "Bestandsmanagement"]
+        
+        if st.session_state.services_mode:
+            current_modus = "Service-Preise"
+        elif getattr(st.session_state, 'stock_mode', False):
+            current_modus = "Bestandsmanagement"
+        else:
+            current_modus = "Reifen Verwaltung"
+        
+        new_modus = st.selectbox(
+            "Modus wählen:",
+            options=modus_options,
+            index=modus_options.index(current_modus),
+            key="reifen_modus_select"
+        )
+        
+        if new_modus != current_modus:
+            st.session_state.services_mode = (new_modus == "Service-Preise")
+            st.session_state.stock_mode = (new_modus == "Bestandsmanagement")
+            st.rerun()
+    
+    # Modus-spezifischer Content
+    if st.session_state.services_mode:
+        render_services_management()
+    elif getattr(st.session_state, 'stock_mode', False):
+        render_stock_management()
+    else:
+        render_reifen_content()
+
+# ================================================================================================
+# MAIN FUNCTION
 # ================================================================================================
 def main():
     init_session_state()
@@ -1497,20 +1693,11 @@ def main():
     st.markdown("""
     <div class="main-header">
         <h1>Reifen Verwaltung</h1>
-        <p>Komplett gefixtes Multi-Source System - Alle Saison-Filter funktionieren!</p>
+        <p>Erweiterte Reifen- und Systemverwaltung mit automatischem Excel-Load</p>
     </div>
     """, unsafe_allow_html=True)
     
-    # Sidebar Navigation
-    with st.sidebar:
-        st.markdown("---")
-        if st.button("← Zurück zur Reifen Suche", use_container_width=True):
-            st.switch_page("pages/01_Reifen_Suche.py")
-        
-        if st.button("🛒 Zum Warenkorb", use_container_width=True, type="primary"):
-            st.switch_page("pages/02_Warenkorb.py")
-    
-    render_reifen_content()
+    render_reifen_tab()
 
 if __name__ == "__main__":
     main()
