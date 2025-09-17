@@ -81,6 +81,181 @@ MAIN_CSS = """
 st.markdown(MAIN_CSS, unsafe_allow_html=True)
 
 # ================================================================================================
+# EXCEL-DATEN DYNAMISCH LADEN
+# ================================================================================================
+@st.cache_data
+def load_excel_data():
+    """Lädt die Excel-Datei aus dem data/ Ordner und extrahiert Filial- und Mitarbeiterdaten"""
+    try:
+        excel_path = Path("data/Telefonverzeichnis (1).xlsx")
+        if not excel_path.exists():
+            st.error(f"Excel-Datei nicht gefunden: {excel_path}")
+            return {}
+        
+        # Excel-Datei laden
+        excel_data = pd.ExcelFile(excel_path)
+        filial_data = {}
+        
+        # Beide Sheets verarbeiten
+        for sheet_name in excel_data.sheet_names:
+            df = pd.read_excel(excel_path, sheet_name=sheet_name, header=None)
+            
+            # Spaltengruppen definieren (basierend auf Excel-Struktur)
+            spalten_gruppen = [
+                {"start_col": 0, "end_col": 6, "key_suffix": "_1"},   # Spalten A-F
+                {"start_col": 7, "end_col": 13, "key_suffix": "_2"},  # Spalten H-M
+                {"start_col": 14, "end_col": 20, "key_suffix": "_3"}  # Spalten O-T
+            ]
+            
+            for gruppe in spalten_gruppen:
+                start_col = gruppe["start_col"]
+                key_suffix = gruppe["key_suffix"]
+                
+                # Bereichsname aus Zeile 0 extrahieren
+                bereich_name = str(df.iloc[0, start_col]) if pd.notna(df.iloc[0, start_col]) else ""
+                if not bereich_name or bereich_name.strip() == "":
+                    continue
+                
+                # Adresse aus Zeile 1
+                adresse = str(df.iloc[1, start_col]) if pd.notna(df.iloc[1, start_col]) else ""
+                
+                # Zentrale aus Zeile 2
+                zentrale = str(df.iloc[2, start_col]) if pd.notna(df.iloc[2, start_col]) else ""
+                if zentrale.startswith("Zentrale"):
+                    zentrale = zentrale.replace("Zentrale", "").strip()
+                
+                # E-Mail-Verteiler aus Zeile 3
+                verteiler = str(df.iloc[3, start_col]) if pd.notna(df.iloc[3, start_col]) else ""
+                if "@" in verteiler:
+                    verteiler = verteiler.split(":")[-1].strip() if ":" in verteiler else verteiler
+                else:
+                    verteiler = ""
+                
+                # Mitarbeiter extrahieren (ab Zeile 4)
+                mitarbeiter = []
+                for idx in range(4, len(df)):
+                    # Position
+                    position = str(df.iloc[idx, start_col]) if pd.notna(df.iloc[idx, start_col]) else ""
+                    # Name 
+                    name = str(df.iloc[idx, start_col + 1]) if pd.notna(df.iloc[idx, start_col + 1]) else ""
+                    # E-Mail-Indicator
+                    email_ind = str(df.iloc[idx, start_col + 2]) if pd.notna(df.iloc[idx, start_col + 2]) else ""
+                    # Durchwahl
+                    durchwahl = str(df.iloc[idx, start_col + 3]) if pd.notna(df.iloc[idx, start_col + 3]) else ""
+                    # Fax
+                    fax = str(df.iloc[idx, start_col + 4]) if pd.notna(df.iloc[idx, start_col + 4]) else ""
+                    # Mobil
+                    mobil = str(df.iloc[idx, start_col + 5]) if pd.notna(df.iloc[idx, start_col + 5]) else ""
+                    
+                    # Nur relevante Mitarbeiter (mit Name oder E-Mail-Adresse)
+                    if name and name.strip() and name.strip() != "nan":
+                        # E-Mail-Adresse konstruieren oder direkte E-Mail
+                        if "@" in name:
+                            # Direkte E-Mail-Adresse
+                            email = name
+                            name = position if position else "E-Mail Verteiler"
+                            position = "Sammel-E-Mail"
+                        elif email_ind == "@" and name:
+                            # Standard E-Mail-Schema
+                            email_name = name.lower().replace(" ", ".").replace("ä", "ae").replace("ö", "oe").replace("ü", "ue").replace("ß", "ss")
+                            email = f"{email_name}@ramsperger-automobile.de"
+                        else:
+                            email = ""
+                        
+                        # Nur relevante Positionen filtern
+                        relevante_positionen = [
+                            "serviceberatung", "service", "teiledienst", "teil", 
+                            "gewährleistung", "verkauf", "leitung", "info", "assistenz",
+                            "sammel-e-mail", "verteiler"
+                        ]
+                        
+                        is_relevant = any(keyword in position.lower() for keyword in relevante_positionen) or \
+                                     any(keyword in name.lower() for keyword in relevante_positionen) or \
+                                     "@ramsperger-automobile.de" in email
+                        
+                        if is_relevant or position or email:
+                            mitarbeiter.append({
+                                "name": name.strip(),
+                                "position": position.strip(),
+                                "durchwahl": durchwahl.strip() if durchwahl != "nan" else "",
+                                "fax": fax.strip() if fax != "nan" else "",
+                                "mobil": mobil.strip() if mobil != "nan" else "",
+                                "email": email
+                            })
+                
+                # Filial-Key generieren
+                sheet_prefix = "KH" if sheet_name == "KH" else "NT"
+                filial_key = f"{sheet_prefix}_{gruppe['key_suffix'].replace('_', '')}"
+                
+                # Filial-Name aus Bereichsname ableiten
+                if "VW" in bereich_name and "NFZ" in bereich_name:
+                    filial_name = f"{sheet_prefix} - VW + NFZ Service"
+                elif "VW" in bereich_name and "Economy" in bereich_name:
+                    filial_name = f"{sheet_prefix} - VW Economy Service" 
+                elif "Audi" in bereich_name:
+                    filial_name = f"{sheet_prefix} - Audi"
+                elif "SEAT" in bereich_name:
+                    filial_name = f"{sheet_prefix} - SEAT"
+                elif "VW" in bereich_name:
+                    filial_name = f"{sheet_prefix} - VW"
+                else:
+                    filial_name = f"{sheet_prefix} - {bereich_name[:20]}"
+                
+                if mitarbeiter:  # Nur wenn Mitarbeiter vorhanden
+                    filial_data[filial_key] = {
+                        "filial_name": filial_name,
+                        "bereich": bereich_name.strip(),
+                        "adresse": adresse.strip(),
+                        "zentrale": zentrale.strip(),
+                        "verteiler": verteiler.strip(),
+                        "mitarbeiter": mitarbeiter
+                    }
+        
+        return filial_data
+        
+    except Exception as e:
+        st.error(f"Fehler beim Laden der Excel-Datei: {str(e)}")
+        return {}
+
+def get_filial_data():
+    """Gibt die Filial- und Mitarbeiterstruktur aus der Excel-Datei zurück"""
+    return load_excel_data()
+
+def get_filial_options():
+    """Gibt die Optionen für das Filial-Dropdown zurück"""
+    filial_data = get_filial_data()
+    options = []
+    for key, data in filial_data.items():
+        options.append((key, data["filial_name"]))
+    return options
+
+def get_mitarbeiter_for_filial(filial_key):
+    """Gibt die Mitarbeiter für eine bestimmte Filiale zurück"""
+    filial_data = get_filial_data()
+    if filial_key in filial_data:
+        return filial_data[filial_key]["mitarbeiter"]
+    return []
+
+def get_filial_info(filial_key):
+    """Gibt alle Informationen zu einer Filiale zurück"""
+    filial_data = get_filial_data()
+    return filial_data.get(filial_key, {})
+
+def build_phone_number(zentrale, durchwahl):
+    """Baut komplette Telefonnummer aus Zentrale + Durchwahl"""
+    if not durchwahl or durchwahl.strip() == "":
+        return zentrale
+    if not zentrale:
+        return durchwahl
+    
+    # Zentrale bereinigen
+    zentrale_clean = zentrale.replace("Zentrale ", "").replace("Zentr. ", "").strip()
+    if "-" in zentrale_clean:
+        base = zentrale_clean.split("-")[0]
+        return f"{base}-{durchwahl}"
+    return f"{zentrale_clean}-{durchwahl}"
+
+# ================================================================================================
 # HELPER FUNCTIONS (APP)
 # ================================================================================================
 def get_efficiency_emoji(rating):
@@ -276,7 +451,7 @@ def format_eur(value: float) -> str:
 
 def _header_footer(canvas, doc):
     """
-    Header mit Ramsperger Logo (20% größer) + Footer mit Seitenzahl.
+    Header mit Ramsperger Logo (20% größer) + Footer mit Filialinformationen.
     """
     canvas.saveState()
     width, height = A4
@@ -312,10 +487,15 @@ def _header_footer(canvas, doc):
     canvas.setLineWidth(0.5)
     canvas.line(margin, height - margin + 2, width - margin, height - margin + 2)
 
-    # Footer mit Seitenzahl
+    # Footer mit Filialinformationen
     canvas.setFont("Helvetica", 8.5)
     canvas.setFillColor(colors.black)
-    canvas.drawRightString(width - margin, margin - 8, f"Seite {doc.page}")
+    
+    # Filialinformationen aus Session State
+    filial_info = st.session_state.get('selected_filial_info', {})
+    if filial_info:
+        filial_text = f"{filial_info.get('bereich', '')} | {filial_info.get('adresse', '')} | Tel: {filial_info.get('zentrale', '')}"
+        canvas.drawString(margin, margin - 8, filial_text)
 
     canvas.restoreState()
 
@@ -627,15 +807,43 @@ def create_professional_pdf(customer_data=None, offer_scenario="vergleich", dete
     
     bullets.extend([
         "Alle Preise verstehen sich inklusive der gewählten Service-Leistungen.",
-        "Montage und Service werden von unseren Fachkräften durchgeführt.",
-        "Für Rückfragen stehen wir Ihnen gerne zur Verfügung."
+        "Montage und Service werden von unseren Fachkräften durchgeführt."
     ])
     for b in bullets:
         story.append(_p(f"• {b}", small))
     story.append(Spacer(1, 3))
 
+    # Geänderte Reihenfolge: Zuerst "Vielen Dank", dann "Für Rückfragen", dann Mitarbeiter
     story.append(_p("Vielen Dank für Ihr Vertrauen!", h2))
     story.append(_p("Ihr Team vom Autohaus Ramsperger", normal))
+    story.append(Spacer(1, 3))
+    
+    story.append(_p("Für Rückfragen stehen wir Ihnen gerne zur Verfügung.", small))
+    story.append(Spacer(1, 3))
+
+    # Mitarbeiterinformationen hinzufügen
+    selected_mitarbeiter = st.session_state.get('selected_mitarbeiter_info', {})
+    if selected_mitarbeiter:
+        mitarbeiter_name = selected_mitarbeiter.get('name', '')
+        mitarbeiter_position = selected_mitarbeiter.get('position', '')
+        mitarbeiter_email = selected_mitarbeiter.get('email', '')
+        
+        # Telefonnummer aufbauen
+        filial_info = st.session_state.get('selected_filial_info', {})
+        zentrale = filial_info.get('zentrale', '')
+        durchwahl = selected_mitarbeiter.get('durchwahl', '')
+        telefon = build_phone_number(zentrale, durchwahl) if durchwahl else zentrale
+        
+        mitarbeiter_text = f"<b>{mitarbeiter_name}</b>"
+        if mitarbeiter_position and not mitarbeiter_position.endswith("E-Mail") and mitarbeiter_position != "Interner Verteiler":
+            mitarbeiter_text += f", {mitarbeiter_position}"
+        mitarbeiter_text += "<br/>"
+        if telefon:
+            mitarbeiter_text += f"Tel: {telefon}"
+        if mitarbeiter_email:
+            mitarbeiter_text += f" | E-Mail: {mitarbeiter_email}"
+        
+        story.append(_p(mitarbeiter_text, small))
 
     doc.build(story, onFirstPage=_header_footer, onLaterPages=_header_footer)
     buffer.seek(0)
@@ -791,6 +999,16 @@ def init_session_state():
 
     if 'pdf_created' not in st.session_state:
         st.session_state.pdf_created = False
+
+    # Filial- und Mitarbeiter-Session States
+    if 'selected_filial' not in st.session_state:
+        st.session_state.selected_filial = ""
+    if 'selected_mitarbeiter' not in st.session_state:
+        st.session_state.selected_mitarbeiter = ""
+    if 'selected_filial_info' not in st.session_state:
+        st.session_state.selected_filial_info = {}
+    if 'selected_mitarbeiter_info' not in st.session_state:
+        st.session_state.selected_mitarbeiter_info = {}
 
     st.session_state.setdefault('customer_anrede', st.session_state.customer_data.get('anrede',''))
     st.session_state.setdefault('customer_name', st.session_state.customer_data.get('name',''))
@@ -975,6 +1193,90 @@ def render_customer_data():
         'fahrgestellnummer_2': st.session_state.get('customer_fahrgestell_2','')
     }
 
+def render_filial_mitarbeiter_selection():
+    """Neue Funktion für die Filial- und Mitarbeiterauswahl mit dynamischen Excel-Daten"""
+    st.markdown("---")
+    st.markdown("#### Filiale und Ansprechpartner auswählen")
+    st.markdown("Diese Informationen werden in das Angebot und den Footer aufgenommen:")
+    
+    # Filial-Daten laden
+    filial_data = get_filial_data()
+    
+    if not filial_data:
+        st.error("Excel-Daten konnten nicht geladen werden. Bitte prüfen Sie, ob die Datei 'Telefonverzeichnis (1).xlsx' im data/ Ordner liegt.")
+        return
+    
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        # Filial-Dropdown
+        filial_options = get_filial_options()
+        selected_filial = st.selectbox(
+            "Filiale:",
+            options=[""] + [key for key, _ in filial_options],
+            format_func=lambda x: "Bitte wählen..." if x == "" else next((name for key, name in filial_options if key == x), x),
+            key="selected_filial_key",
+            help="Auswahl der Filiale für Adresse und Telefon im PDF"
+        )
+        
+        # Filial-Info in Session State speichern
+        if selected_filial:
+            st.session_state.selected_filial = selected_filial
+            st.session_state.selected_filial_info = get_filial_info(selected_filial)
+        else:
+            st.session_state.selected_filial = ""
+            st.session_state.selected_filial_info = {}
+    
+    with col2:
+        # Mitarbeiter-Dropdown (nur wenn Filiale gewählt)
+        if st.session_state.selected_filial:
+            mitarbeiter = get_mitarbeiter_for_filial(st.session_state.selected_filial)
+            
+            if mitarbeiter:
+                selected_mitarbeiter_idx = st.selectbox(
+                    "Ansprechpartner:",
+                    options=list(range(-1, len(mitarbeiter))),
+                    format_func=lambda x: "Bitte wählen..." if x == -1 else f"{mitarbeiter[x]['name']} ({mitarbeiter[x]['position']})" if x >= 0 else "",
+                    key="selected_mitarbeiter_key",
+                    help="Auswahl des Ansprechpartners für das PDF"
+                )
+                
+                # Mitarbeiter-Info in Session State speichern
+                if selected_mitarbeiter_idx >= 0:
+                    st.session_state.selected_mitarbeiter = selected_mitarbeiter_idx
+                    st.session_state.selected_mitarbeiter_info = mitarbeiter[selected_mitarbeiter_idx]
+                else:
+                    st.session_state.selected_mitarbeiter = ""
+                    st.session_state.selected_mitarbeiter_info = {}
+            else:
+                st.info("Keine Mitarbeiter für diese Filiale verfügbar")
+        else:
+            st.selectbox("Ansprechpartner:", options=[], disabled=True, help="Bitte zuerst eine Filiale auswählen")
+    
+    # Vorschau der ausgewählten Informationen
+    if st.session_state.selected_filial_info and st.session_state.selected_mitarbeiter_info:
+        st.markdown("##### Vorschau der Auswahl:")
+        filial_info = st.session_state.selected_filial_info
+        mitarbeiter_info = st.session_state.selected_mitarbeiter_info
+        
+        col_preview1, col_preview2 = st.columns(2)
+        
+        with col_preview1:
+            st.markdown("**Filiale:**")
+            st.markdown(f"{filial_info.get('bereich', '')}")
+            st.markdown(f"{filial_info.get('adresse', '')}")
+            st.markdown(f"Tel: {filial_info.get('zentrale', '')}")
+        
+        with col_preview2:
+            st.markdown("**Ansprechpartner:**")
+            st.markdown(f"**{mitarbeiter_info.get('name', '')}**")
+            st.markdown(f"{mitarbeiter_info.get('position', '')}")
+            if mitarbeiter_info.get('durchwahl'):
+                telefon = build_phone_number(filial_info.get('zentrale', ''), mitarbeiter_info.get('durchwahl', ''))
+                st.markdown(f"Tel: {telefon}")
+            if mitarbeiter_info.get('email'):
+                st.markdown(f"E-Mail: {mitarbeiter_info.get('email', '')}")
+
 def render_scenario_selection():
     st.markdown("---")
     st.markdown("#### Angebot-Typ auswählen")
@@ -1118,6 +1420,10 @@ def main():
     total, breakdown = get_cart_total()
     render_price_summary(total, breakdown)
     render_customer_data()
+    
+    # NEUE SEKTION: Filial- und Mitarbeiterauswahl mit dynamischen Excel-Daten
+    render_filial_mitarbeiter_selection()
+    
     detected = render_scenario_selection()
     render_actions(total, breakdown, detected)
 
