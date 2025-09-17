@@ -81,145 +81,740 @@ MAIN_CSS = """
 st.markdown(MAIN_CSS, unsafe_allow_html=True)
 
 # ================================================================================================
-# EXCEL-DATEN DYNAMISCH LADEN
+# FESTE FILIAL- UND MITARBEITERDATEN (ERSETZT EXCEL-ANBINDUNG)
 # ================================================================================================
-@st.cache_data
-def load_excel_data():
-    """Lädt die Excel-Datei aus dem data/ Ordner und extrahiert Filial- und Mitarbeiterdaten"""
-    try:
-        excel_path = Path("data/Telefonverzeichnis (1).xlsx")
-        if not excel_path.exists():
-            st.error(f"Excel-Datei nicht gefunden: {excel_path}")
-            return {}
-        
-        # Excel-Datei laden
-        excel_data = pd.ExcelFile(excel_path)
-        filial_data = {}
-        
-        # Beide Sheets verarbeiten
-        for sheet_name in excel_data.sheet_names:
-            df = pd.read_excel(excel_path, sheet_name=sheet_name, header=None)
-            
-            # Spaltengruppen definieren (basierend auf Excel-Struktur)
-            spalten_gruppen = [
-                {"start_col": 0, "end_col": 6, "key_suffix": "_1"},   # Spalten A-F
-                {"start_col": 7, "end_col": 13, "key_suffix": "_2"},  # Spalten H-M
-                {"start_col": 14, "end_col": 20, "key_suffix": "_3"}  # Spalten O-T
-            ]
-            
-            for gruppe in spalten_gruppen:
-                start_col = gruppe["start_col"]
-                key_suffix = gruppe["key_suffix"]
-                
-                # Bereichsname aus Zeile 0 extrahieren
-                bereich_name = str(df.iloc[0, start_col]) if pd.notna(df.iloc[0, start_col]) else ""
-                if not bereich_name or bereich_name.strip() == "":
-                    continue
-                
-                # Adresse aus Zeile 1
-                adresse = str(df.iloc[1, start_col]) if pd.notna(df.iloc[1, start_col]) else ""
-                
-                # Zentrale aus Zeile 2
-                zentrale = str(df.iloc[2, start_col]) if pd.notna(df.iloc[2, start_col]) else ""
-                if zentrale.startswith("Zentrale"):
-                    zentrale = zentrale.replace("Zentrale", "").strip()
-                
-                # E-Mail-Verteiler aus Zeile 3
-                verteiler = str(df.iloc[3, start_col]) if pd.notna(df.iloc[3, start_col]) else ""
-                if "@" in verteiler:
-                    verteiler = verteiler.split(":")[-1].strip() if ":" in verteiler else verteiler
-                else:
-                    verteiler = ""
-                
-                # Mitarbeiter extrahieren (ab Zeile 4)
-                mitarbeiter = []
-                for idx in range(4, len(df)):
-                    # Position
-                    position = str(df.iloc[idx, start_col]) if pd.notna(df.iloc[idx, start_col]) else ""
-                    # Name 
-                    name = str(df.iloc[idx, start_col + 1]) if pd.notna(df.iloc[idx, start_col + 1]) else ""
-                    # E-Mail-Indicator
-                    email_ind = str(df.iloc[idx, start_col + 2]) if pd.notna(df.iloc[idx, start_col + 2]) else ""
-                    # Durchwahl
-                    durchwahl = str(df.iloc[idx, start_col + 3]) if pd.notna(df.iloc[idx, start_col + 3]) else ""
-                    # Fax
-                    fax = str(df.iloc[idx, start_col + 4]) if pd.notna(df.iloc[idx, start_col + 4]) else ""
-                    # Mobil
-                    mobil = str(df.iloc[idx, start_col + 5]) if pd.notna(df.iloc[idx, start_col + 5]) else ""
-                    
-                    # Nur relevante Mitarbeiter (mit Name oder E-Mail-Adresse)
-                    if name and name.strip() and name.strip() != "nan":
-                        # E-Mail-Adresse konstruieren oder direkte E-Mail
-                        if "@" in name:
-                            # Direkte E-Mail-Adresse
-                            email = name
-                            name = position if position else "E-Mail Verteiler"
-                            position = "Sammel-E-Mail"
-                        elif email_ind == "@" and name:
-                            # Standard E-Mail-Schema
-                            email_name = name.lower().replace(" ", ".").replace("ä", "ae").replace("ö", "oe").replace("ü", "ue").replace("ß", "ss")
-                            email = f"{email_name}@ramsperger-automobile.de"
-                        else:
-                            email = ""
-                        
-                        # Nur relevante Positionen filtern
-                        relevante_positionen = [
-                            "serviceberatung", "service", "teiledienst", "teil", 
-                            "gewährleistung", "verkauf", "leitung", "info", "assistenz",
-                            "sammel-e-mail", "verteiler"
-                        ]
-                        
-                        is_relevant = any(keyword in position.lower() for keyword in relevante_positionen) or \
-                                     any(keyword in name.lower() for keyword in relevante_positionen) or \
-                                     "@ramsperger-automobile.de" in email
-                        
-                        if is_relevant or position or email:
-                            mitarbeiter.append({
-                                "name": name.strip(),
-                                "position": position.strip(),
-                                "durchwahl": durchwahl.strip() if durchwahl != "nan" else "",
-                                "fax": fax.strip() if fax != "nan" else "",
-                                "mobil": mobil.strip() if mobil != "nan" else "",
-                                "email": email
-                            })
-                
-                # Filial-Key generieren
-                sheet_prefix = "KH" if sheet_name == "KH" else "NT"
-                filial_key = f"{sheet_prefix}_{gruppe['key_suffix'].replace('_', '')}"
-                
-                # Filial-Name aus Bereichsname ableiten
-                if "VW" in bereich_name and "NFZ" in bereich_name:
-                    filial_name = f"{sheet_prefix} - VW + NFZ Service"
-                elif "VW" in bereich_name and "Economy" in bereich_name:
-                    filial_name = f"{sheet_prefix} - VW Economy Service" 
-                elif "Audi" in bereich_name:
-                    filial_name = f"{sheet_prefix} - Audi"
-                elif "SEAT" in bereich_name:
-                    filial_name = f"{sheet_prefix} - SEAT"
-                elif "VW" in bereich_name:
-                    filial_name = f"{sheet_prefix} - VW"
-                else:
-                    filial_name = f"{sheet_prefix} - {bereich_name[:20]}"
-                
-                if mitarbeiter:  # Nur wenn Mitarbeiter vorhanden
-                    filial_data[filial_key] = {
-                        "filial_name": filial_name,
-                        "bereich": bereich_name.strip(),
-                        "adresse": adresse.strip(),
-                        "zentrale": zentrale.strip(),
-                        "verteiler": verteiler.strip(),
-                        "mitarbeiter": mitarbeiter
-                    }
-        
-        return filial_data
-        
-    except Exception as e:
-        st.error(f"Fehler beim Laden der Excel-Datei: {str(e)}")
-        return {}
-
 def get_filial_data():
-    """Gibt die Filial- und Mitarbeiterstruktur aus der Excel-Datei zurück"""
-    return load_excel_data()
+    """Gibt die fest definierte Filial- und Mitarbeiterstruktur zurück"""
+    return {
+        "vw_kh": {
+            "filial_name": "KH - VW",
+            "bereich": "VW",
+            "adresse": "Hindenburgstr. 45 | 73230 Kirchheim",
+            "zentrale": "07021/5001-100",
+            "verteiler": "ma-vw-kh@ramsperger-automobile.de",
+            "mitarbeiter": [
+                {
+                    "name": "ma-vw-kh@ramsperger-automobile.de",
+                    "position": "Management E-Mail",
+                    "durchwahl": "",
+                    "fax": "",
+                    "mobil": "",
+                    "email": "ma-vw-kh@ramsperger-automobile.de"
+                },
+                {
+                    "name": "sb-vw-kh@ramsperger-automobile.de",
+                    "position": "Serviceberatung Sammel-E-Mail",
+                    "durchwahl": "",
+                    "fax": "",
+                    "mobil": "",
+                    "email": "sb-vw-kh@ramsperger-automobile.de"
+                },
+                {
+                    "name": "td-vw-kh@ramsperger-automobile.de",
+                    "position": "Teiledienst Sammel-E-Mail",
+                    "durchwahl": "",
+                    "fax": "",
+                    "mobil": "",
+                    "email": "td-vw-kh@ramsperger-automobile.de"
+                },
+                {
+                    "name": "Etienne Winkler",
+                    "position": "Serviceberatung",
+                    "durchwahl": "120",
+                    "fax": "",
+                    "mobil": "",
+                    "email": "etienne.winkler@ramsperger-automobile.de"
+                },
+                {
+                    "name": "Jonas Reich",
+                    "position": "Serviceberatung",
+                    "durchwahl": "121",
+                    "fax": "",
+                    "mobil": "",
+                    "email": "jonas.reich@ramsperger-automobile.de"
+                },
+                {
+                    "name": "Jürgen Nöpel",
+                    "position": "Serviceberatung",
+                    "durchwahl": "122",
+                    "fax": "",
+                    "mobil": "",
+                    "email": "juergen.noepel@ramsperger-automobile.de"
+                },
+                {
+                    "name": "Thomas Salomon",
+                    "position": "Serviceberatung",
+                    "durchwahl": "123",
+                    "fax": "",
+                    "mobil": "",
+                    "email": "thomas.salomon@ramsperger-automobile.de"
+                },
+                {
+                    "name": "Gabriele Randazzo",
+                    "position": "Teiledienst",
+                    "durchwahl": "130",
+                    "fax": "",
+                    "mobil": "",
+                    "email": "gabriele.randazzo@ramsperger-automobile.de"
+                },
+                {
+                    "name": "Steffen Schmidt",
+                    "position": "Teiledienst",
+                    "durchwahl": "131",
+                    "fax": "",
+                    "mobil": "",
+                    "email": "steffen.schmidt@ramsperger-automobile.de"
+                },
+                {
+                    "name": "Sybille Kubis",
+                    "position": "Teiledienst",
+                    "durchwahl": "132",
+                    "fax": "",
+                    "mobil": "",
+                    "email": "sybille.kubis@ramsperger-automobile.de"
+                },
+                {
+                    "name": "Steffen Brüssow",
+                    "position": "Teiledienst",
+                    "durchwahl": "133",
+                    "fax": "",
+                    "mobil": "",
+                    "email": "steffen.bruessow@ramsperger-automobile.de"
+                }
+            ]
+        },
+        "vw_nfz_kh": {
+            "filial_name": "KH - VW NFZ Service",
+            "bereich": "VW NFZ Service",
+            "adresse": "Lenninger Str. 15 | 73230 Kirchheim",
+            "zentrale": "07021/5001-200",
+            "verteiler": "ma-vw-nfz@ramsperger-automobile.de",
+            "mitarbeiter": [
+                {
+                    "name": "ma-vw-nfz@ramsperger-automobile.de",
+                    "position": "Management E-Mail",
+                    "durchwahl": "",
+                    "fax": "",
+                    "mobil": "",
+                    "email": "ma-vw-nfz@ramsperger-automobile.de"
+                },
+                {
+                    "name": "sb-nfz-kh@ramsperger-automobile.de",
+                    "position": "Serviceberatung Sammel-E-Mail",
+                    "durchwahl": "",
+                    "fax": "",
+                    "mobil": "",
+                    "email": "sb-nfz-kh@ramsperger-automobile.de"
+                },
+                {
+                    "name": "td-nfz-kh@ramsperger-automobile.de",
+                    "position": "Teiledienst Sammel-E-Mail",
+                    "durchwahl": "",
+                    "fax": "",
+                    "mobil": "",
+                    "email": "td-nfz-kh@ramsperger-automobile.de"
+                },
+                {
+                    "name": "Anesh Chandra Kumaran",
+                    "position": "Serviceberatung",
+                    "durchwahl": "220",
+                    "fax": "",
+                    "mobil": "",
+                    "email": "anesh.kumaran@ramsperger-automobile.de"
+                },
+                {
+                    "name": "Damiano De Biase",
+                    "position": "Serviceberatung",
+                    "durchwahl": "221",
+                    "fax": "",
+                    "mobil": "",
+                    "email": "damiano.debiase@ramsperger-automobile.de"
+                },
+                {
+                    "name": "Jörg Peter",
+                    "position": "Serviceberatung",
+                    "durchwahl": "222",
+                    "fax": "",
+                    "mobil": "",
+                    "email": "joerg.peter@ramsperger-automobile.de"
+                },
+                {
+                    "name": "Jannick Klosius",
+                    "position": "Serviceberatung",
+                    "durchwahl": "223",
+                    "fax": "",
+                    "mobil": "",
+                    "email": "jannick.klosius@ramsperger-automobile.de"
+                },
+                {
+                    "name": "Gabriele Randazzo",
+                    "position": "Teiledienst",
+                    "durchwahl": "230",
+                    "fax": "",
+                    "mobil": "",
+                    "email": "gabriele.randazzo@ramsperger-automobile.de"
+                },
+                {
+                    "name": "Horst Carrle",
+                    "position": "Teiledienst",
+                    "durchwahl": "231",
+                    "fax": "",
+                    "mobil": "",
+                    "email": "horst.carrle@ramsperger-automobile.de"
+                },
+                {
+                    "name": "Andreas Renz",
+                    "position": "Teiledienst",
+                    "durchwahl": "232",
+                    "fax": "",
+                    "mobil": "",
+                    "email": "andreas.renz@ramsperger-automobile.de"
+                },
+                {
+                    "name": "Enes Cetinkaya",
+                    "position": "Teiledienst",
+                    "durchwahl": "233",
+                    "fax": "",
+                    "mobil": "",
+                    "email": "enes.cetinkaya@ramsperger-automobile.de"
+                }
+            ]
+        },
+        "audi_kh": {
+            "filial_name": "KH - Audi",
+            "bereich": "Audi",
+            "adresse": "Nürtinger Str. 98 | 73230 Kirchheim",
+            "zentrale": "07021/5001-300",
+            "verteiler": "ma-audi@ramsperger-automobile.de",
+            "mitarbeiter": [
+                {
+                    "name": "ma-audi@ramsperger-automobile.de",
+                    "position": "Management E-Mail",
+                    "durchwahl": "",
+                    "fax": "",
+                    "mobil": "",
+                    "email": "ma-audi@ramsperger-automobile.de"
+                },
+                {
+                    "name": "sb-audi-kh@ramsperger-automobile.de",
+                    "position": "Serviceberatung Sammel-E-Mail",
+                    "durchwahl": "",
+                    "fax": "",
+                    "mobil": "",
+                    "email": "sb-audi-kh@ramsperger-automobile.de"
+                },
+                {
+                    "name": "td-audi-kh@ramsperger-automobile.de",
+                    "position": "Teiledienst Sammel-E-Mail",
+                    "durchwahl": "",
+                    "fax": "",
+                    "mobil": "",
+                    "email": "td-audi-kh@ramsperger-automobile.de"
+                },
+                {
+                    "name": "Martin Rams",
+                    "position": "Serviceberatung",
+                    "durchwahl": "320",
+                    "fax": "",
+                    "mobil": "",
+                    "email": "martin.rams@ramsperger-automobile.de"
+                },
+                {
+                    "name": "Patrick Zeyfang",
+                    "position": "Serviceberatung",
+                    "durchwahl": "321",
+                    "fax": "",
+                    "mobil": "",
+                    "email": "patrick.zeyfang@ramsperger-automobile.de"
+                },
+                {
+                    "name": "Edmund Deuschle",
+                    "position": "Serviceberatung",
+                    "durchwahl": "322",
+                    "fax": "",
+                    "mobil": "",
+                    "email": "edmund.deuschle@ramsperger-automobile.de"
+                },
+                {
+                    "name": "Kaan Köse",
+                    "position": "Serviceberatung",
+                    "durchwahl": "323",
+                    "fax": "",
+                    "mobil": "",
+                    "email": "kaan.koese@ramsperger-automobile.de"
+                },
+                {
+                    "name": "Florian Neu",
+                    "position": "Serviceberatung",
+                    "durchwahl": "324",
+                    "fax": "",
+                    "mobil": "",
+                    "email": "florian.neu@ramsperger-automobile.de"
+                },
+                {
+                    "name": "Tobias Sebert",
+                    "position": "Serviceberatung",
+                    "durchwahl": "325",
+                    "fax": "",
+                    "mobil": "",
+                    "email": "tobias.sebert@ramsperger-automobile.de"
+                },
+                {
+                    "name": "Philipp Häberle",
+                    "position": "Teiledienst",
+                    "durchwahl": "330",
+                    "fax": "",
+                    "mobil": "",
+                    "email": "philipp.haeberle@ramsperger-automobile.de"
+                },
+                {
+                    "name": "Krisztian Kopasz",
+                    "position": "Teiledienst",
+                    "durchwahl": "331",
+                    "fax": "",
+                    "mobil": "",
+                    "email": "krisztian.kopasz@ramsperger-automobile.de"
+                },
+                {
+                    "name": "Yilmaz Yildirim",
+                    "position": "Teiledienst",
+                    "durchwahl": "332",
+                    "fax": "",
+                    "mobil": "",
+                    "email": "yilmaz.yildirim@ramsperger-automobile.de"
+                },
+                {
+                    "name": "Kevin Simon",
+                    "position": "Teiledienst",
+                    "durchwahl": "333",
+                    "fax": "",
+                    "mobil": "",
+                    "email": "kevin.simon@ramsperger-automobile.de"
+                }
+            ]
+        },
+        "skoda_kh": {
+            "filial_name": "KH - ŠKODA",
+            "bereich": "ŠKODA",
+            "adresse": "Sudetenstr. 9 | 73230 Kirchheim",
+            "zentrale": "07021/5001-800",
+            "verteiler": "ma-skoda@ramsperger-automobile.de",
+            "mitarbeiter": [
+                {
+                    "name": "ma-skoda@ramsperger-automobile.de",
+                    "position": "Management E-Mail",
+                    "durchwahl": "",
+                    "fax": "",
+                    "mobil": "",
+                    "email": "ma-skoda@ramsperger-automobile.de"
+                },
+                {
+                    "name": "sb-skoda-kh@ramsperger-automobile.de",
+                    "position": "Serviceberatung Sammel-E-Mail",
+                    "durchwahl": "",
+                    "fax": "",
+                    "mobil": "",
+                    "email": "sb-skoda-kh@ramsperger-automobile.de"
+                },
+                {
+                    "name": "td-skoda-kh@ramsperger-automobile.de",
+                    "position": "Teiledienst Sammel-E-Mail",
+                    "durchwahl": "",
+                    "fax": "",
+                    "mobil": "",
+                    "email": "td-skoda-kh@ramsperger-automobile.de"
+                },
+                {
+                    "name": "Thomas Wolpert",
+                    "position": "Serviceberatung",
+                    "durchwahl": "820",
+                    "fax": "",
+                    "mobil": "",
+                    "email": "thomas.wolpert@ramsperger-automobile.de"
+                },
+                {
+                    "name": "Tim Zerlaut",
+                    "position": "Serviceberatung",
+                    "durchwahl": "821",
+                    "fax": "",
+                    "mobil": "",
+                    "email": "tim.zerlaut@ramsperger-automobile.de"
+                },
+                {
+                    "name": "Frank Abele",
+                    "position": "Serviceberatung",
+                    "durchwahl": "822",
+                    "fax": "",
+                    "mobil": "",
+                    "email": "frank.abele@ramsperger-automobile.de"
+                },
+                {
+                    "name": "Gabriele Randazzo",
+                    "position": "Teiledienst",
+                    "durchwahl": "830",
+                    "fax": "",
+                    "mobil": "",
+                    "email": "gabriele.randazzo@ramsperger-automobile.de"
+                },
+                {
+                    "name": "Ilirjon Sutaj",
+                    "position": "Teiledienst",
+                    "durchwahl": "831",
+                    "fax": "",
+                    "mobil": "",
+                    "email": "ilirjon.sutaj@ramsperger-automobile.de"
+                },
+                {
+                    "name": "Matthias Zadka",
+                    "position": "Teiledienst",
+                    "durchwahl": "832",
+                    "fax": "",
+                    "mobil": "",
+                    "email": "matthias.zadka@ramsperger-automobile.de"
+                }
+            ]
+        },
+        "vw_nt": {
+            "filial_name": "NT - VW NFZ Service / ŠKODA Service",
+            "bereich": "VW NFZ Service / ŠKODA Service",
+            "adresse": "Robert-Bosch-Str. 9-11 | 72622 Nürtingen",
+            "zentrale": "07022/9211-0",
+            "verteiler": "ma-vw-nt@ramsperger-automobile.de",
+            "mitarbeiter": [
+                {
+                    "name": "ma-vw-nt@ramsperger-automobile.de",
+                    "position": "Management E-Mail",
+                    "durchwahl": "",
+                    "fax": "",
+                    "mobil": "",
+                    "email": "ma-vw-nt@ramsperger-automobile.de"
+                },
+                {
+                    "name": "sb-vw-nt@ramsperger-automobile.de",
+                    "position": "Serviceberatung Sammel-E-Mail",
+                    "durchwahl": "",
+                    "fax": "",
+                    "mobil": "",
+                    "email": "sb-vw-nt@ramsperger-automobile.de"
+                },
+                {
+                    "name": "td-vw-nt@ramsperger-automobile.de",
+                    "position": "Teiledienst Sammel-E-Mail",
+                    "durchwahl": "",
+                    "fax": "",
+                    "mobil": "",
+                    "email": "td-vw-nt@ramsperger-automobile.de"
+                },
+                {
+                    "name": "Frank Trost",
+                    "position": "Serviceberatung",
+                    "durchwahl": "620",
+                    "fax": "",
+                    "mobil": "",
+                    "email": "frank.trost@ramsperger-automobile.de"
+                },
+                {
+                    "name": "Frank Dreher",
+                    "position": "Serviceberatung",
+                    "durchwahl": "621",
+                    "fax": "",
+                    "mobil": "",
+                    "email": "frank.dreher@ramsperger-automobile.de"
+                },
+                {
+                    "name": "Michael Stallherm",
+                    "position": "Serviceberatung",
+                    "durchwahl": "622",
+                    "fax": "",
+                    "mobil": "",
+                    "email": "michael.stallherm@ramsperger-automobile.de"
+                },
+                {
+                    "name": "Rafael Weikum",
+                    "position": "Serviceberatung",
+                    "durchwahl": "623",
+                    "fax": "",
+                    "mobil": "",
+                    "email": "rafael.weikum@ramsperger-automobile.de"
+                },
+                {
+                    "name": "Jürgen Burkhardt",
+                    "position": "Serviceberatung",
+                    "durchwahl": "624",
+                    "fax": "",
+                    "mobil": "",
+                    "email": "juergen.burkhardt@ramsperger-automobile.de"
+                },
+                {
+                    "name": "Christopher Eisenhardt",
+                    "position": "Teiledienst",
+                    "durchwahl": "630",
+                    "fax": "",
+                    "mobil": "",
+                    "email": "christopher.eisenhardt@ramsperger-automobile.de"
+                },
+                {
+                    "name": "Daniel Koller",
+                    "position": "Teiledienst",
+                    "durchwahl": "631",
+                    "fax": "",
+                    "mobil": "",
+                    "email": "daniel.koller@ramsperger-automobile.de"
+                },
+                {
+                    "name": "Igor Povalec",
+                    "position": "Teiledienst",
+                    "durchwahl": "632",
+                    "fax": "",
+                    "mobil": "",
+                    "email": "igor.povalec@ramsperger-automobile.de"
+                },
+                {
+                    "name": "Dimitrij Weiß",
+                    "position": "Teiledienst",
+                    "durchwahl": "633",
+                    "fax": "",
+                    "mobil": "",
+                    "email": "dimitrij.weiss@ramsperger-automobile.de"
+                },
+                {
+                    "name": "Roberto Greco",
+                    "position": "Teiledienst",
+                    "durchwahl": "634",
+                    "fax": "",
+                    "mobil": "",
+                    "email": "roberto.greco@ramsperger-automobile.de"
+                }
+            ]
+        },
+        "vw_economy_nt": {
+            "filial_name": "NT - VW Economy Service",
+            "bereich": "VW Economy Service",
+            "adresse": "Neuffener Str. 138 | 72622 Nürtingen",
+            "zentrale": "07022/9211-510",
+            "verteiler": "ma-ecs-nt@ramsperger-automobile.de",
+            "mitarbeiter": [
+                {
+                    "name": "ma-ecs-nt@ramsperger-automobile.de",
+                    "position": "Management E-Mail",
+                    "durchwahl": "",
+                    "fax": "",
+                    "mobil": "",
+                    "email": "ma-ecs-nt@ramsperger-automobile.de"
+                },
+                {
+                    "name": "José Lopes",
+                    "position": "Serviceberatung",
+                    "durchwahl": "520",
+                    "fax": "",
+                    "mobil": "",
+                    "email": "jose.lopes@ramsperger-automobile.de"
+                },
+                {
+                    "name": "Timo Klingler",
+                    "position": "Serviceberatung",
+                    "durchwahl": "521",
+                    "fax": "",
+                    "mobil": "",
+                    "email": "timo.klingler@ramsperger-automobile.de"
+                },
+                {
+                    "name": "Jan Tetting",
+                    "position": "Serviceberatung",
+                    "durchwahl": "522",
+                    "fax": "",
+                    "mobil": "",
+                    "email": "jan.tetting@ramsperger-automobile.de"
+                },
+                {
+                    "name": "Jürgen Burkhardt",
+                    "position": "Serviceberatung",
+                    "durchwahl": "523",
+                    "fax": "",
+                    "mobil": "",
+                    "email": "juergen.burkhardt@ramsperger-automobile.de"
+                },
+                {
+                    "name": "Christian Knapp",
+                    "position": "Serviceberatung",
+                    "durchwahl": "524",
+                    "fax": "",
+                    "mobil": "",
+                    "email": "christian.knapp@ramsperger-automobile.de"
+                }
+            ]
+        },
+        "vw_economy_ntz": {
+            "filial_name": "NTZ - VW Economy Service",
+            "bereich": "VW Economy Service",
+            "adresse": "Robert-Bosch-Str. 1-3 | 72654 Neckartenzlingen",
+            "zentrale": "07022/9211-700",
+            "verteiler": "ma-ecs-ntz@ramsperger-automobile.de",
+            "mitarbeiter": [
+                {
+                    "name": "ma-ecs-ntz@ramsperger-automobile.de",
+                    "position": "Management E-Mail",
+                    "durchwahl": "",
+                    "fax": "",
+                    "mobil": "",
+                    "email": "ma-ecs-ntz@ramsperger-automobile.de"
+                },
+                {
+                    "name": "sb-ecs-ntz@ramsperger-automobile.de",
+                    "position": "Serviceberatung Sammel-E-Mail",
+                    "durchwahl": "",
+                    "fax": "",
+                    "mobil": "",
+                    "email": "sb-ecs-ntz@ramsperger-automobile.de"
+                },
+                {
+                    "name": "td-ecs-ntz@ramsperger-automobile.de",
+                    "position": "Teiledienst Sammel-E-Mail",
+                    "durchwahl": "",
+                    "fax": "",
+                    "mobil": "",
+                    "email": "td-ecs-ntz@ramsperger-automobile.de"
+                },
+                {
+                    "name": "Nico Mercaldi",
+                    "position": "Serviceberatung",
+                    "durchwahl": "720",
+                    "fax": "",
+                    "mobil": "",
+                    "email": "nico.mercaldi@ramsperger-automobile.de"
+                },
+                {
+                    "name": "Dimitrios Dermentzopoulos",
+                    "position": "Serviceberatung",
+                    "durchwahl": "721",
+                    "fax": "",
+                    "mobil": "",
+                    "email": "dimitrios.dermentzopoulos@ramsperger-automobile.de"
+                },
+                {
+                    "name": "Peter Hauck",
+                    "position": "Serviceberatung",
+                    "durchwahl": "722",
+                    "fax": "",
+                    "mobil": "",
+                    "email": "peter.hauck@ramsperger-automobile.de"
+                },
+                {
+                    "name": "Jürgen Burkhardt",
+                    "position": "Serviceberatung",
+                    "durchwahl": "723",
+                    "fax": "",
+                    "mobil": "",
+                    "email": "juergen.burkhardt@ramsperger-automobile.de"
+                },
+                {
+                    "name": "Frank Wild",
+                    "position": "Teiledienst",
+                    "durchwahl": "730",
+                    "fax": "",
+                    "mobil": "",
+                    "email": "frank.wild@ramsperger-automobile.de"
+                },
+                {
+                    "name": "Marco Mundt",
+                    "position": "Teiledienst",
+                    "durchwahl": "731",
+                    "fax": "",
+                    "mobil": "",
+                    "email": "marco.mundt@ramsperger-automobile.de"
+                }
+            ]
+        },
+        "seat_nt": {
+            "filial_name": "NT - SEAT Cupra",
+            "bereich": "SEAT Cupra",
+            "adresse": "Otto-Hahn-Str. 3 | 72622 Nürtingen",
+            "zentrale": "07021/5001-900",
+            "verteiler": "ma-seat@ramsperger-automobile.de",
+            "mitarbeiter": [
+                {
+                    "name": "ma-seat@ramsperger-automobile.de",
+                    "position": "Management E-Mail",
+                    "durchwahl": "",
+                    "fax": "",
+                    "mobil": "",
+                    "email": "ma-seat@ramsperger-automobile.de"
+                },
+                {
+                    "name": "sb-seat-nt@ramsperger-automobile.de",
+                    "position": "Serviceberatung Sammel-E-Mail",
+                    "durchwahl": "",
+                    "fax": "",
+                    "mobil": "",
+                    "email": "sb-seat-nt@ramsperger-automobile.de"
+                },
+                {
+                    "name": "td-seat-nt@ramsperger-automobile.de",
+                    "position": "Teiledienst Sammel-E-Mail",
+                    "durchwahl": "",
+                    "fax": "",
+                    "mobil": "",
+                    "email": "td-seat-nt@ramsperger-automobile.de"
+                },
+                {
+                    "name": "Sebastian Müller",
+                    "position": "Serviceberatung",
+                    "durchwahl": "920",
+                    "fax": "",
+                    "mobil": "",
+                    "email": "sebastian.mueller@ramsperger-automobile.de"
+                },
+                {
+                    "name": "Andreas Windmeier",
+                    "position": "Serviceberatung",
+                    "durchwahl": "921",
+                    "fax": "",
+                    "mobil": "",
+                    "email": "andreas.windmeier@ramsperger-automobile.de"
+                },
+                {
+                    "name": "Rolf Werner",
+                    "position": "Serviceberatung",
+                    "durchwahl": "922",
+                    "fax": "",
+                    "mobil": "",
+                    "email": "rolf.werner@ramsperger-automobile.de"
+                },
+                {
+                    "name": "Jürgen Burkhardt",
+                    "position": "Serviceberatung",
+                    "durchwahl": "923",
+                    "fax": "",
+                    "mobil": "",
+                    "email": "juergen.burkhardt@ramsperger-automobile.de"
+                },
+                {
+                    "name": "Christoph Bongartz",
+                    "position": "Teiledienst",
+                    "durchwahl": "930",
+                    "fax": "",
+                    "mobil": "",
+                    "email": "christoph.bongartz@ramsperger-automobile.de"
+                },
+                {
+                    "name": "Stefan Pultermann",
+                    "position": "Teiledienst",
+                    "durchwahl": "931",
+                    "fax": "",
+                    "mobil": "",
+                    "email": "stefan.pultermann@ramsperger-automobile.de"
+                },
+                {
+                    "name": "Florian Krebs",
+                    "position": "Teiledienst",
+                    "durchwahl": "932",
+                    "fax": "",
+                    "mobil": "",
+                    "email": "florian.krebs@ramsperger-automobile.de"
+                }
+            ]
+        }
+    }
 
 def get_filial_options():
     """Gibt die Optionen für das Filial-Dropdown zurück"""
@@ -494,7 +1089,7 @@ def _header_footer(canvas, doc):
     # Filialinformationen aus Session State
     filial_info = st.session_state.get('selected_filial_info', {})
     if filial_info:
-        filial_text = f"{filial_info.get('bereich', '')} | {filial_info.get('adresse', '')} | Tel: {filial_info.get('zentrale', '')}"
+        filial_text = f"Ramsperger Automobile {filial_info.get('bereich', '')} {filial_info.get('adresse', '')} Telefon: {filial_info.get('zentrale', '')}"
         canvas.drawString(margin, margin - 8, filial_text)
 
     canvas.restoreState()
@@ -839,7 +1434,7 @@ def create_professional_pdf(customer_data=None, offer_scenario="vergleich", dete
             mitarbeiter_text += f", {mitarbeiter_position}"
         mitarbeiter_text += "<br/>"
         if telefon:
-            mitarbeiter_text += f"Tel: {telefon}"
+            mitarbeiter_text += f"Telefon: {telefon}"
         if mitarbeiter_email:
             mitarbeiter_text += f" | E-Mail: {mitarbeiter_email}"
         
@@ -1130,302 +1725,4 @@ def render_item_services(item):
                      key=f"cart_radwechsel_type_{item_id}",
                      on_change=_update_radwechsel_type, args=(item_id,))
 
-    st.checkbox(f"Einlagerung ({sp.get('nur_einlagerung',55.00):.2f}EUR)",
-                key=f"einlagerung_{item_id}",
-                on_change=_update_service, args=(item_id,'einlagerung'))
-
-def render_price_summary(total, breakdown):
-    st.markdown("---")
-    st.markdown("#### Preisübersicht")
-    col_breakdown, col_total = st.columns([2, 1])
-    with col_breakdown:
-        st.markdown(f"**Reifen-Kosten:** {breakdown['reifen']:.2f}EUR")
-        if breakdown['montage']>0: st.markdown(f"**Montage:** {breakdown['montage']:.2f}EUR")
-        if breakdown['radwechsel']>0: st.markdown(f"**Radwechsel:** {breakdown['radwechsel']:.2f}EUR")
-        if breakdown['einlagerung']>0: st.markdown(f"**Einlagerung:** {breakdown['einlagerung']:.2f}EUR")
-    with col_total:
-        st.markdown(f"### **GESAMT: {total:.2f}EUR**")
-
-def render_customer_data():
-    st.markdown("---")
-    st.markdown("#### Kundendaten (optional)")
-    st.markdown("Diese Angaben werden in das Angebot aufgenommen, falls gewünscht:")
-
-    # Anrede-Dropdown prominent platziert - ganze Breite
-    anrede_options = ["", "Herr", "Frau", "Firma"]
-    st.selectbox("Anrede:", 
-                 options=anrede_options, 
-                 key="customer_anrede", 
-                 help="Für personalisierte Ansprache in Angeboten und E-Mails")
-
-    # Rest der Kundendaten in zwei Spalten
-    col1, col2 = st.columns(2)
-    with col1:
-        st.text_input("Kundenname:", key="customer_name", placeholder="z.B. Max Mustermann")
-        st.text_input("E-Mail-Adresse:", key="customer_email", placeholder="z.B. max@mustermann.de", help="Für den E-Mail-Versand des Angebots")
-        st.text_input("Kennzeichen:", key="customer_kennzeichen", placeholder="z.B. GP-AB 123")
-    with col2:
-        st.text_input("Hersteller / Modell:", key="customer_modell", placeholder="z.B. BMW 3er E90")
-        st.text_input("Fahrgestellnummer:", key="customer_fahrgestell", placeholder="z.B. WBAVA31070F123456")
-
-    # Fahrzeug 2 Felder nur bei "separate" Szenario
-    if st.session_state.offer_scenario == "separate":
-        st.markdown("---")
-        st.markdown("##### Fahrzeug 2 (Separate Fahrzeuge)")
-        
-        col3, col4 = st.columns(2)
-        with col3:
-            st.text_input("Kennzeichen 2:", key="customer_kennzeichen_2", placeholder="z.B. GP-CD 456")
-            st.text_input("Hersteller / Modell 2:", key="customer_modell_2", placeholder="z.B. Audi A4 B9")
-        with col4:
-            st.text_input("Fahrgestellnummer 2:", key="customer_fahrgestell_2", placeholder="z.B. WAUEFE123456789")
-
-    # Session State Update
-    st.session_state.customer_data = {
-        'anrede': st.session_state.get('customer_anrede',''),
-        'name': st.session_state.get('customer_name',''),
-        'email': st.session_state.get('customer_email',''),
-        'kennzeichen': st.session_state.get('customer_kennzeichen',''),
-        'modell': st.session_state.get('customer_modell',''),
-        'fahrgestellnummer': st.session_state.get('customer_fahrgestell',''),
-        'kennzeichen_2': st.session_state.get('customer_kennzeichen_2',''),
-        'modell_2': st.session_state.get('customer_modell_2',''),
-        'fahrgestellnummer_2': st.session_state.get('customer_fahrgestell_2','')
-    }
-
-def render_filial_mitarbeiter_selection():
-    """Neue Funktion für die Filial- und Mitarbeiterauswahl mit dynamischen Excel-Daten"""
-    st.markdown("---")
-    st.markdown("#### Filiale und Ansprechpartner auswählen")
-    st.markdown("Diese Informationen werden in das Angebot und den Footer aufgenommen:")
-    
-    # Filial-Daten laden
-    filial_data = get_filial_data()
-    
-    if not filial_data:
-        st.error("Excel-Daten konnten nicht geladen werden. Bitte prüfen Sie, ob die Datei 'Telefonverzeichnis (1).xlsx' im data/ Ordner liegt.")
-        return
-    
-    col1, col2 = st.columns(2)
-    
-    with col1:
-        # Filial-Dropdown
-        filial_options = get_filial_options()
-        selected_filial = st.selectbox(
-            "Filiale:",
-            options=[""] + [key for key, _ in filial_options],
-            format_func=lambda x: "Bitte wählen..." if x == "" else next((name for key, name in filial_options if key == x), x),
-            key="selected_filial_key",
-            help="Auswahl der Filiale für Adresse und Telefon im PDF"
-        )
-        
-        # Filial-Info in Session State speichern
-        if selected_filial:
-            st.session_state.selected_filial = selected_filial
-            st.session_state.selected_filial_info = get_filial_info(selected_filial)
-        else:
-            st.session_state.selected_filial = ""
-            st.session_state.selected_filial_info = {}
-    
-    with col2:
-        # Mitarbeiter-Dropdown (nur wenn Filiale gewählt)
-        if st.session_state.selected_filial:
-            mitarbeiter = get_mitarbeiter_for_filial(st.session_state.selected_filial)
-            
-            if mitarbeiter:
-                selected_mitarbeiter_idx = st.selectbox(
-                    "Ansprechpartner:",
-                    options=list(range(-1, len(mitarbeiter))),
-                    format_func=lambda x: "Bitte wählen..." if x == -1 else f"{mitarbeiter[x]['name']} ({mitarbeiter[x]['position']})" if x >= 0 else "",
-                    key="selected_mitarbeiter_key",
-                    help="Auswahl des Ansprechpartners für das PDF"
-                )
-                
-                # Mitarbeiter-Info in Session State speichern
-                if selected_mitarbeiter_idx >= 0:
-                    st.session_state.selected_mitarbeiter = selected_mitarbeiter_idx
-                    st.session_state.selected_mitarbeiter_info = mitarbeiter[selected_mitarbeiter_idx]
-                else:
-                    st.session_state.selected_mitarbeiter = ""
-                    st.session_state.selected_mitarbeiter_info = {}
-            else:
-                st.info("Keine Mitarbeiter für diese Filiale verfügbar")
-        else:
-            st.selectbox("Ansprechpartner:", options=[], disabled=True, help="Bitte zuerst eine Filiale auswählen")
-    
-    # Vorschau der ausgewählten Informationen
-    if st.session_state.selected_filial_info and st.session_state.selected_mitarbeiter_info:
-        st.markdown("##### Vorschau der Auswahl:")
-        filial_info = st.session_state.selected_filial_info
-        mitarbeiter_info = st.session_state.selected_mitarbeiter_info
-        
-        col_preview1, col_preview2 = st.columns(2)
-        
-        with col_preview1:
-            st.markdown("**Filiale:**")
-            st.markdown(f"{filial_info.get('bereich', '')}")
-            st.markdown(f"{filial_info.get('adresse', '')}")
-            st.markdown(f"Tel: {filial_info.get('zentrale', '')}")
-        
-        with col_preview2:
-            st.markdown("**Ansprechpartner:**")
-            st.markdown(f"**{mitarbeiter_info.get('name', '')}**")
-            st.markdown(f"{mitarbeiter_info.get('position', '')}")
-            if mitarbeiter_info.get('durchwahl'):
-                telefon = build_phone_number(filial_info.get('zentrale', ''), mitarbeiter_info.get('durchwahl', ''))
-                st.markdown(f"Tel: {telefon}")
-            if mitarbeiter_info.get('email'):
-                st.markdown(f"E-Mail: {mitarbeiter_info.get('email', '')}")
-
-def render_scenario_selection():
-    st.markdown("---")
-    st.markdown("#### Angebot-Typ auswählen")
-
-    detected = detect_cart_season()
-    season_info = get_season_greeting_text(detected)
-
-    st.radio(
-        "Angebot-Szenario:",
-        options=["vergleich","separate","einzelangebot"],
-        format_func=lambda x: {
-            "vergleich":"Vergleichsangebot - Verschiedene Reifenoptionen zur Auswahl für ein Fahrzeug",
-            "separate":"Separate Fahrzeuge - Jede Position ist für ein anderes Fahrzeug",
-            "einzelangebot":"Einzelangebot - Spezifisches Angebot für die ausgewählten Reifen"
-        }[x],
-        key="offer_scenario"
-    )
-
-    if st.session_state.offer_scenario == "vergleich":
-        st.info(f"**Vergleichsangebot:** Der Kunde bekommt mehrere {season_info['season_name']}-Reifenoptionen zur Auswahl präsentiert und kann sich für eine davon entscheiden.")
-    elif st.session_state.offer_scenario == "separate":
-        st.info(f"**Separate Fahrzeuge:** Jede Position wird als separates Fahrzeug behandelt mit eigenständiger {season_info['season_name']}-Reifen-Berechnung.")
-    else:
-        st.info(f"**Einzelangebot:** Direktes, spezifisches Angebot für die ausgewählten {season_info['season_name']}-Reifen ohne Vergleichsoptionen.")
-
-    return detected
-
-def render_actions(total, breakdown, detected_season):
-    st.markdown("---")
-    st.markdown("#### PDF-Angebot erstellen")
-
-    col1, col2, col3, col4, col5 = st.columns(5)
-
-    with col1:
-        if st.button("📄 PDF-Angebot erstellen", use_container_width=True, type="primary"):
-            pdf_data = create_professional_pdf(
-                st.session_state.customer_data,
-                st.session_state.offer_scenario,
-                detected_season
-            )
-            if pdf_data:
-                st.session_state.current_email_text = create_email_text(
-                    st.session_state.customer_data,
-                    detected_season
-                )
-                ts = datetime.now().strftime("%Y%m%d_%H%M%S")
-                season_info = get_season_greeting_text(detected_season)
-                filename = f"Angebot_Ramsperger_{season_info['season_name']}_{ts}.pdf"
-
-                st.success("✅ PDF-Angebot erfolgreich erstellt!")
-                st.download_button(
-                    label="📥 PDF-Angebot herunterladen",
-                    data=pdf_data,
-                    file_name=filename,
-                    mime="application/pdf",
-                    use_container_width=True
-                )
-                st.session_state.pdf_created = True
-            else:
-                st.error("Fehler beim Erstellen der PDF-Datei")
-
-    with col2:
-        # Direkter mailto-Flow für Kundenangebot (mit Kunden-E-Mail)
-        customer_email = st.session_state.customer_data.get('email', '').strip()
-        if not customer_email:
-            st.button("📧 E-Mail fehlt", use_container_width=True, disabled=True,
-                      help="Bitte E-Mail-Adresse bei Kundendaten eingeben")
-        elif not st.session_state.pdf_created:
-            st.button("📧 Erst PDF erstellen", use_container_width=True, disabled=True,
-                      help="Bitte zuerst PDF-Angebot erstellen")
-        else:
-            mailto_link = create_mailto_link(
-                customer_email,
-                st.session_state.get('current_email_text', create_email_text(st.session_state.customer_data, detected_season)),
-                detected_season
-            )
-            if mailto_link:
-                st.link_button("📧 Per E-Mail senden", mailto_link,
-                               use_container_width=True, type="secondary",
-                               help="Öffnet Ihren Standard-Mailclient (z. B. Outlook Desktop)")
-            else:
-                st.button("📧 Ungültige E-Mail", use_container_width=True, disabled=True,
-                          help="Bitte E-Mail-Adresse prüfen")
-
-    with col3:
-        # TD-Anfrage Button - IMMER AKTIV, KEIN Empfänger vorgefüllt
-        td_email_text = create_td_email_text(st.session_state.customer_data, detected_season)
-        td_mailto_link = create_td_mailto_link(td_email_text)
-        
-        st.link_button("🔍 Reifen über TD anfragen", td_mailto_link,
-                       use_container_width=True, type="secondary",
-                       help="Anfrage an Teiledienst - Öffnet Outlook mit leerem An-Feld")
-
-    with col4:
-        if st.button("Warenkorb leeren", use_container_width=True, type="secondary"):
-            clear_cart()
-            st.session_state.pdf_created = False
-            st.success("Warenkorb geleert!")
-            st.rerun()
-
-    with col5:
-        if st.button("Weitere Reifen", use_container_width=True):
-            st.switch_page("pages/01_Reifen_Suche.py")
-
-    # Zweite Reihe für weniger wichtige Aktionen
-    col6, col7, col8, col9, col10 = st.columns(5)
-    
-    with col10:
-        if st.button("Reifen ausbuchen", use_container_width=True, type="primary"):
-            if st.session_state.cart_items:
-                st.success("Reifen erfolgreich ausgebucht!")
-                clear_cart()
-                st.session_state.pdf_created = False
-                st.rerun()
-            else:
-                st.warning("Warenkorb ist leer!")
-
-# ================================================================================================
-# MAIN
-# ================================================================================================
-def main():
-    init_session_state()
-
-    # Logo Header ganz oben - EINHEITLICH WIE REIFEN-SUCHE
-    st.markdown('<div class="logo-container">', unsafe_allow_html=True)
-    try:
-        logo_path = "data/Logo_2.png"
-        st.image(logo_path, width=400)
-    except:
-        st.markdown("### Ramsperger Automobile")
-    st.markdown('</div>', unsafe_allow_html=True)
-
-    # Fester Abstand NACH dem Logo (robust gegen Margin-Collapse)
-    st.markdown('<div class="logo-spacer"></div>', unsafe_allow_html=True)
-
-    if not st.session_state.cart_items:
-        render_empty_cart()
-        return
-
-    render_cart_content()
-    total, breakdown = get_cart_total()
-    render_price_summary(total, breakdown)
-    render_customer_data()
-    
-    # NEUE SEKTION: Filial- und Mitarbeiterauswahl mit dynamischen Excel-Daten
-    render_filial_mitarbeiter_selection()
-    
-    detected = render_scenario_selection()
-    render_actions(total, breakdown, detected)
-
-if __name__ == "__main__":
-    main()
+    st
