@@ -1122,31 +1122,31 @@ def create_professional_pdf(customer_data=None, offer_scenario="vergleich", dete
         bottomMargin=25*mm
     )
 
-    # Styles (größer und luftiger)
+    # Styles (kompakter - alles etwas kleiner)
     styles = getSampleStyleSheet()
     h1 = ParagraphStyle('H1', parent=styles['Heading1'], fontName="Helvetica-Bold",
-                        fontSize=18, leading=22, spaceAfter=8, textColor=colors.black, alignment=TA_LEFT)
+                        fontSize=16, leading=19, spaceAfter=6, textColor=colors.black, alignment=TA_LEFT)
     h2 = ParagraphStyle('H2', parent=styles['Heading2'], fontName="Helvetica-Bold",
-                        fontSize=13, leading=16, spaceAfter=6, textColor=colors.black, alignment=TA_LEFT)
+                        fontSize=11, leading=13, spaceAfter=4, textColor=colors.black, alignment=TA_LEFT)
     normal = ParagraphStyle('NormalPlus', parent=styles['Normal'], fontName="Helvetica",
-                            fontSize=11, leading=14, textColor=colors.black)
+                            fontSize=9.5, leading=12, textColor=colors.black)
     small = ParagraphStyle('Small', parent=styles['Normal'], fontName="Helvetica",
-                           fontSize=9.5, leading=12, textColor=colors.black)
-    cell = ParagraphStyle('cell', parent=normal, fontSize=10, leading=13)
+                           fontSize=8.5, leading=10, textColor=colors.black)
+    cell = ParagraphStyle('cell', parent=normal, fontSize=9, leading=11)
     cell_c = ParagraphStyle('cellc', parent=cell, alignment=TA_CENTER)
     cell_r = ParagraphStyle('cellr', parent=cell, alignment=TA_RIGHT)
 
     # Datum rechts ausrichten Style
     date_style = ParagraphStyle('DateRight', parent=styles['Normal'], fontName="Helvetica",
-                               fontSize=11, leading=14, alignment=TA_RIGHT, textColor=colors.black)
+                               fontSize=9.5, leading=12, alignment=TA_RIGHT, textColor=colors.black)
 
     story = []
 
-    # Kopf - mit reduziertem Abstand zum Logo
+    # Kopf - mit reduziertem Abstand zum Logo (kompakter)
     date_str = datetime.now().strftime('%d.%m.%Y')
 
-    # Nur 1 Leerzeile zwischen Logo und Überschrift (3 weniger als vorher)
-    story.append(Spacer(1, 15))
+    # Nur 1 Leerzeile zwischen Logo und Überschrift (kompakter)
+    story.append(Spacer(1, 10))
     
     # Dynamische Überschrift basierend auf Warenkorb-Inhalt
     dynamic_title = get_dynamic_title()
@@ -1155,10 +1155,9 @@ def create_professional_pdf(customer_data=None, offer_scenario="vergleich", dete
     # Datum rechts oben positionieren (ÄNDERUNG: rechts statt mittig)
     story.append(_p(f"Datum: {date_str}", date_style))
 
-    # Mehr Leerzeilen zwischen Überschrift und Kundendaten (luftiger)
-    story.append(Spacer(1, 16))
-    story.append(Spacer(1, 16))
-    story.append(Spacer(1, 16))
+    # Kompaktere Leerzeilen zwischen Überschrift und Kundendaten
+    story.append(Spacer(1, 12))
+    story.append(Spacer(1, 12))
 
     # Kundendaten ohne Labels - erweitert für separate Fahrzeuge
     cust_lines = []
@@ -1196,9 +1195,8 @@ def create_professional_pdf(customer_data=None, offer_scenario="vergleich", dete
     if cust_lines:
         for line in cust_lines:
             story.append(_p(line, normal))
-        # Mehr Leerzeilen zwischen Kundendaten und Anrede (luftiger)
-        story.append(Spacer(1, 10))
-        story.append(Spacer(1, 10))
+        # Kompaktere Leerzeilen zwischen Kundendaten und Anrede
+        story.append(Spacer(1, 7))
 
     # Einleitung mit personalisierter Anrede
     personal_salutation = create_personalized_salutation(customer_data)
@@ -1208,7 +1206,7 @@ def create_professional_pdf(customer_data=None, offer_scenario="vergleich", dete
         f"Nachfolgend erhalten Sie Ihr individuelles Angebot."
     )
     story.append(_p(intro_text, normal))
-    story.append(Spacer(1, 8))
+    story.append(Spacer(1, 6))
 
     # Positionsdarstellung ohne "Position X" Titel
     section_title = {
@@ -1217,7 +1215,7 @@ def create_professional_pdf(customer_data=None, offer_scenario="vergleich", dete
         "einzelangebot": f"Ihr individuelles {dynamic_title.split(' ', 1)[1]}"
     }.get(offer_scenario, f"Ihr {dynamic_title.split(' ', 1)[1]}")
     story.append(_p(section_title, h2))
-    story.append(Spacer(1, 6))
+    story.append(Spacer(1, 4))
 
     for i, item in enumerate(st.session_state.cart_items, 1):
         reifen_kosten, service_kosten, position_total = calculate_position_total(item)
@@ -1272,10 +1270,10 @@ def create_professional_pdf(customer_data=None, offer_scenario="vergleich", dete
         left_tbl = Table(left_rows, colWidths=[12*cm])
         left_tbl.setStyle(TableStyle([
             ('FONTNAME',(0,0),(-1,-1),'Helvetica'),
-            ('FONTSIZE',(0,0),(-1,-1),10),
+            ('FONTSIZE',(0,0),(-1,-1),9),
             ('TEXTCOLOR',(0,0),(-1,-1),colors.black),
             ('VALIGN',(0,0),(-1,-1),'TOP'),
-            ('BOTTOMPADDING',(0,0),(-1,-1),3),
+            ('BOTTOMPADDING',(0,0),(-1,-1),2),
             ('TOPPADDING',(0,0),(-1,-1),1),
         ]))
 
@@ -1293,22 +1291,22 @@ def create_professional_pdf(customer_data=None, offer_scenario="vergleich", dete
             right_tbl = Table(right_rows, colWidths=[5.6*cm])
             right_tbl.setStyle(TableStyle([
                 ('FONTNAME',(0,0),(-1,-1),'Helvetica'),
-                ('FONTSIZE',(0,0),(-1,-1),10),
+                ('FONTSIZE',(0,0),(-1,-1),9),
                 ('TEXTCOLOR',(0,0),(-1,-1),colors.black),
                 ('VALIGN',(0,0),(-1,-1),'TOP'),
-                ('BOTTOMPADDING',(0,0),(-1,-1),3),
+                ('BOTTOMPADDING',(0,0),(-1,-1),2),
                 ('TOPPADDING',(0,0),(-1,-1),1),
                 
                 # Grüne Box für Gesamtpreis (Position 4 - jetzt nach Aufschlüsselung)
                 ('FONTNAME',(0,4),(-1,4),'Helvetica-Bold'),
-                ('FONTSIZE',(0,4),(-1,4),14),
+                ('FONTSIZE',(0,4),(-1,4),12),
                 ('BACKGROUND',(0,4),(-1,4), colors.HexColor('#f0fdf4')),
                 ('TEXTCOLOR',(0,4),(-1,4), colors.HexColor('#166534')),
                 ('ALIGN',(0,4),(-1,4),'CENTER'),
-                ('TOPPADDING',(0,4),(-1,4),8),
-                ('BOTTOMPADDING',(0,4),(-1,4),8),
-                ('LEFTPADDING',(0,4),(-1,4),8),
-                ('RIGHTPADDING',(0,4),(-1,4),8),
+                ('TOPPADDING',(0,4),(-1,4),6),
+                ('BOTTOMPADDING',(0,4),(-1,4),6),
+                ('LEFTPADDING',(0,4),(-1,4),6),
+                ('RIGHTPADDING',(0,4),(-1,4),6),
             ]))
         else:
             # Normale Darstellung für andere Szenarien
@@ -1323,10 +1321,10 @@ def create_professional_pdf(customer_data=None, offer_scenario="vergleich", dete
             right_tbl = Table(right_rows, colWidths=[5.6*cm])
             right_tbl.setStyle(TableStyle([
                 ('FONTNAME',(0,0),(-1,-1),'Helvetica'),
-                ('FONTSIZE',(0,0),(-1,-1),10),
+                ('FONTSIZE',(0,0),(-1,-1),9),
                 ('TEXTCOLOR',(0,0),(-1,-1),colors.black),
                 ('VALIGN',(0,0),(-1,-1),'TOP'),
-                ('BOTTOMPADDING',(0,0),(-1,-1),3),
+                ('BOTTOMPADDING',(0,0),(-1,-1),2),
                 ('TOPPADDING',(0,0),(-1,-1),1),
             ]))
 
@@ -1350,7 +1348,7 @@ def create_professional_pdf(customer_data=None, offer_scenario="vergleich", dete
                 ('TOPPADDING',(0,0),(-1,-1),0),
                 ('BOTTOMPADDING',(0,0),(-1,-1),0),
             ]))
-        story.append(Spacer(1, 6))
+        story.append(Spacer(1, 3))
 
     # WICHTIGE ÄNDERUNG: Grüne Vergleichsbox für Vergleichsangebote ENTFERNT
     # Kostenaufstellung nur für andere Szenarien
@@ -1370,7 +1368,7 @@ def create_professional_pdf(customer_data=None, offer_scenario="vergleich", dete
         cost_tbl = Table(cost_rows, colWidths=[12*cm, 5*cm])
         cost_tbl.setStyle(TableStyle([
             ('FONTNAME',(0,0),(-1,-2),'Helvetica'),
-            ('FONTSIZE',(0,0),(-1,-2),10),
+            ('FONTSIZE',(0,0),(-1,-2),9),
             ('TEXTCOLOR',(0,0),(-1,-2),colors.black),
             ('ALIGN',(0,0),(0,-2),'LEFT'),
             ('ALIGN',(1,0),(1,-2),'RIGHT'),
@@ -1378,22 +1376,22 @@ def create_professional_pdf(customer_data=None, offer_scenario="vergleich", dete
 
             # Gesamtsumme (einzige Farbe)
             ('FONTNAME',(0,-1),(-1,-1),'Helvetica-Bold'),
-            ('FONTSIZE',(0,-1),(-1,-1),13),
+            ('FONTSIZE',(0,-1),(-1,-1),11),
             ('BACKGROUND',(0,-1),(-1,-1), colors.HexColor('#f0fdf4')),
             ('TEXTCOLOR',(0,-1),(-1,-1), colors.HexColor('#166534')),
             ('ALIGN',(0,-1),(0,-1),'LEFT'),
             ('ALIGN',(1,-1),(1,-1),'RIGHT'),
 
-            ('TOPPADDING',(0,0),(-1,-1),4),
-            ('BOTTOMPADDING',(0,0),(-1,-1),4),
-            ('LEFTPADDING',(0,0),(-1,-1),4),
-            ('RIGHTPADDING',(0,0),(-1,-1),4),
+            ('TOPPADDING',(0,0),(-1,-1),3),
+            ('BOTTOMPADDING',(0,0),(-1,-1),3),
+            ('LEFTPADDING',(0,0),(-1,-1),3),
+            ('RIGHTPADDING',(0,0),(-1,-1),3),
         ]))
         story.append(KeepTogether(cost_tbl))
-        story.append(Spacer(1, 8))
+        story.append(Spacer(1, 5))
 
-    # NEUE BULLET POINTS (anstelle der alten)
-    story.append(Spacer(1, 8))
+    # NEUE BULLET POINTS (anstelle der alten) - kompakter
+    story.append(Spacer(1, 5))
     bullets = [
         "Angebot gültig 14 Tage",
         "Inklusive Reifengarantie 36 Monate",
@@ -1413,15 +1411,15 @@ def create_professional_pdf(customer_data=None, offer_scenario="vergleich", dete
 
     for b in bullets:
         story.append(_p(f"• {b}", small))
-    story.append(Spacer(1, 8))
+    story.append(Spacer(1, 5))
 
     # Geänderte Reihenfolge: Zuerst "Vielen Dank", dann "Für Rückfragen", dann Mitarbeiter
     story.append(_p("Vielen Dank für Ihr Vertrauen!", h2))
     story.append(_p("Ihr Team von Ramsperger Automobile", normal))
-    story.append(Spacer(1, 8))
+    story.append(Spacer(1, 5))
     
     story.append(_p("Für Rückfragen stehen wir Ihnen gerne zur Verfügung.", small))
-    story.append(Spacer(1, 8))
+    story.append(Spacer(1, 5))
 
     # Mitarbeiterinformationen hinzufügen
     selected_mitarbeiter = st.session_state.get('selected_mitarbeiter_info', {})
