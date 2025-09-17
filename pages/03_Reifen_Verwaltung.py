@@ -13,15 +13,15 @@ st.set_page_config(
 )
 
 # ================================================================================================
-# BASISKONFIGURATION
+# BASISKONFIGURATION - AKTUALISIERT FÜR MULTI-SAISON
 # ================================================================================================
 BASE_DIR = Path("data")
-MASTER_CSV = BASE_DIR / "Ramsperger_Winterreifen_20250826_160010.csv"
-EXCEL_VORLAGEN = BASE_DIR / "2025-07-29_ReifenPremium_Winterreifen_2025-26.xlsx"
+MASTER_CSV = BASE_DIR / "Ramsperger_Reifen_Master_Database.csv"
+EXCEL_VORLAGEN = BASE_DIR / "20250729_ReifenPremium_Winterreifen_202526.xlsx"  # Enthält jetzt alle Saisons
 SERVICES_CONFIG_CSV = BASE_DIR / "ramsperger_services_config.csv"
 
 # ================================================================================================
-# CUSTOM CSS
+# CUSTOM CSS - ERWEITERT FÜR SAISON-ANZEIGE
 # ================================================================================================
 CUSTOM_CSS = """
 <style>
@@ -88,6 +88,58 @@ CUSTOM_CSS = """
         border-radius: 10px;
         margin: 1rem 0;
         border: 1px solid #0ea5e9;
+    }
+    
+    .saison-overview {
+        background: linear-gradient(135deg, #f0fdf4, #dcfce7);
+        padding: 1.5rem;
+        border-radius: 12px;
+        margin: 1rem 0;
+        border: 2px solid #16a34a;
+        box-shadow: var(--shadow-md);
+    }
+    
+    .saison-stats {
+        display: flex;
+        justify-content: space-around;
+        flex-wrap: wrap;
+        gap: 1rem;
+        margin-top: 1rem;
+    }
+    
+    .saison-stat {
+        text-align: center;
+        padding: 1rem;
+        border-radius: 8px;
+        min-width: 120px;
+        box-shadow: var(--shadow-sm);
+    }
+    
+    .saison-stat.winter {
+        background: linear-gradient(135deg, #dbeafe, #bfdbfe);
+        border: 2px solid #2563eb;
+    }
+    
+    .saison-stat.sommer {
+        background: linear-gradient(135deg, #fef3c7, #fde68a);
+        border: 2px solid #f59e0b;
+    }
+    
+    .saison-stat.ganzjahres {
+        background: linear-gradient(135deg, #d1fae5, #a7f3d0);
+        border: 2px solid #10b981;
+    }
+    
+    .saison-stat h4 {
+        margin: 0 0 0.5rem 0;
+        font-size: 0.9rem;
+        font-weight: 600;
+    }
+    
+    .saison-stat .count {
+        font-size: 1.5rem;
+        font-weight: 700;
+        margin: 0;
     }
     
     .filter-info {
@@ -223,13 +275,13 @@ def get_saison_from_teilenummer(teilenummer):
 def get_saison_badge_html(saison):
     """Erstellt HTML Badge für Saison-Anzeige"""
     if saison == "Winter":
-        return '<span class="saison-badge saison-winter">Winter</span>'
+        return '<span class="saison-badge saison-winter">❄️ Winter</span>'
     elif saison == "Sommer":
-        return '<span class="saison-badge saison-sommer">Sommer</span>'
+        return '<span class="saison-badge saison-sommer">☀️ Sommer</span>'
     elif saison == "Ganzjahres":
-        return '<span class="saison-badge saison-ganzjahres">Ganzjahres</span>'
+        return '<span class="saison-badge saison-ganzjahres">🌍 Ganzjahres</span>'
     else:
-        return '<span class="saison-badge">Unbekannt</span>'
+        return '<span class="saison-badge">❓ Unbekannt</span>'
 
 def create_empty_tire_template(teilenummer):
     """Erstellt WIRKLICH LEERE Reifen-Vorlage mit 0-Werten für unbekannte Teilenummern"""
@@ -321,6 +373,7 @@ def clean_dataframe(df: pd.DataFrame) -> pd.DataFrame:
     if df.empty:
         return df
     
+    # Preis-Spalte bereinigen
     if "Preis_EUR" in df.columns:
         if df["Preis_EUR"].dtype == object:
             df["Preis_EUR"] = (
@@ -331,6 +384,9 @@ def clean_dataframe(df: pd.DataFrame) -> pd.DataFrame:
                 .str.strip()
             )
         df["Preis_EUR"] = pd.to_numeric(df["Preis_EUR"], errors="coerce")
+    elif "Preis Leasing netto" in df.columns:
+        # Excel-Datei hat diese Spalte
+        df["Preis_EUR"] = pd.to_numeric(df["Preis Leasing netto"], errors="coerce")
 
     for c in ["Breite", "Hoehe", "Zoll"]:
         if c in df.columns:
@@ -338,6 +394,8 @@ def clean_dataframe(df: pd.DataFrame) -> pd.DataFrame:
 
     if "Bestand" in df.columns:
         df["Bestand"] = pd.to_numeric(df["Bestand"], errors="coerce")
+    else:
+        df["Bestand"] = 0
 
     for c in ["Fabrikat", "Profil", "Kraftstoffeffizienz", "Nasshaftung", 
               "Loadindex", "Speedindex", "Teilenummer"]:
@@ -348,6 +406,7 @@ def clean_dataframe(df: pd.DataFrame) -> pd.DataFrame:
     if "Saison" not in df.columns:
         df["Saison"] = df["Teilenummer"].apply(get_saison_from_teilenummer)
 
+    # Nur Zeilen mit gültigen Grunddaten behalten
     df = df.dropna(subset=["Preis_EUR", "Breite", "Hoehe", "Zoll"], how="any")
     if not df.empty:
         df["Breite"] = df["Breite"].astype(int)
@@ -356,7 +415,7 @@ def clean_dataframe(df: pd.DataFrame) -> pd.DataFrame:
 
     return df
 
-@st.cache_data(show_spinner=False)
+@st.cache_data(show_spinner=False, ttl=300)  # Cache für 5 Minuten
 def load_master_csv() -> pd.DataFrame:
     """Lädt die Master-CSV"""
     if not MASTER_CSV.exists():
@@ -424,66 +483,81 @@ def check_duplicate_in_master(teilenummer):
     return teilenummer in master_df['Teilenummer'].values
 
 # ================================================================================================
-# EXCEL DATEN LADEN (VORLAGEN) - AUTOMATISCHER LOAD
+# EXCEL DATEN LADEN (VORLAGEN) - OPTIMIERT FÜR GROSSE DATENMENGEN
 # ================================================================================================
-@st.cache_data(show_spinner=False)
+@st.cache_data(show_spinner=True, ttl=3600)  # Cache für 1 Stunde
 def load_excel_vorlagen() -> pd.DataFrame:
-    """Lädt die Excel-Vorlagen für neue Reifen"""
+    """Lädt die Excel-Vorlagen für neue Reifen - OPTIMIERT für große Datenmengen"""
     if not EXCEL_VORLAGEN.exists():
         st.error(f"Excel-Datei nicht gefunden: {EXCEL_VORLAGEN}")
         return pd.DataFrame()
     
     try:
-        df = pd.read_excel(EXCEL_VORLAGEN, sheet_name=0)
-        
-        # Spalten-Namen bereinigen
-        df.columns = df.columns.str.replace(r'\r\n', ' ', regex=True).str.strip()
-        
-        # Dimension zusammenbauen
-        df['Dimension'] = (
-            df['Breite'].astype(str) + '/' + 
-            df['Hoehe'].astype(str) + ' ' + 
-            df['R'].astype(str) + df['Zoll'].astype(str) + ' ' + 
-            df['Loadindex'].astype(str) + df['Speedindex'].astype(str)
-        )
-        
-        # Runflat-Kennzeichnung
-        df['Dimension'] = df.apply(
-            lambda row: row['Dimension'] + (' RF' if pd.notna(row['RF']) and row['RF'] != '' else ''), 
-            axis=1
-        )
-        
-        # Preis-Spalte finden
-        preis_col = None
-        for col in df.columns:
-            if 'Preis' in col and 'netto' in col:
-                preis_col = col
-                break
-        
-        if preis_col:
-            df['Preis_EUR'] = pd.to_numeric(df[preis_col], errors='coerce')
-        else:
-            df['Preis_EUR'] = 0.0
-        
-        # Spalten umbenennen/erstellen
-        required_cols = ['Dimension', 'Fabrikat', 'Profil', 'Teilenummer', 'Preis_EUR', 
-                        'Zoll', 'Breite', 'Hoehe', 'RF', 'Kennzeichen']
-        for col in required_cols:
-            if col not in df.columns:
-                df[col] = ''
-        
-        # Nur relevante Spalten
-        df = df[['Dimension', 'Fabrikat', 'Profil', 'Teilenummer', 'Preis_EUR', 'Zoll', 
-                'Breite', 'Hoehe', 'RF', 'Kennzeichen', 'Speedindex', 'Loadindex']]
-        df = df.fillna('')
-        
-        # Saison basierend auf Teilenummer hinzufügen
-        df['Saison'] = df['Teilenummer'].apply(get_saison_from_teilenummer)
-        
-        return df
+        with st.spinner(f'Lade Reifen-Datenbank aus Excel...'):
+            df = pd.read_excel(EXCEL_VORLAGEN, sheet_name=0)
+            
+            # Spalten-Namen bereinigen
+            df.columns = df.columns.str.replace(r'\r\n', ' ', regex=True).str.strip()
+            
+            # Dimension zusammenbauen
+            df['Dimension'] = (
+                df['Breite'].astype(str) + '/' + 
+                df['Hoehe'].astype(str) + ' ' + 
+                df['R'].astype(str) + df['Zoll'].astype(str) + ' ' + 
+                df['Loadindex'].astype(str) + df['Speedindex'].astype(str)
+            )
+            
+            # Runflat-Kennzeichnung
+            df['Dimension'] = df.apply(
+                lambda row: row['Dimension'] + (' RF' if pd.notna(row['RF']) and row['RF'] != '' else ''), 
+                axis=1
+            )
+            
+            # Preis-Spalte finden und umbenennen
+            preis_col = None
+            for col in df.columns:
+                if 'Preis' in col and 'netto' in col.lower():
+                    preis_col = col
+                    break
+            
+            if preis_col:
+                df['Preis_EUR'] = pd.to_numeric(df[preis_col], errors='coerce')
+            else:
+                df['Preis_EUR'] = 0.0
+            
+            # Spalten umbenennen/erstellen
+            required_cols = ['Dimension', 'Fabrikat', 'Profil', 'Teilenummer', 'Preis_EUR', 
+                            'Zoll', 'Breite', 'Hoehe', 'RF', 'Kennzeichen']
+            for col in required_cols:
+                if col not in df.columns:
+                    df[col] = ''
+            
+            # Nur relevante Spalten
+            df = df[['Dimension', 'Fabrikat', 'Profil', 'Teilenummer', 'Preis_EUR', 'Zoll', 
+                    'Breite', 'Hoehe', 'RF', 'Kennzeichen', 'Speedindex', 'Loadindex']]
+            df = df.fillna('')
+            
+            # Saison basierend auf Teilenummer hinzufügen
+            df['Saison'] = df['Teilenummer'].apply(get_saison_from_teilenummer)
+            
+            return df
     except Exception as e:
         st.error(f"Fehler beim Laden der Excel-Datei: {e}")
         return pd.DataFrame()
+
+def get_saison_statistics(df):
+    """Berechnet Saison-Statistiken für Dashboard-Anzeige"""
+    if df.empty or 'Saison' not in df.columns:
+        return {'Winter': 0, 'Sommer': 0, 'Ganzjahres': 0, 'Unbekannt': 0, 'Gesamt': 0}
+    
+    saison_counts = df['Saison'].value_counts()
+    return {
+        'Winter': saison_counts.get('Winter', 0),
+        'Sommer': saison_counts.get('Sommer', 0),
+        'Ganzjahres': saison_counts.get('Ganzjahres', 0),
+        'Unbekannt': saison_counts.get('Unbekannt', 0),
+        'Gesamt': len(df)
+    }
 
 def parse_bulk_teilenummern(teilenummer_input):
     """Robustes Parsing der Bulk-Teilenummern aus Textarea - FIXED VERSION"""
@@ -893,20 +967,20 @@ def render_stock_management():
 # MAIN REIFEN CONTENT - AUTO-LOAD EXCEL + BULK ERGÄNZUNG
 # ================================================================================================
 def render_reifen_content():
-    """Hauptinhalt der Reifen Verwaltung - mit automatischem Excel-Load"""
+    """Hauptinhalt der Reifen Verwaltung - mit automatischem Excel-Load und Multi-Saison Support"""
     
     # AUTO-LOAD: Excel-Vorlagen automatisch laden wenn noch nicht geladen
     if st.session_state.df_original is None or st.session_state.df_original.empty:
-        with st.spinner('Lade Excel-Vorlagen automatisch...'):
+        with st.spinner('Lade Reifen-Datenbank (14.000+ Reifen)...'):
             df_excel = load_excel_vorlagen()
             if not df_excel.empty:
                 st.session_state.df_original = df_excel.copy()
                 st.session_state.file_uploaded = True
                 st.session_state.filter_applied = False
                 st.session_state.selection_confirmed = False
-                st.success(f"✅ {len(df_excel)} Reifen aus Excel-Vorlagen automatisch geladen!")
+                st.success(f"✅ {len(df_excel)} Reifen aus erweiteter Datenbank geladen!")
             else:
-                st.error("❌ Excel-Datei konnte nicht geladen werden. Bitte prüfe ob die Datei '2025-07-29_ReifenPremium_Winterreifen_2025-26.xlsx' im data/ Ordner existiert.")
+                st.error("❌ Excel-Datei konnte nicht geladen werden. Bitte prüfe ob die Datei '20250729_ReifenPremium_Winterreifen_202526.xlsx' im data/ Ordner existiert.")
                 return
     
     # Sidebar Filter - FIXED REIHENFOLGE
@@ -947,13 +1021,14 @@ def render_reifen_content():
                 key="zoll_filter"
             )
             
-            # SAISON-FILTER
+            # SAISON-FILTER - PROMINENTE PLATZIERUNG
             alle_saisonen = sorted(df_orig['Saison'].unique()) if 'Saison' in df_orig.columns else ['Winter', 'Sommer', 'Ganzjahres']
             saison_filter = st.selectbox(
-                "Saison-Typ:",
+                "🌦️ Saison-Typ:",
                 options=["Alle"] + alle_saisonen,
                 index=0,
-                key="saison_filter_select"
+                key="saison_filter_select",
+                help="Filtere nach Winter-, Sommer- oder Ganzjahresreifen"
             )
             
             st.markdown("**Preisfilter:**")
@@ -997,7 +1072,7 @@ def render_reifen_content():
                 key="hoehe_filter"
             )
             
-            # GESCHWINDIGKEITSINDEX NACH OBEN VERSCHOBEN
+            # GESCHWINDIGKEITSINDEX
             alle_speed = sorted(df_orig['Speedindex'].unique())
             speed_filter = st.multiselect(
                 "Geschwindigkeitsindex:",
@@ -1054,16 +1129,39 @@ def render_reifen_content():
                 st.session_state.selected_indices = []
                 st.rerun()
     
-    # STUFE 1: Automatisch geladen - nur Info anzeigen
+    # STUFE 1: Automatisch geladen - ERWEITERTE SAISON-ANZEIGE
     if not st.session_state.filter_applied:
-        st.markdown("### ✅ Excel-Vorlagen automatisch geladen")
-        st.markdown(f"Aus {len(st.session_state.df_original)} Reifen die gewünschten herausfiltern")
+        st.markdown("### ✅ Multi-Saison Reifen-Datenbank automatisch geladen")
+        st.markdown(f"Aus {len(st.session_state.df_original)} Reifen (Winter, Sommer & Ganzjahres) die gewünschten herausfiltern")
+        
+        df_orig = st.session_state.df_original
+        saison_stats = get_saison_statistics(df_orig)
+        
+        # Saison-Übersicht mit verbessertem Design
+        st.markdown("""
+        <div class="saison-overview">
+            <h4>🌦️ Saison-Verteilung der Reifen-Datenbank</h4>
+            <div class="saison-stats">
+                <div class="saison-stat winter">
+                    <h4>❄️ Winter</h4>
+                    <p class="count">{}</p>
+                </div>
+                <div class="saison-stat sommer">
+                    <h4>☀️ Sommer</h4>
+                    <p class="count">{}</p>
+                </div>
+                <div class="saison-stat ganzjahres">
+                    <h4>🌍 Ganzjahres</h4>
+                    <p class="count">{}</p>
+                </div>
+            </div>
+        </div>
+        """.format(saison_stats['Winter'], saison_stats['Sommer'], saison_stats['Ganzjahres']), unsafe_allow_html=True)
         
         col1, col2, col3, col4 = st.columns(4)
-        df_orig = st.session_state.df_original
         
         with col1:
-            st.metric("Gesamt Reifen", len(df_orig))
+            st.metric("Gesamt Reifen", saison_stats['Gesamt'])
         with col2:
             st.metric("Hersteller", df_orig['Fabrikat'].nunique())
         with col3:
@@ -1072,31 +1170,11 @@ def render_reifen_content():
             avg_preis = df_orig[df_orig['Preis_EUR'] > 0]['Preis_EUR'].mean()
             st.metric("Durchschnittspreis", f"{avg_preis:.0f} Euro")
         
-        # Saison-Verteilung anzeigen
-        if 'Saison' in df_orig.columns:
-            st.markdown("**Saison-Verteilung:**")
-            saison_counts = df_orig['Saison'].value_counts()
-            col_s1, col_s2, col_s3, col_s4 = st.columns(4)
-            
-            with col_s1:
-                winter_count = saison_counts.get('Winter', 0)
-                st.markdown(f"❄️ **Winter:** {winter_count}")
-            with col_s2:
-                sommer_count = saison_counts.get('Sommer', 0)
-                st.markdown(f"☀️ **Sommer:** {sommer_count}")
-            with col_s3:
-                ganzjahres_count = saison_counts.get('Ganzjahres', 0)
-                st.markdown(f"🌍 **Ganzjahres:** {ganzjahres_count}")
-            with col_s4:
-                unbekannt_count = saison_counts.get('Unbekannt', 0)
-                if unbekannt_count > 0:
-                    st.markdown(f"❓ **Unbekannt:** {unbekannt_count}")
-        
         st.markdown("""
         <div class="info-box">
             <h4>📋 Nächste Schritte:</h4>
-            <p>1. Setze deine <strong>Filter in der Sidebar</strong></p>
-            <p>2. Optional: Füge <strong>zusätzliche Teilenummern</strong> hinzu (werden als leere Vorlagen erstellt wenn nicht in Excel)</p>
+            <p>1. Setze deine <strong>Filter in der Sidebar</strong> (z.B. gewünschte Saison)</p>
+            <p>2. Optional: Füge <strong>zusätzliche Teilenummern</strong> hinzu (werden als leere Vorlagen erstellt wenn nicht in der Datenbank)</p>
             <p>3. Klicke <strong>"Filter anwenden"</strong></p>
         </div>
         """, unsafe_allow_html=True)
@@ -1114,6 +1192,25 @@ def render_reifen_content():
                 st.session_state.filter_applied = False
                 st.rerun()
         else:
+            # Gefilterte Saison-Statistiken
+            filtered_saison_stats = get_saison_statistics(df_filtered)
+            if filtered_saison_stats['Gesamt'] > 0:
+                st.markdown("**Gefilterte Saison-Verteilung:**")
+                col_s1, col_s2, col_s3, col_s4 = st.columns(4)
+                
+                with col_s1:
+                    if filtered_saison_stats['Winter'] > 0:
+                        st.markdown(f"❄️ **Winter:** {filtered_saison_stats['Winter']}")
+                with col_s2:
+                    if filtered_saison_stats['Sommer'] > 0:
+                        st.markdown(f"☀️ **Sommer:** {filtered_saison_stats['Sommer']}")
+                with col_s3:
+                    if filtered_saison_stats['Ganzjahres'] > 0:
+                        st.markdown(f"🌍 **Ganzjahres:** {filtered_saison_stats['Ganzjahres']}")
+                with col_s4:
+                    if filtered_saison_stats['Unbekannt'] > 0:
+                        st.markdown(f"❓ **Unbekannt:** {filtered_saison_stats['Unbekannt']}")
+            
             # ERWEITERTE Schnell-Auswahl Buttons - ALLE MIT type="primary" für ROT
             st.markdown("**Schnell-Auswahl:**")
             col1, col2, col3, col4, col5 = st.columns(5)
@@ -1136,7 +1233,7 @@ def render_reifen_content():
                     st.rerun()
             
             with col4:
-                if st.button("Nur Excel-Reifen", type="primary"):
+                if st.button("Nur Datenbank-Reifen", type="primary"):
                     # Nur Reifen mit Fabrikat (= aus Excel)
                     excel_tires = df_filtered[df_filtered['Fabrikat'] != '']
                     st.session_state.selected_indices = excel_tires.index.tolist()
@@ -1204,7 +1301,7 @@ def render_reifen_content():
                     st.markdown(f"""
                     <div class="missing-warning">
                         <h4>📝 LEERE VORLAGEN GEFUNDEN!</h4>
-                        <p>Die folgenden Teilenummern waren nicht in der Excel-Datei und wurden als leere Vorlagen erstellt:</p>
+                        <p>Die folgenden Teilenummern waren nicht in der Datenbank und wurden als leere Vorlagen erstellt:</p>
                         <ul>
                     """, unsafe_allow_html=True)
                     for tn in missing_tires:
@@ -1276,8 +1373,8 @@ def render_reifen_content():
     
     # STUFE 3: Bearbeitung - ERWEITERT FÜR SAISON MIT 0-WERTEN BEI LEEREN VORLAGEN
     elif st.session_state.selection_confirmed and st.session_state.df_working is not None:
-        st.markdown("### Schritt 3: EU-Labels hinzufügen, Preise anpassen & Saison verwalten")
-        st.markdown(f"Bearbeite die {len(st.session_state.df_working)} ausgewählten Reifen")
+        st.markdown("### Schritt 3: Reifen bearbeiten, EU-Labels hinzufügen & Saison verwalten")
+        st.markdown(f"Bearbeite die {len(st.session_state.df_working)} ausgewählten Reifen (alle Saisons)")
         
         # Anzeige-Tabelle
         st.markdown("#### Ausgewählte Reifen")
@@ -1330,7 +1427,7 @@ def render_reifen_content():
                 if row['Fabrikat'] == '':
                     option_text = f"{i+1}: {row['Teilenummer']} (Leere Vorlage - {row['Saison']})"
                 else:
-                    option_text = f"{i+1}: {row['Dimension']} - {row['Fabrikat']} {row['Profil']} ({row['Preis_EUR']:.2f}€)"
+                    option_text = f"{i+1}: {row['Dimension']} - {row['Fabrikat']} {row['Profil']} ({row['Preis_EUR']:.2f}€) - {row['Saison']}"
                 reifen_options.append((option_text, i))
             
             # Dropdown
@@ -1367,7 +1464,7 @@ def render_reifen_content():
                 st.markdown(f"""
                 <div class="missing-warning">
                     <h4>📝 LEERE VORLAGE</h4>
-                    <p>Dieser Reifen <strong>{selected_row['Teilenummer']}</strong> war nicht in der Excel-Datei.</p>
+                    <p>Dieser Reifen <strong>{selected_row['Teilenummer']}</strong> war nicht in der Datenbank.</p>
                     <p>Bitte ergänze die fehlenden Informationen manuell.</p>
                 </div>
                 """, unsafe_allow_html=True)
@@ -1441,7 +1538,7 @@ def render_reifen_content():
                     )
                     
                 else:
-                    # Bei Excel-Reifen: nur Info anzeigen
+                    # Bei Datenbank-Reifen: nur Info anzeigen
                     st.write(f"**Dimension:** {selected_row['Dimension']}")
                     st.write(f"**Hersteller:** {selected_row['Fabrikat']}")
                     st.write(f"**Profil:** {selected_row['Profil']}")
@@ -1474,7 +1571,7 @@ def render_reifen_content():
                 saison_index = saison_options.index(current_saison) if current_saison in saison_options else 3
                 
                 new_saison = st.selectbox(
-                    "Saison:",
+                    "🌦️ Saison:",
                     options=saison_options,
                     index=saison_index,
                     key=f"saison_{selected_idx}",
@@ -1631,7 +1728,7 @@ def render_reifen_content():
                 st.download_button(
                     label="📥 Master-DB herunterladen",
                     data=github_data,
-                    file_name="Ramsperger_Winterreifen_20250826_160010.csv",
+                    file_name="Ramsperger_Reifen_Master_Database.csv",
                     mime="text/csv",
                     help="Master-Datenbank für GitHub Update",
                     use_container_width=True
@@ -1640,14 +1737,14 @@ def render_reifen_content():
             st.warning("Keine Daten für GitHub-Export verfügbar")
         
         st.markdown("---")
-        st.info("🔄 **Automatisches System:** Excel wird beim Öffnen automatisch geladen. Zusätzliche Teilenummern können über die Sidebar hinzugefügt werden. Leere Vorlagen für unbekannte Teilenummern werden automatisch erstellt!")
+        st.info("🔄 **Multi-Saison System:** Die erweiterte Datenbank wird automatisch geladen mit über 14.000 Winter-, Sommer- und Ganzjahresreifen. Zusätzliche Teilenummern können über die Sidebar hinzugefügt werden. Leere Vorlagen für unbekannte Teilenummern werden automatisch erstellt!")
 
 # ================================================================================================
 # MAIN TAB RENDER FUNCTION
 # ================================================================================================
 def render_reifen_tab():
     """Hauptfunktion für Reifen Verwaltung Tab"""
-    st.markdown("### Reifen Verwaltung")
+    st.markdown("### Multi-Saison Reifen Verwaltung")
     
     # Sidebar Navigation
     with st.sidebar:
@@ -1703,11 +1800,11 @@ def main():
     if not check_authentication():
         return
     
-    # Header
+    # Header - AKTUALISIERT FÜR MULTI-SAISON
     st.markdown("""
     <div class="main-header">
-        <h1>Reifen Verwaltung</h1>
-        <p>Erweiterte Reifen- und Systemverwaltung mit automatischem Excel-Load</p>
+        <h1>Multi-Saison Reifen Verwaltung</h1>
+        <p>Erweiterte Verwaltung für Winter-, Sommer- und Ganzjahresreifen mit über 14.000 Reifen</p>
     </div>
     """, unsafe_allow_html=True)
     
