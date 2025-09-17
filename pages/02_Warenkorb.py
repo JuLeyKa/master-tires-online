@@ -1281,10 +1281,12 @@ def create_professional_pdf(customer_data=None, offer_scenario="vergleich", dete
 
         # Rechte Spalte - GROSSE GRÜNE BOX für Gesamtpreis bei Vergleichsangeboten
         if offer_scenario == "vergleich":
-            # Großer grüner Gesamtpreis für Vergleichsangebote
+            # Aufschlüsselung oberhalb der grünen Box für Vergleichsangebote
             right_rows = [
                 [_p(f"<b>{quantity}×</b>", cell_c)],  # Stückzahl
                 [_p(" ", cell_c)],  # Spacer
+                [_p(f"Reifen: {format_eur(reifen_kosten)}", cell_r)],  # Reifen-Aufschlüsselung
+                [_p(f"Services: {format_eur(service_kosten)}", cell_r)],  # Service-Aufschlüsselung
                 [_p(f"<b>GESAMT</b><br/><b>{format_eur(position_total)}</b>", cell_c)],  # Grüne Box
             ]
 
@@ -1297,16 +1299,16 @@ def create_professional_pdf(customer_data=None, offer_scenario="vergleich", dete
                 ('BOTTOMPADDING',(0,0),(-1,-1),3),
                 ('TOPPADDING',(0,0),(-1,-1),1),
                 
-                # Grüne Box für Gesamtpreis (Position 2)
-                ('FONTNAME',(0,2),(-1,2),'Helvetica-Bold'),
-                ('FONTSIZE',(0,2),(-1,2),14),
-                ('BACKGROUND',(0,2),(-1,2), colors.HexColor('#f0fdf4')),
-                ('TEXTCOLOR',(0,2),(-1,2), colors.HexColor('#166534')),
-                ('ALIGN',(0,2),(-1,2),'CENTER'),
-                ('TOPPADDING',(0,2),(-1,2),8),
-                ('BOTTOMPADDING',(0,2),(-1,2),8),
-                ('LEFTPADDING',(0,2),(-1,2),8),
-                ('RIGHTPADDING',(0,2),(-1,2),8),
+                # Grüne Box für Gesamtpreis (Position 4 - jetzt nach Aufschlüsselung)
+                ('FONTNAME',(0,4),(-1,4),'Helvetica-Bold'),
+                ('FONTSIZE',(0,4),(-1,4),14),
+                ('BACKGROUND',(0,4),(-1,4), colors.HexColor('#f0fdf4')),
+                ('TEXTCOLOR',(0,4),(-1,4), colors.HexColor('#166534')),
+                ('ALIGN',(0,4),(-1,4),'CENTER'),
+                ('TOPPADDING',(0,4),(-1,4),8),
+                ('BOTTOMPADDING',(0,4),(-1,4),8),
+                ('LEFTPADDING',(0,4),(-1,4),8),
+                ('RIGHTPADDING',(0,4),(-1,4),8),
             ]))
         else:
             # Normale Darstellung für andere Szenarien
@@ -1415,7 +1417,7 @@ def create_professional_pdf(customer_data=None, offer_scenario="vergleich", dete
 
     # Geänderte Reihenfolge: Zuerst "Vielen Dank", dann "Für Rückfragen", dann Mitarbeiter
     story.append(_p("Vielen Dank für Ihr Vertrauen!", h2))
-    story.append(_p("Ihr Team vom Autohaus Ramsperger", normal))
+    story.append(_p("Ihr Team von Ramsperger Automobile", normal))
     story.append(Spacer(1, 8))
     
     story.append(_p("Für Rückfragen stehen wir Ihnen gerne zur Verfügung.", small))
@@ -1476,7 +1478,7 @@ def create_email_text(customer_data=None, detected_season="neutral"):
         "Alle Details finden Sie im angehängten PDF-Dokument.\r\n\r\n"
         "Bei Fragen stehen wir Ihnen gerne zur Verfügung.\r\n\r\n"
         "Mit freundlichen Grüßen\r\n"
-        "Autohaus Ramsperger"
+        "Ramsperger Automobile"
     )
     return email_content
 
@@ -1484,7 +1486,7 @@ def create_mailto_link(customer_email, email_text, detected_season):
     if not customer_email or not _valid_email(customer_email):
         return None
     season_info = get_season_greeting_text(detected_season)
-    subject = f"Ihr Reifenangebot von Autohaus Ramsperger - {season_info['season_name']}-Reifen"
+    subject = f"Ihr Reifenangebot von Ramsperger Automobile - {season_info['season_name']}-Reifen"
     body_crlf = _normalize_crlf(email_text)
     subject_encoded = urllib.parse.quote(subject, safe="")
     body_encoded = _urlencode_mail_body(body_crlf)
@@ -1567,7 +1569,7 @@ def create_td_email_text(customer_data=None, detected_season="neutral"):
 
 def create_td_mailto_link(td_email_text):
     """Erstellt den mailto-Link für die TD-Anfrage - KEIN Empfänger vorgefüllt"""
-    subject = f"Reifenanfrage Autohaus Ramsperger - {len(st.session_state.cart_items)} Position(en)"
+    subject = f"Reifenanfrage Ramsperger Automobile - {len(st.session_state.cart_items)} Position(en)"
     body_crlf = _normalize_crlf(td_email_text)
     subject_encoded = urllib.parse.quote(subject, safe="")
     body_encoded = _urlencode_mail_body(body_crlf)
