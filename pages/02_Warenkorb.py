@@ -1222,11 +1222,13 @@ def create_professional_pdf(customer_data=None, offer_scenario="vergleich", dete
         quantity = st.session_state.cart_quantities.get(item['id'], 4)
         service_prices = get_service_prices()
 
-        # EU-Label kompakt (falls vorhanden)
+        # EU-Label kompakt (falls vorhanden) + Saison
         eu_parts = []
         if item.get('Kraftstoffeffizienz'): eu_parts.append(f"Kraftstoff: {str(item['Kraftstoffeffizienz']).strip()}")
         if item.get('Nasshaftung'): eu_parts.append(f"Nass: {str(item['Nasshaftung']).strip()}")
         if item.get('Geräuschemissionen'): eu_parts.append(f"Geräusch: {str(item['Geräuschemissionen']).strip()}")
+        # Saison hinzufügen
+        if item.get('Saison'): eu_parts.append(f"Saison: {item.get('Saison')}")
         eu_label = " | ".join(eu_parts) if eu_parts else "EU-Label: –"
 
         # Service-Aufschlüsselung für linke Spalte
