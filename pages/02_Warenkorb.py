@@ -1045,7 +1045,7 @@ def get_cart_total():
     return total, breakdown
 
 # ================================================================================================
-# PDF GENERATION (Kompakt optimiert mit Service-Aufschlüsselung)
+# PDF GENERATION (Überarbeitet mit neuen Anforderungen)
 # ================================================================================================
 def format_eur(value: float) -> str:
     s = f"{value:,.2f}"
@@ -1122,19 +1122,23 @@ def create_professional_pdf(customer_data=None, offer_scenario="vergleich", dete
         bottomMargin=25*mm
     )
 
-    # Styles (kompakt)
+    # Styles (größer und luftiger)
     styles = getSampleStyleSheet()
     h1 = ParagraphStyle('H1', parent=styles['Heading1'], fontName="Helvetica-Bold",
-                        fontSize=16, leading=18, spaceAfter=4, textColor=colors.black, alignment=TA_LEFT)
+                        fontSize=18, leading=22, spaceAfter=8, textColor=colors.black, alignment=TA_LEFT)
     h2 = ParagraphStyle('H2', parent=styles['Heading2'], fontName="Helvetica-Bold",
-                        fontSize=11, leading=13, spaceAfter=2, textColor=colors.black, alignment=TA_LEFT)
+                        fontSize=13, leading=16, spaceAfter=6, textColor=colors.black, alignment=TA_LEFT)
     normal = ParagraphStyle('NormalPlus', parent=styles['Normal'], fontName="Helvetica",
-                            fontSize=9.5, leading=12, textColor=colors.black)
+                            fontSize=11, leading=14, textColor=colors.black)
     small = ParagraphStyle('Small', parent=styles['Normal'], fontName="Helvetica",
-                           fontSize=8.5, leading=10, textColor=colors.black)
-    cell = ParagraphStyle('cell', parent=normal, fontSize=8.5, leading=11)
+                           fontSize=9.5, leading=12, textColor=colors.black)
+    cell = ParagraphStyle('cell', parent=normal, fontSize=10, leading=13)
     cell_c = ParagraphStyle('cellc', parent=cell, alignment=TA_CENTER)
     cell_r = ParagraphStyle('cellr', parent=cell, alignment=TA_RIGHT)
+
+    # Datum rechts ausrichten Style
+    date_style = ParagraphStyle('DateRight', parent=styles['Normal'], fontName="Helvetica",
+                               fontSize=11, leading=14, alignment=TA_RIGHT, textColor=colors.black)
 
     story = []
 
@@ -1148,29 +1152,13 @@ def create_professional_pdf(customer_data=None, offer_scenario="vergleich", dete
     dynamic_title = get_dynamic_title()
     story.append(_p(dynamic_title, h1))
 
-    # 3 zusätzliche Leerzeilen zwischen Überschrift und Metadaten
-    story.append(Spacer(1, 12))
-    story.append(Spacer(1, 12))
-    story.append(Spacer(1, 12))
+    # Datum rechts oben positionieren (ÄNDERUNG: rechts statt mittig)
+    story.append(_p(f"Datum: {date_str}", date_style))
 
-    # Metadaten ohne Angebotsnummer
-    meta_tbl = Table([
-        ["Datum", date_str],
-        ["Saison", season_info['season_name']]
-    ], colWidths=[2.5*cm, 6.0*cm])
-    meta_tbl.setStyle(TableStyle([
-        ('FONTNAME',(0,0),(-1,-1),'Helvetica'),
-        ('FONTSIZE',(0,0),(-1,-1),9.5),
-        ('TEXTCOLOR',(0,0),(-1,-1),colors.black),
-        ('BOTTOMPADDING',(0,0),(-1,-1),2),
-        ('ALIGN',(0,0),(0,-1),'LEFT'),
-    ]))
-    story.append(meta_tbl)
-
-    # 3 zusätzliche Leerzeilen zwischen Metadaten und Kundendaten
-    story.append(Spacer(1, 12))
-    story.append(Spacer(1, 12))
-    story.append(Spacer(1, 12))
+    # Mehr Leerzeilen zwischen Überschrift und Kundendaten (luftiger)
+    story.append(Spacer(1, 16))
+    story.append(Spacer(1, 16))
+    story.append(Spacer(1, 16))
 
     # Kundendaten ohne Labels - erweitert für separate Fahrzeuge
     cust_lines = []
@@ -1208,9 +1196,9 @@ def create_professional_pdf(customer_data=None, offer_scenario="vergleich", dete
     if cust_lines:
         for line in cust_lines:
             story.append(_p(line, normal))
-        # 1-2 zusätzliche Leerzeilen zwischen Kundendaten und Anrede
-        story.append(Spacer(1, 6))
-        story.append(Spacer(1, 6))
+        # Mehr Leerzeilen zwischen Kundendaten und Anrede (luftiger)
+        story.append(Spacer(1, 10))
+        story.append(Spacer(1, 10))
 
     # Einleitung mit personalisierter Anrede
     personal_salutation = create_personalized_salutation(customer_data)
@@ -1220,7 +1208,7 @@ def create_professional_pdf(customer_data=None, offer_scenario="vergleich", dete
         f"Nachfolgend erhalten Sie Ihr individuelles Angebot."
     )
     story.append(_p(intro_text, normal))
-    story.append(Spacer(1, 4))
+    story.append(Spacer(1, 8))
 
     # Positionsdarstellung ohne "Position X" Titel
     section_title = {
@@ -1229,7 +1217,7 @@ def create_professional_pdf(customer_data=None, offer_scenario="vergleich", dete
         "einzelangebot": f"Ihr individuelles {dynamic_title.split(' ', 1)[1]}"
     }.get(offer_scenario, f"Ihr {dynamic_title.split(' ', 1)[1]}")
     story.append(_p(section_title, h2))
-    story.append(Spacer(1, 2))
+    story.append(Spacer(1, 6))
 
     for i, item in enumerate(st.session_state.cart_items, 1):
         reifen_kosten, service_kosten, position_total = calculate_position_total(item)
@@ -1270,11 +1258,11 @@ def create_professional_pdf(customer_data=None, offer_scenario="vergleich", dete
             einlagerung_preis = service_prices.get('nur_einlagerung',55.00)
             service_lines.append(f"Einlagerung: {format_eur(einlagerung_preis)}")
 
-        # Linke Spalte (Info + Services)
+        # Linke Spalte (Info + Services) - größere Schrift
         left_rows = [
             [_p(f"<b>{item['Reifengröße']}</b> – <b>{item['Fabrikat']} {item['Profil']}</b>", cell)],
             [_p(f"Teilenummer: {item['Teilenummer']} · Einzelpreis: <b>{format_eur(item['Preis_EUR'])}</b>", cell)],
-            [_p(f"{eu_label} · Saison: {item.get('Saison','Unbekannt')}", cell)]
+            [_p(f"{eu_label}", cell)]
         ]
         
         # Service-Zeilen hinzufügen
@@ -1284,31 +1272,61 @@ def create_professional_pdf(customer_data=None, offer_scenario="vergleich", dete
         left_tbl = Table(left_rows, colWidths=[12*cm])
         left_tbl.setStyle(TableStyle([
             ('FONTNAME',(0,0),(-1,-1),'Helvetica'),
-            ('FONTSIZE',(0,0),(-1,-1),8.5),
+            ('FONTSIZE',(0,0),(-1,-1),10),
             ('TEXTCOLOR',(0,0),(-1,-1),colors.black),
             ('VALIGN',(0,0),(-1,-1),'TOP'),
-            ('BOTTOMPADDING',(0,0),(-1,-1),1),
-            ('TOPPADDING',(0,0),(-1,-1),0),
+            ('BOTTOMPADDING',(0,0),(-1,-1),3),
+            ('TOPPADDING',(0,0),(-1,-1),1),
         ]))
 
-        # Rechte Spalte (neues Layout: Stückzahl mittig, dann Reifen/Services/Gesamt)
-        right_rows = [
-            [_p(f"<b>{quantity}×</b>", cell_c)],  # Stückzahl mittig
-            [_p(" ", cell_c)],  # Spacer
-            [_p(f"Reifen: {format_eur(reifen_kosten)}", cell_r)],
-            [_p(f"Services: {format_eur(service_kosten)}", cell_r)],
-            [_p(f"<b>Gesamt: {format_eur(position_total)}</b>", cell_r)],
-        ]
+        # Rechte Spalte - GROSSE GRÜNE BOX für Gesamtpreis bei Vergleichsangeboten
+        if offer_scenario == "vergleich":
+            # Großer grüner Gesamtpreis für Vergleichsangebote
+            right_rows = [
+                [_p(f"<b>{quantity}×</b>", cell_c)],  # Stückzahl
+                [_p(" ", cell_c)],  # Spacer
+                [_p(f"<b>GESAMT</b><br/><b>{format_eur(position_total)}</b>", cell_c)],  # Grüne Box
+            ]
 
-        right_tbl = Table(right_rows, colWidths=[5.6*cm])
-        right_tbl.setStyle(TableStyle([
-            ('FONTNAME',(0,0),(-1,-1),'Helvetica'),
-            ('FONTSIZE',(0,0),(-1,-1),8.5),
-            ('TEXTCOLOR',(0,0),(-1,-1),colors.black),
-            ('VALIGN',(0,0),(-1,-1),'TOP'),
-            ('BOTTOMPADDING',(0,0),(-1,-1),1),
-            ('TOPPADDING',(0,0),(-1,-1),0),
-        ]))
+            right_tbl = Table(right_rows, colWidths=[5.6*cm])
+            right_tbl.setStyle(TableStyle([
+                ('FONTNAME',(0,0),(-1,-1),'Helvetica'),
+                ('FONTSIZE',(0,0),(-1,-1),10),
+                ('TEXTCOLOR',(0,0),(-1,-1),colors.black),
+                ('VALIGN',(0,0),(-1,-1),'TOP'),
+                ('BOTTOMPADDING',(0,0),(-1,-1),3),
+                ('TOPPADDING',(0,0),(-1,-1),1),
+                
+                # Grüne Box für Gesamtpreis (Position 2)
+                ('FONTNAME',(0,2),(-1,2),'Helvetica-Bold'),
+                ('FONTSIZE',(0,2),(-1,2),14),
+                ('BACKGROUND',(0,2),(-1,2), colors.HexColor('#f0fdf4')),
+                ('TEXTCOLOR',(0,2),(-1,2), colors.HexColor('#166534')),
+                ('ALIGN',(0,2),(-1,2),'CENTER'),
+                ('TOPPADDING',(0,2),(-1,2),8),
+                ('BOTTOMPADDING',(0,2),(-1,2),8),
+                ('LEFTPADDING',(0,2),(-1,2),8),
+                ('RIGHTPADDING',(0,2),(-1,2),8),
+            ]))
+        else:
+            # Normale Darstellung für andere Szenarien
+            right_rows = [
+                [_p(f"<b>{quantity}×</b>", cell_c)],  # Stückzahl mittig
+                [_p(" ", cell_c)],  # Spacer
+                [_p(f"Reifen: {format_eur(reifen_kosten)}", cell_r)],
+                [_p(f"Services: {format_eur(service_kosten)}", cell_r)],
+                [_p(f"<b>Gesamt: {format_eur(position_total)}</b>", cell_r)],
+            ]
+
+            right_tbl = Table(right_rows, colWidths=[5.6*cm])
+            right_tbl.setStyle(TableStyle([
+                ('FONTNAME',(0,0),(-1,-1),'Helvetica'),
+                ('FONTSIZE',(0,0),(-1,-1),10),
+                ('TEXTCOLOR',(0,0),(-1,-1),colors.black),
+                ('VALIGN',(0,0),(-1,-1),'TOP'),
+                ('BOTTOMPADDING',(0,0),(-1,-1),3),
+                ('TOPPADDING',(0,0),(-1,-1),1),
+            ]))
 
         card = Table([[left_tbl, right_tbl]], colWidths=[12*cm, 5.6*cm])
         card.setStyle(TableStyle([
@@ -1330,35 +1348,11 @@ def create_professional_pdf(customer_data=None, offer_scenario="vergleich", dete
                 ('TOPPADDING',(0,0),(-1,-1),0),
                 ('BOTTOMPADDING',(0,0),(-1,-1),0),
             ]))
-        story.append(Spacer(1, 2))
+        story.append(Spacer(1, 6))
 
-    # Spezielle grüne Box für Vergleichsangebote ODER normale Kostenaufstellung
-    if offer_scenario == "vergleich":
-        # Grüne Box mit einzelnen Reifen und Gesamtpreisen
-        tire_comparison_rows = []
-        for item in st.session_state.cart_items:
-            reifen_kosten, service_kosten, position_total = calculate_position_total(item)
-            tire_name = f"{item['Fabrikat']} {item['Profil']}"
-            tire_comparison_rows.append([tire_name, format_eur(position_total)])
-
-        tire_tbl = Table(tire_comparison_rows, colWidths=[12*cm, 5*cm])
-        tire_tbl.setStyle(TableStyle([
-            ('FONTNAME',(0,0),(-1,-1),'Helvetica-Bold'),
-            ('FONTSIZE',(0,0),(-1,-1),11),
-            ('BACKGROUND',(0,0),(-1,-1), colors.HexColor('#f0fdf4')),
-            ('TEXTCOLOR',(0,0),(-1,-1), colors.HexColor('#166534')),
-            ('ALIGN',(0,0),(0,-1),'LEFT'),
-            ('ALIGN',(1,0),(1,-1),'RIGHT'),
-
-            ('TOPPADDING',(0,0),(-1,-1),6),
-            ('BOTTOMPADDING',(0,0),(-1,-1),6),
-            ('LEFTPADDING',(0,0),(-1,-1),6),
-            ('RIGHTPADDING',(0,0),(-1,-1),6),
-        ]))
-        story.append(KeepTogether(tire_tbl))
-        story.append(Spacer(1, 4))
-    else:
-        # Normale Kostenaufstellung für andere Szenarien
+    # WICHTIGE ÄNDERUNG: Grüne Vergleichsbox für Vergleichsangebote ENTFERNT
+    # Kostenaufstellung nur für andere Szenarien
+    if offer_scenario != "vergleich":
         story.append(_p("Kostenaufstellung", h2))
         cost_rows = [['Reifen-Kosten', format_eur(breakdown['reifen'])]]
         if breakdown['montage'] > 0:
@@ -1374,7 +1368,7 @@ def create_professional_pdf(customer_data=None, offer_scenario="vergleich", dete
         cost_tbl = Table(cost_rows, colWidths=[12*cm, 5*cm])
         cost_tbl.setStyle(TableStyle([
             ('FONTNAME',(0,0),(-1,-2),'Helvetica'),
-            ('FONTSIZE',(0,0),(-1,-2),9),
+            ('FONTSIZE',(0,0),(-1,-2),10),
             ('TEXTCOLOR',(0,0),(-1,-2),colors.black),
             ('ALIGN',(0,0),(0,-2),'LEFT'),
             ('ALIGN',(1,0),(1,-2),'RIGHT'),
@@ -1382,22 +1376,29 @@ def create_professional_pdf(customer_data=None, offer_scenario="vergleich", dete
 
             # Gesamtsumme (einzige Farbe)
             ('FONTNAME',(0,-1),(-1,-1),'Helvetica-Bold'),
-            ('FONTSIZE',(0,-1),(-1,-1),11),
+            ('FONTSIZE',(0,-1),(-1,-1),13),
             ('BACKGROUND',(0,-1),(-1,-1), colors.HexColor('#f0fdf4')),
             ('TEXTCOLOR',(0,-1),(-1,-1), colors.HexColor('#166534')),
             ('ALIGN',(0,-1),(0,-1),'LEFT'),
             ('ALIGN',(1,-1),(1,-1),'RIGHT'),
 
-            ('TOPPADDING',(0,0),(-1,-1),3),
-            ('BOTTOMPADDING',(0,0),(-1,-1),3),
-            ('LEFTPADDING',(0,0),(-1,-1),3),
-            ('RIGHTPADDING',(0,0),(-1,-1),3),
+            ('TOPPADDING',(0,0),(-1,-1),4),
+            ('BOTTOMPADDING',(0,0),(-1,-1),4),
+            ('LEFTPADDING',(0,0),(-1,-1),4),
+            ('RIGHTPADDING',(0,0),(-1,-1),4),
         ]))
         story.append(KeepTogether(cost_tbl))
-        story.append(Spacer(1, 4))
+        story.append(Spacer(1, 8))
 
-    # Hinweise - kompakter
-    bullets = []
+    # NEUE BULLET POINTS (anstelle der alten)
+    story.append(Spacer(1, 8))
+    bullets = [
+        "Angebot gültig 14 Tage",
+        "Inklusive Reifengarantie 36 Monate",
+        "Inklusive Entsorgung Altreifen"
+    ]
+    
+    # Saisonspezifische Bullet Points hinzufügen
     if detected_season == "winter":
         bullets.append("Wir empfehlen den rechtzeitigen Wechsel auf Winterreifen für optimale Sicherheit bei winterlichen Bedingungen.")
     elif detected_season == "sommer":
@@ -1407,22 +1408,18 @@ def create_professional_pdf(customer_data=None, offer_scenario="vergleich", dete
     
     if offer_scenario == "vergleich":
         bullets.append("Sie können sich für eine der angebotenen Reifenoptionen entscheiden.")
-    
-    bullets.extend([
-        "Alle Preise verstehen sich inklusive der gewählten Service-Leistungen.",
-        "Montage und Service werden von unseren Fachkräften durchgeführt."
-    ])
+
     for b in bullets:
         story.append(_p(f"• {b}", small))
-    story.append(Spacer(1, 3))
+    story.append(Spacer(1, 8))
 
     # Geänderte Reihenfolge: Zuerst "Vielen Dank", dann "Für Rückfragen", dann Mitarbeiter
     story.append(_p("Vielen Dank für Ihr Vertrauen!", h2))
     story.append(_p("Ihr Team vom Autohaus Ramsperger", normal))
-    story.append(Spacer(1, 3))
+    story.append(Spacer(1, 8))
     
     story.append(_p("Für Rückfragen stehen wir Ihnen gerne zur Verfügung.", small))
-    story.append(Spacer(1, 3))
+    story.append(Spacer(1, 8))
 
     # Mitarbeiterinformationen hinzufügen
     selected_mitarbeiter = st.session_state.get('selected_mitarbeiter_info', {})
