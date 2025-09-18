@@ -65,6 +65,14 @@ MAIN_CSS = """
         box-shadow: var(--shadow-md);
     }
     
+    .service-packages-box {
+        background: linear-gradient(135deg, #f0fdf4, #dcfce7);
+        border: 1px solid #16a34a;
+        border-radius: 8px;
+        padding: 1rem;
+        margin-top: 1rem;
+    }
+    
     .saison-badge {
         display: inline-block;
         padding: 0.25rem 0.5rem;
@@ -262,6 +270,64 @@ def clean_dataframe(df):
     return df
 
 # ================================================================================================
+# NEUE SERVICE-PAKET FUNKTIONEN
+# ================================================================================================
+@st.cache_data
+def load_service_packages():
+    """Lädt die Service-Pakete aus der CSV"""
+    try:
+        csv_path = Path("data/ramsperger_services_config.csv")
+        if csv_path.exists():
+            df = pd.read_csv(csv_path, encoding='utf-8')
+            return df
+        else:
+            # Fallback falls CSV nicht existiert
+            return pd.DataFrame(columns=['Positionsnummer', 'Bezeichnung', 'Teilenummer_Detail', 'Preis', 'Hinweis', 'Zoll'])
+    except Exception as e:
+        st.error(f"Fehler beim Laden der Service-Pakete: {e}")
+        return pd.DataFrame(columns=['Positionsnummer', 'Bezeichnung', 'Teilenummer_Detail', 'Preis', 'Hinweis', 'Zoll'])
+
+def filter_service_packages_by_tire_size(tire_zoll):
+    """Filtert Service-Pakete basierend auf der Reifengröße"""
+    service_df = load_service_packages()
+    if service_df.empty:
+        return service_df
+    
+    available_packages = []
+    
+    for _, package in service_df.iterrows():
+        package_zoll = package.get('Zoll', None)
+        
+        # Wenn kein Zoll angegeben (None oder NaN), dann für alle Größen verfügbar
+        if pd.isna(package_zoll) or package_zoll is None or package_zoll == '':
+            available_packages.append(package)
+            continue
+            
+        # Zoll-Beschränkungen prüfen
+        package_zoll_str = str(package_zoll).strip()
+        
+        if package_zoll_str == '-17':
+            # Bis 17 Zoll
+            if tire_zoll <= 17:
+                available_packages.append(package)
+        elif package_zoll_str == '18-19':
+            # 18-19 Zoll
+            if 18 <= tire_zoll <= 19:
+                available_packages.append(package)
+        elif package_zoll_str == '20-':
+            # Ab 20 Zoll
+            if tire_zoll >= 20:
+                available_packages.append(package)
+        else:
+            # Unbekannte Zoll-Angabe - vorsichtshalber anzeigen
+            available_packages.append(package)
+    
+    if available_packages:
+        return pd.DataFrame(available_packages)
+    else:
+        return pd.DataFrame(columns=['Positionsnummer', 'Bezeichnung', 'Teilenummer_Detail', 'Preis', 'Hinweis', 'Zoll'])
+
+# ================================================================================================
 # DATA MANAGEMENT - VEREINFACHT FÜR EINE CSV
 # ================================================================================================
 def load_reifen_data():
@@ -306,36 +372,11 @@ def get_reifen_data():
         st.session_state.data_loaded = True
     return st.session_state.reifen_data
 
-def init_default_services():
-    """Initialisiert Standard Service-Konfiguration"""
-    services_data = {
-        'service_name': ['montage_bis_17', 'montage_18_19', 'montage_ab_20', 
-                         'radwechsel_1_rad', 'radwechsel_2_raeder', 'radwechsel_3_raeder', 
-                         'radwechsel_4_raeder', 'nur_einlagerung'],
-        'service_label': ['Montage bis 17 Zoll', 'Montage 18-19 Zoll', 'Montage ab 20 Zoll',
-                          'Radwechsel 1 Rad', 'Radwechsel 2 Räder', 'Radwechsel 3 Räder',
-                          'Radwechsel 4 Räder', 'Nur Einlagerung'],
-        'price': [25.0, 30.0, 40.0, 9.95, 19.95, 29.95, 39.90, 55.00],
-        'unit': ['pro Reifen', 'pro Reifen', 'pro Reifen', 
-                 'pauschal', 'pauschal', 'pauschal', 'pauschal', 'pauschal']
-    }
-    return pd.DataFrame(services_data)
-
-def get_service_prices():
-    """Gibt aktuelle Service-Preise zurück"""
-    if 'services_config' not in st.session_state:
-        st.session_state.services_config = init_default_services()
-    services_config = st.session_state.services_config
-    prices = {}
-    for _, row in services_config.iterrows():
-        prices[row['service_name']] = row['price']
-    return prices
-
 # ================================================================================================
-# CART MANAGEMENT - DIREKT EINGEBETTET
+# CART MANAGEMENT - DIREKT EINGEBETTET - ANGEPASST FÜR NEUE SERVICE-PAKETE
 # ================================================================================================
-def add_to_cart_with_config(tire_data, quantity, services):
-    """Fügt einen Reifen mit Konfiguration zum Warenkorb hinzu"""
+def add_to_cart_with_config(tire_data, quantity, selected_packages):
+    """Fügt einen Reifen mit Service-Paketen zum Warenkorb hinzu"""
     tire_id = f"{tire_data['Teilenummer']}_{tire_data['Preis_EUR']}"
     for item in st.session_state.cart_items:
         if item['id'] == tire_id:
@@ -355,7 +396,7 @@ def add_to_cart_with_config(tire_data, quantity, services):
     }
     st.session_state.cart_items.append(cart_item)
     st.session_state.cart_quantities[tire_id] = quantity
-    st.session_state.cart_services[tire_id] = services
+    st.session_state.cart_services[tire_id] = selected_packages
     st.session_state.cart_count = len(st.session_state.cart_items)
     return True, f"{quantity}x {cart_item['Reifengröße']} hinzugefügt"
 
@@ -402,12 +443,15 @@ def init_session_state():
         st.session_state.cart_services = {}
     if 'cart_count' not in st.session_state:
         st.session_state.cart_count = 0
+    # Neue Session State für Service-Pakete
+    if 'show_service_packages' not in st.session_state:
+        st.session_state.show_service_packages = {}
 
 # ================================================================================================
-# RENDER FUNCTIONS
+# RENDER FUNCTIONS - MIT NEUER SERVICE-PAKET AUSWAHL
 # ================================================================================================
 def render_config_card(row, idx, filtered_df):
-    """Rendert die Konfigurationskarte für einen Reifen"""
+    """Rendert die Konfigurationskarte für einen Reifen - MIT NEUER SERVICE-PAKET LOGIK"""
     st.markdown(f"""<div class="config-card">""", unsafe_allow_html=True)
     saison_badge = get_saison_badge_html(row.get('Saison', 'Unbekannt'))
     st.markdown(f"**Konfiguration für {row['Reifengröße']} - {row['Fabrikat']} {row['Profil']}** {saison_badge}", unsafe_allow_html=True)
@@ -426,91 +470,87 @@ def render_config_card(row, idx, filtered_df):
         )
         total_price = row['Preis_EUR'] * quantity
         st.metric("Reifen-Gesamtpreis", f"{total_price:.2f} EUR")
+        
+        # NEUER SERVICE-LEISTUNGEN BUTTON
+        show_packages_key = f"show_packages_{idx}"
+        if show_packages_key not in st.session_state.show_service_packages:
+            st.session_state.show_service_packages[show_packages_key] = False
+        
+        if st.button("🔧 Service-Leistungen", key=f"service_btn_{idx}", use_container_width=True, type="secondary"):
+            st.session_state.show_service_packages[show_packages_key] = not st.session_state.show_service_packages[show_packages_key]
+            st.rerun()
 
     with col_config2:
-        st.markdown("**Service-Leistungen:**")
-        service_prices = get_service_prices()
-
-        zoll_size = row['Zoll']
-        if zoll_size <= 17:
-            montage_price = service_prices.get('montage_bis_17', 25.0)
-            montage_label = f"Reifenservice bis 17 Zoll ({montage_price:.2f}EUR pro Reifen)"
-        elif zoll_size <= 19:
-            montage_price = service_prices.get('montage_18_19', 30.0)
-            montage_label = f"Reifenservice 18-19 Zoll ({montage_price:.2f}EUR pro Reifen)"
-        else:
-            montage_price = service_prices.get('montage_ab_20', 40.0)
-            montage_label = f"Reifenservice ab 20 Zoll ({montage_price:.2f}EUR pro Reifen)"
-
-        montage_selected = st.checkbox(
-            montage_label,
-            key=f"montage_{idx}",
-            value=True
-        )
-
-        radwechsel_selected = st.checkbox(
-            "Radwechsel",
-            key=f"radwechsel_{idx}"
-        )
-
-        radwechsel_type = '4_raeder'
-        if radwechsel_selected:
-            with st.expander("Radwechsel-Optionen", expanded=True):
-                radwechsel_options = [
-                    ('4_raeder', f"4 Räder ({service_prices.get('radwechsel_4_raeder', 39.90):.2f}EUR)"),
-                    ('3_raeder', f"3 Räder ({service_prices.get('radwechsel_3_raeder', 29.95):.2f}EUR)"),
-                    ('2_raeder', f"2 Räder ({service_prices.get('radwechsel_2_raeder', 19.95):.2f}EUR)"),
-                    ('1_rad', f"1 Rad ({service_prices.get('radwechsel_1_rad', 9.95):.2f}EUR)")
-                ]
-                radwechsel_type = st.radio(
-                    "Anzahl Räder:",
-                    options=[opt[0] for opt in radwechsel_options],
-                    format_func=lambda x: next(opt[1] for opt in radwechsel_options if opt[0] == x),
-                    key=f"radwechsel_type_{idx}",
-                    index=0
-                )
-
-        einlagerung_selected = st.checkbox(
-            f"Mit Einlagerung (+{service_prices.get('nur_einlagerung', 55.00):.2f}EUR)",
-            key=f"einlagerung_{idx}"
-        )
-
+        # SERVICE-PAKETE ANZEIGE (nur wenn Button geklickt)
+        selected_packages = []
         service_total = 0.0
-        if montage_selected:
-            service_total += montage_price * quantity
-        if radwechsel_selected:
-            if radwechsel_type == '1_rad':
-                service_total += service_prices.get('radwechsel_1_rad', 9.95)
-            elif radwechsel_type == '2_raeder':
-                service_total += service_prices.get('radwechsel_2_raeder', 19.95)
-            elif radwechsel_type == '3_raeder':
-                service_total += service_prices.get('radwechsel_3_raeder', 29.95)
+        
+        if st.session_state.show_service_packages.get(show_packages_key, False):
+            st.markdown("**Verfügbare Service-Pakete:**")
+            
+            # Service-Pakete für diese Reifengröße laden
+            tire_zoll = row['Zoll']
+            available_packages = filter_service_packages_by_tire_size(tire_zoll)
+            
+            if not available_packages.empty:
+                with st.container():
+                    st.markdown(f'<div class="service-packages-box">', unsafe_allow_html=True)
+                    
+                    for pkg_idx, package in available_packages.iterrows():
+                        package_key = f"pkg_{idx}_{package['Positionsnummer']}"
+                        
+                        # Preis formatieren
+                        pkg_price = float(package['Preis'])
+                        
+                        # Beschreibung mit Hinweis
+                        description = package['Bezeichnung']
+                        if pd.notna(package['Hinweis']) and package['Hinweis'].strip() != '':
+                            description += f" ({package['Hinweis']})"
+                        
+                        # Checkbox für Paket
+                        is_selected = st.checkbox(
+                            f"{description} - {pkg_price:.2f}€",
+                            key=package_key
+                        )
+                        
+                        if is_selected:
+                            selected_packages.append({
+                                'positionsnummer': package['Positionsnummer'],
+                                'bezeichnung': package['Bezeichnung'],
+                                'preis': pkg_price,
+                                'hinweis': package['Hinweis'] if pd.notna(package['Hinweis']) else ''
+                            })
+                            
+                            # Service-Kosten berechnen (je nach Paket-Typ)
+                            if 'pro Reifen' in str(package.get('Hinweis', '')).lower() or 'reifenservice' in package['Bezeichnung'].lower():
+                                service_total += pkg_price * quantity
+                            else:
+                                service_total += pkg_price
+                    
+                    st.markdown('</div>', unsafe_allow_html=True)
             else:
-                service_total += service_prices.get('radwechsel_4_raeder', 39.90)
-        if einlagerung_selected:
-            service_total += service_prices.get('nur_einlagerung', 55.00)
-
+                st.info("Keine Service-Pakete für diese Reifengröße verfügbar.")
+        
+        # Service-Kosten anzeigen
         if service_total > 0:
             st.metric("Service-Kosten", f"{service_total:.2f} EUR")
 
+    # Gesamtsumme
     grand_total = total_price + service_total
     st.markdown(f"### **Gesamtsumme: {grand_total:.2f} EUR**")
 
     col_add, col_cancel = st.columns(2)
     with col_add:
         if st.button("In Warenkorb legen", key=f"add_cart_{idx}", use_container_width=True, type="primary"):
-            service_config = {
-                'montage': montage_selected,
-                'radwechsel': radwechsel_selected,
-                'radwechsel_type': radwechsel_type,
-                'einlagerung': einlagerung_selected
-            }
             tire_data = filtered_df.iloc[idx]
-            success, message = add_to_cart_with_config(tire_data, quantity, service_config)
+            success, message = add_to_cart_with_config(tire_data, quantity, selected_packages)
             if success:
                 st.success(message)
                 card_key = f"tire_card_{idx}"
                 st.session_state.opened_tire_cards.discard(card_key)
+                # Service-Pakete Anzeige zurücksetzen
+                show_packages_key = f"show_packages_{idx}"
+                st.session_state.show_service_packages[show_packages_key] = False
                 st.rerun()
             else:
                 st.warning(message)
@@ -519,6 +559,9 @@ def render_config_card(row, idx, filtered_df):
         if st.button("Abbrechen", key=f"cancel_{idx}", use_container_width=True):
             card_key = f"tire_card_{idx}"
             st.session_state.opened_tire_cards.discard(card_key)
+            # Service-Pakete Anzeige zurücksetzen
+            show_packages_key = f"show_packages_{idx}"
+            st.session_state.show_service_packages[show_packages_key] = False
             st.rerun()
 
     st.markdown("</div>", unsafe_allow_html=True)
@@ -580,6 +623,10 @@ def render_tire_list(filtered_df):
                          type="primary" if not is_open else "secondary"):
                 if is_open:
                     st.session_state.opened_tire_cards.remove(card_key)
+                    # Service-Pakete Anzeige auch zurücksetzen
+                    show_packages_key = f"show_packages_{idx}"
+                    if show_packages_key in st.session_state.show_service_packages:
+                        st.session_state.show_service_packages[show_packages_key] = False
                 else:
                     st.session_state.opened_tire_cards.add(card_key)
                 st.rerun()
@@ -637,6 +684,7 @@ def render_legend(mit_bestand, saison_filter, zoll_filter):
         st.markdown("**Bestand:** NACHBESTELLEN | AUSVERKAUFT | VERFÜGBAR | unbekannt")
         st.markdown("**🛒 Im Warenkorb:** Reifen bereits im Warenkorb hinzugefügt")
         st.markdown("**🗑️ Button:** Reifen aus Warenkorb entfernen")
+        st.markdown("**🔧 Service-Leistungen:** Verfügbare Service-Pakete für die Reifengröße")
         filter_info = []
         if mit_bestand:
             filter_info.append("Bestandsfilter aktiv")
