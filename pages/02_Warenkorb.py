@@ -878,119 +878,26 @@ def get_stock_display(stock_value):
     except:
         return "unbekannt"
 
-# ================================================================================================
-# NEUE SERVICE-PAKET FUNKTIONEN
-# ================================================================================================
-def load_service_packages():
-    """Lädt die neuen Service-Pakete aus CSV"""
-    data_dir = Path("data")
-    csv_path = data_dir / "ramsperger_services_config.csv"
-    
-    if not csv_path.exists():
-        return create_default_service_packages()
-    
-    try:
-        df = pd.read_csv(csv_path, encoding='utf-8')
-        return df
-    except Exception:
-        return create_default_service_packages()
+def init_default_services():
+    services_data = {
+        'service_name': ['montage_bis_17','montage_18_19','montage_ab_20',
+                         'radwechsel_1_rad','radwechsel_2_raeder','radwechsel_3_raeder',
+                         'radwechsel_4_raeder','nur_einlagerung'],
+        'service_label': ['Montage bis 17 Zoll','Montage 18-19 Zoll','Montage ab 20 Zoll',
+                          'Radwechsel 1 Rad','Radwechsel 2 Räder','Radwechsel 3 Räder',
+                          'Radwechsel 4 Räder','Nur Einlagerung'],
+        'price': [25.0,30.0,40.0,9.95,19.95,29.95,39.90,55.00],
+        'unit': ['pro Reifen','pro Reifen','pro Reifen','pauschal','pauschal','pauschal','pauschal','pauschal']
+    }
+    return pd.DataFrame(services_data)
 
-def create_default_service_packages():
-    """Erstellt Standard Service-Pakete basierend auf deinen neuen Paketen"""
-    packages = [
-        # REIFENSERVICE bis 17 Zoll
-        {'Positionsnummer': 'Z4409', 'Bezeichnung': 'SERVICE PAKET REIFENSERVICE 1 RAD', 'Teilenummer': '44401995', 'Detail': 'REIFENSERVICE 1 RAD', 'Preis': 25.00, 'Hinweis': 'inkl. Auswuchtgewichte, Ventil und Altreifenentsorgung', 'Kategorie': 'reifenservice', 'Zoll': 'bis_17', 'Anzahl': 1},
-        {'Positionsnummer': 'Z44091', 'Bezeichnung': 'SERVICE PAKET REIFENSERVICE 2 RÄDER', 'Teilenummer': '44402095', 'Detail': 'REIFENSERVICE 2 RÄDER', 'Preis': 50.00, 'Hinweis': 'inkl. Auswuchtgewichte, Ventile und Altreifenentsorgung', 'Kategorie': 'reifenservice', 'Zoll': 'bis_17', 'Anzahl': 2},
-        {'Positionsnummer': 'Z44092', 'Bezeichnung': 'SERVICE PAKET REIFENSERVICE 4 RÄDER', 'Teilenummer': '44402295', 'Detail': 'REIFENSERVICE 4 RÄDER', 'Preis': 100.00, 'Hinweis': 'inkl. Auswuchtgewichte, Ventile und Altreifenentsorgung', 'Kategorie': 'reifenservice', 'Zoll': 'bis_17', 'Anzahl': 4},
-        
-        # REIFENSERVICE 18-19 Zoll
-        {'Positionsnummer': 'Z44093', 'Bezeichnung': 'SERVICE PAKET REIFENSERVICE 1 RAD', 'Teilenummer': '44401996', 'Detail': 'REIFENSERVICE 1 RAD', 'Preis': 30.00, 'Hinweis': 'inkl. Auswuchtgewichte, Ventil und Altreifenentsorgung', 'Kategorie': 'reifenservice', 'Zoll': '18_19', 'Anzahl': 1},
-        {'Positionsnummer': 'Z44094', 'Bezeichnung': 'SERVICE PAKET REIFENSERVICE 2 RÄDER', 'Teilenummer': '44402096', 'Detail': 'REIFENSERVICE 2 RÄDER', 'Preis': 60.00, 'Hinweis': 'inkl. Auswuchtgewichte, Ventile und Altreifenentsorgung', 'Kategorie': 'reifenservice', 'Zoll': '18_19', 'Anzahl': 2},
-        {'Positionsnummer': 'Z44095', 'Bezeichnung': 'SERVICE PAKET REIFENSERVICE 4 RÄDER', 'Teilenummer': '44402296', 'Detail': 'REIFENSERVICE 4 RÄDER', 'Preis': 120.00, 'Hinweis': 'inkl. Auswuchtgewichte, Ventile und Altreifenentsorgung', 'Kategorie': 'reifenservice', 'Zoll': '18_19', 'Anzahl': 4},
-        
-        # REIFENSERVICE ab 20 Zoll
-        {'Positionsnummer': 'Z44096', 'Bezeichnung': 'SERVICE PAKET REIFENSERVICE 1 RAD', 'Teilenummer': '44401997', 'Detail': 'REIFENSERVICE 1 RAD', 'Preis': 40.00, 'Hinweis': 'inkl. Auswuchtgewichte, Ventil und Altreifenentsorgung', 'Kategorie': 'reifenservice', 'Zoll': 'ab_20', 'Anzahl': 1},
-        {'Positionsnummer': 'Z44097', 'Bezeichnung': 'SERVICE PAKET REIFENSERVICE 2 RÄDER', 'Teilenummer': '44402097', 'Detail': 'REIFENSERVICE 2 RÄDER', 'Preis': 80.00, 'Hinweis': 'inkl. Auswuchtgewichte, Ventile und Altreifenentsorgung', 'Kategorie': 'reifenservice', 'Zoll': 'ab_20', 'Anzahl': 2},
-        {'Positionsnummer': 'Z44098', 'Bezeichnung': 'SERVICE PAKET REIFENSERVICE 4 RÄDER', 'Teilenummer': '44402297', 'Detail': 'REIFENSERVICE 4 RÄDER', 'Preis': 160.00, 'Hinweis': 'inkl. Auswuchtgewichte, Ventile und Altreifenentsorgung', 'Kategorie': 'reifenservice', 'Zoll': 'ab_20', 'Anzahl': 4},
-        
-        # AUSWUCHTEN
-        {'Positionsnummer': 'Z4404', 'Bezeichnung': 'SERVICE PAKET RÄDER AUSWUCHTEN 1 RAD', 'Teilenummer': '44056799', 'Detail': '1 RAD AUSGEWUCHTET', 'Preis': 7.50, 'Hinweis': 'inkl. Auswuchtgewichte', 'Kategorie': 'auswuchten', 'Zoll': 'alle', 'Anzahl': 1},
-        {'Positionsnummer': 'Z44041', 'Bezeichnung': 'SERVICE PAKET RÄDER AUSWUCHTEN 2 RÄDER', 'Teilenummer': '44056899', 'Detail': '2 RÄDER AUSGEWUCHTET', 'Preis': 15.00, 'Hinweis': 'inkl. Auswuchtgewichte', 'Kategorie': 'auswuchten', 'Zoll': 'alle', 'Anzahl': 2},
-        {'Positionsnummer': 'Z44042', 'Bezeichnung': 'SERVICE PAKET RÄDER AUSWUCHTEN 4 RÄDER', 'Teilenummer': '44056999', 'Detail': '4 RÄDER AUSGEWUCHTET', 'Preis': 30.00, 'Hinweis': 'inkl. Auswuchtgewichte', 'Kategorie': 'auswuchten', 'Zoll': 'alle', 'Anzahl': 4},
-        
-        # RÄDERWECHSEL
-        {'Positionsnummer': 'Z44058', 'Bezeichnung': 'SERVICE PAKET RÄDERWECHSEL', 'Teilenummer': '44051091', 'Detail': 'RÄDERWECHSEL (1 Rad)', 'Preis': 9.98, 'Hinweis': '', 'Kategorie': 'raederwechsel', 'Zoll': 'alle', 'Anzahl': 1},
-        {'Positionsnummer': 'Z44059', 'Bezeichnung': 'SERVICE PAKET RÄDERWECHSEL', 'Teilenummer': '44051092', 'Detail': 'RÄDERWECHSEL (2 Räder)', 'Preis': 19.95, 'Hinweis': '', 'Kategorie': 'raederwechsel', 'Zoll': 'alle', 'Anzahl': 2},
-        {'Positionsnummer': 'Z44060', 'Bezeichnung': 'SERVICE PAKET RÄDERWECHSEL', 'Teilenummer': '44051099', 'Detail': 'RÄDERWECHSEL', 'Preis': 39.90, 'Hinweis': '', 'Kategorie': 'raederwechsel', 'Zoll': 'alle', 'Anzahl': 4},
-        
-        # KOMBIPAKETE
-        {'Positionsnummer': 'Z44053', 'Bezeichnung': 'RÄDERWECHSEL INKL. EINLAGERUNG KOMFORT', 'Teilenummer': '44051099', 'Detail': 'RÄDERWECHSEL, SAISONALE RÄDEREINLAGERUNG', 'Preis': 109.90, 'Hinweis': '', 'Kategorie': 'kombi_komfort', 'Zoll': 'alle', 'Anzahl': 4},
-        {'Positionsnummer': 'Z44066', 'Bezeichnung': 'SERVICE PAKET RÄDERWECHSEL & EINLAGERUNG', 'Teilenummer': '44051099', 'Detail': 'RÄDERWECHSEL, SAISONALE RÄDEREINLAGERUNG', 'Preis': 94.90, 'Hinweis': '', 'Kategorie': 'kombi_standard', 'Zoll': 'alle', 'Anzahl': 4}
-    ]
-    return pd.DataFrame(packages)
-
-def get_service_packages():
-    """Gibt Service-Pakete zurück"""
-    if 'service_packages' not in st.session_state:
-        st.session_state.service_packages = load_service_packages()
-    return st.session_state.service_packages
-
-def get_reifenservice_package(zoll_size, anzahl):
-    """Gibt das passende Reifenservice-Paket zurück"""
-    packages = get_service_packages()
-    
-    # Zoll-Kategorie bestimmen
-    if zoll_size <= 17:
-        zoll_cat = 'bis_17'
-    elif zoll_size <= 19:
-        zoll_cat = '18_19'
-    else:
-        zoll_cat = 'ab_20'
-    
-    # Passendes Paket finden
-    package = packages[
-        (packages['Kategorie'] == 'reifenservice') & 
-        (packages['Zoll'] == zoll_cat) & 
-        (packages['Anzahl'] == anzahl)
-    ]
-    
-    if not package.empty:
-        return package.iloc[0]
-    return None
-
-def get_auswuchten_package(anzahl):
-    """Gibt das passende Auswuchten-Paket zurück"""
-    packages = get_service_packages()
-    package = packages[
-        (packages['Kategorie'] == 'auswuchten') & 
-        (packages['Anzahl'] == anzahl)
-    ]
-    
-    if not package.empty:
-        return package.iloc[0]
-    return None
-
-def get_raederwechsel_package(anzahl):
-    """Gibt das passende Räderwechsel-Paket zurück"""
-    packages = get_service_packages()
-    package = packages[
-        (packages['Kategorie'] == 'raederwechsel') & 
-        (packages['Anzahl'] == anzahl)
-    ]
-    
-    if not package.empty:
-        return package.iloc[0]
-    return None
-
-def get_kombi_package(typ):
-    """Gibt das passende Kombi-Paket zurück"""
-    packages = get_service_packages()
-    kategorie = 'kombi_komfort' if typ == 'komfort' else 'kombi_standard'
-    package = packages[packages['Kategorie'] == kategorie]
-    
-    if not package.empty:
-        return package.iloc[0]
-    return None
+def get_service_prices():
+    if 'services_config' not in st.session_state:
+        st.session_state.services_config = init_default_services()
+    prices = {}
+    for _, row in st.session_state.services_config.iterrows():
+        prices[row['service_name']] = row['price']
+    return prices
 
 # ================================================================================================
 # PERSONALISIERTE ANREDE FUNKTIONEN
@@ -1046,9 +953,8 @@ def has_services_in_cart():
     """Prüft ob Services im Warenkorb aktiviert sind"""
     for item in st.session_state.cart_items:
         item_services = st.session_state.cart_services.get(item['id'], {})
-        if (item_services.get('reifenservice', False) or 
-            item_services.get('auswuchten', False) or
-            item_services.get('raederwechsel', False) or 
+        if (item_services.get('montage', False) or 
+            item_services.get('radwechsel', False) or 
             item_services.get('einlagerung', False)):
             return True
     return False
@@ -1077,46 +983,39 @@ def clear_cart():
     st.session_state.cart_count = 0
 
 def calculate_position_total(item):
-    """Berechnet Gesamtkosten einer Position mit neuen Service-Paketen"""
     tire_id = item['id']
     quantity = st.session_state.cart_quantities.get(tire_id, 4)
+    service_prices = get_service_prices()
 
     reifen_kosten = item['Preis_EUR'] * quantity
     item_services = st.session_state.cart_services.get(tire_id, {})
     service_kosten = 0.0
 
-    # REIFENSERVICE
-    if item_services.get('reifenservice', False):
-        package = get_reifenservice_package(item['Zoll'], quantity)
-        if package is not None:
-            service_kosten += package['Preis']
+    if item_services.get('montage', False):
+        z = item['Zoll']
+        montage_preis = (service_prices.get('montage_bis_17',25.0) if z<=17
+                         else service_prices.get('montage_18_19',30.0) if z<=19
+                         else service_prices.get('montage_ab_20',40.0))
+        service_kosten += montage_preis * quantity
 
-    # AUSWUCHTEN (nur wenn kein Reifenservice)
-    elif item_services.get('auswuchten', False):
-        package = get_auswuchten_package(quantity)
-        if package is not None:
-            service_kosten += package['Preis']
+    if item_services.get('radwechsel', False):
+        t = item_services.get('radwechsel_type','4_raeder')
+        service_kosten += {
+            '1_rad': service_prices.get('radwechsel_1_rad',9.95),
+            '2_raeder': service_prices.get('radwechsel_2_raeder',19.95),
+            '3_raeder': service_prices.get('radwechsel_3_raeder',29.95),
+            '4_raeder': service_prices.get('radwechsel_4_raeder',39.90)
+        }.get(t, service_prices.get('radwechsel_4_raeder',39.90))
 
-    # RÄDERWECHSEL (ohne Einlagerung)
-    if item_services.get('raederwechsel', False) and not item_services.get('einlagerung', False):
-        anzahl = item_services.get('raederwechsel_anzahl', 4)
-        package = get_raederwechsel_package(anzahl)
-        if package is not None:
-            service_kosten += package['Preis']
-
-    # EINLAGERUNG (Kombipakete mit Räderwechsel)
     if item_services.get('einlagerung', False):
-        typ = item_services.get('einlagerung_typ', 'standard')
-        package = get_kombi_package(typ)
-        if package is not None:
-            service_kosten += package['Preis']
+        service_kosten += service_prices.get('nur_einlagerung',55.00)
 
     return reifen_kosten, service_kosten, reifen_kosten + service_kosten
 
 def get_cart_total():
-    """Berechnet Gesamtsumme mit aufgeschlüsselten Service-Kosten"""
     total = 0.0
-    breakdown = {'reifen':0.0,'reifenservice':0.0,'auswuchten':0.0,'raederwechsel':0.0,'einlagerung':0.0}
+    breakdown = {'reifen':0.0,'montage':0.0,'radwechsel':0.0,'einlagerung':0.0}
+    sp = get_service_prices()
 
     for item in st.session_state.cart_items:
         reifen_kosten, service_kosten, position_total = calculate_position_total(item)
@@ -1126,36 +1025,27 @@ def get_cart_total():
         item_services = st.session_state.cart_services.get(item['id'], {})
         qty = st.session_state.cart_quantities.get(item['id'], 4)
 
-        # REIFENSERVICE
-        if item_services.get('reifenservice', False):
-            package = get_reifenservice_package(item['Zoll'], qty)
-            if package is not None:
-                breakdown['reifenservice'] += package['Preis']
+        if item_services.get('montage', False):
+            z = item['Zoll']
+            mp = (sp.get('montage_bis_17',25.0) if z<=17 else sp.get('montage_18_19',30.0) if z<=19 else sp.get('montage_ab_20',40.0))
+            breakdown['montage'] += mp * qty
 
-        # AUSWUCHTEN
-        elif item_services.get('auswuchten', False):
-            package = get_auswuchten_package(qty)
-            if package is not None:
-                breakdown['auswuchten'] += package['Preis']
+        if item_services.get('radwechsel', False):
+            t = item_services.get('radwechsel_type','4_raeder')
+            breakdown['radwechsel'] += {
+                '1_rad': sp.get('radwechsel_1_rad',9.95),
+                '2_raeder': sp.get('radwechsel_2_raeder',19.95),
+                '3_raeder': sp.get('radwechsel_3_raeder',29.95),
+                '4_raeder': sp.get('radwechsel_4_raeder',39.90)
+            }.get(t, sp.get('radwechsel_4_raeder',39.90))
 
-        # RÄDERWECHSEL
-        if item_services.get('raederwechsel', False) and not item_services.get('einlagerung', False):
-            anzahl = item_services.get('raederwechsel_anzahl', 4)
-            package = get_raederwechsel_package(anzahl)
-            if package is not None:
-                breakdown['raederwechsel'] += package['Preis']
-
-        # EINLAGERUNG
         if item_services.get('einlagerung', False):
-            typ = item_services.get('einlagerung_typ', 'standard')
-            package = get_kombi_package(typ)
-            if package is not None:
-                breakdown['einlagerung'] += package['Preis']
+            breakdown['einlagerung'] += sp.get('nur_einlagerung',55.00)
 
     return total, breakdown
 
 # ================================================================================================
-# PDF GENERATION - ANGEPASST FÜR NEUE SERVICE-PAKETE
+# PDF GENERATION (Überarbeitet mit neuen Anforderungen)
 # ================================================================================================
 def format_eur(value: float) -> str:
     s = f"{value:,.2f}"
@@ -1216,7 +1106,6 @@ def _p(text, style):
     return Paragraph(text, style)
 
 def create_professional_pdf(customer_data=None, offer_scenario="vergleich", detected_season="neutral"):
-    """PDF-Generierung angepasst für neue Service-Pakete"""
     if not st.session_state.cart_items:
         return None
 
@@ -1331,6 +1220,7 @@ def create_professional_pdf(customer_data=None, offer_scenario="vergleich", dete
     for i, item in enumerate(st.session_state.cart_items, 1):
         reifen_kosten, service_kosten, position_total = calculate_position_total(item)
         quantity = st.session_state.cart_quantities.get(item['id'], 4)
+        service_prices = get_service_prices()
 
         # EU-Label kompakt (falls vorhanden) + Saison
         eu_parts = []
@@ -1341,36 +1231,32 @@ def create_professional_pdf(customer_data=None, offer_scenario="vergleich", dete
         if item.get('Saison'): eu_parts.append(f"Saison: {item.get('Saison')}")
         eu_label = " | ".join(eu_parts) if eu_parts else "EU-Label: –"
 
-        # Service-Aufschlüsselung für linke Spalte - NEUE SERVICE-PAKETE
+        # Service-Aufschlüsselung für linke Spalte
         item_services = st.session_state.cart_services.get(item['id'], {})
         service_lines = []
         
-        # REIFENSERVICE
-        if item_services.get('reifenservice', False):
-            package = get_reifenservice_package(item['Zoll'], quantity)
-            if package is not None:
-                service_lines.append(f"Reifenservice: {format_eur(package['Preis'])} ({package['Positionsnummer']})")
+        if item_services.get('montage', False):
+            z = item['Zoll']
+            montage_preis = (service_prices.get('montage_bis_17',25.0) if z<=17
+                             else service_prices.get('montage_18_19',30.0) if z<=19
+                             else service_prices.get('montage_ab_20',40.0))
+            montage_gesamt = montage_preis * quantity
+            service_lines.append(f"Montage: {format_eur(montage_gesamt)}")
         
-        # AUSWUCHTEN
-        elif item_services.get('auswuchten', False):
-            package = get_auswuchten_package(quantity)
-            if package is not None:
-                service_lines.append(f"Auswuchten: {format_eur(package['Preis'])} ({package['Positionsnummer']})")
+        if item_services.get('radwechsel', False):
+            t = item_services.get('radwechsel_type','4_raeder')
+            radwechsel_preis = {
+                '1_rad': service_prices.get('radwechsel_1_rad',9.95),
+                '2_raeder': service_prices.get('radwechsel_2_raeder',19.95),
+                '3_raeder': service_prices.get('radwechsel_3_raeder',29.95),
+                '4_raeder': service_prices.get('radwechsel_4_raeder',39.90)
+            }.get(t, service_prices.get('radwechsel_4_raeder',39.90))
+            type_map = {'1_rad':'1 Rad','2_raeder': '2 Räder','3_raeder':'3 Räder','4_raeder':'4 Räder'}
+            service_lines.append(f"Radwechsel {type_map.get(t,'4 Räder')}: {format_eur(radwechsel_preis)}")
         
-        # RÄDERWECHSEL (ohne Einlagerung)
-        if item_services.get('raederwechsel', False) and not item_services.get('einlagerung', False):
-            anzahl = item_services.get('raederwechsel_anzahl', 4)
-            package = get_raederwechsel_package(anzahl)
-            if package is not None:
-                service_lines.append(f"Räderwechsel ({anzahl} Räder): {format_eur(package['Preis'])} ({package['Positionsnummer']})")
-        
-        # EINLAGERUNG (Kombipakete)
         if item_services.get('einlagerung', False):
-            typ = item_services.get('einlagerung_typ', 'standard')
-            package = get_kombi_package(typ)
-            if package is not None:
-                typ_text = 'Komfort' if typ == 'komfort' else 'Standard'
-                service_lines.append(f"Räderwechsel + Einlagerung {typ_text}: {format_eur(package['Preis'])} ({package['Positionsnummer']})")
+            einlagerung_preis = service_prices.get('nur_einlagerung',55.00)
+            service_lines.append(f"Einlagerung: {format_eur(einlagerung_preis)}")
 
         # Linke Spalte (Info + Services) - größere Schrift
         left_rows = [
@@ -1467,18 +1353,16 @@ def create_professional_pdf(customer_data=None, offer_scenario="vergleich", dete
         story.append(Spacer(1, 3))
 
     # WICHTIGE ÄNDERUNG: Grüne Vergleichsbox für Vergleichsangebote ENTFERNT
-    # Kostenaufstellung nur für andere Szenarien - ANGEPASST FÜR NEUE SERVICE-PAKETE
+    # Kostenaufstellung nur für andere Szenarien
     if offer_scenario != "vergleich":
         story.append(_p("Kostenaufstellung", h2))
         cost_rows = [['Reifen-Kosten', format_eur(breakdown['reifen'])]]
-        if breakdown['reifenservice'] > 0:
-            cost_rows.append(['Reifenservice', format_eur(breakdown['reifenservice'])])
-        if breakdown['auswuchten'] > 0:
-            cost_rows.append(['Auswuchten', format_eur(breakdown['auswuchten'])])
-        if breakdown['raederwechsel'] > 0:
-            cost_rows.append(['Räderwechsel', format_eur(breakdown['raederwechsel'])])
+        if breakdown['montage'] > 0:
+            cost_rows.append(['Montage-Service', format_eur(breakdown['montage'])])
+        if breakdown['radwechsel'] > 0:
+            cost_rows.append(['Radwechsel-Service', format_eur(breakdown['radwechsel'])])
         if breakdown['einlagerung'] > 0:
-            cost_rows.append(['Räderwechsel + Einlagerung', format_eur(breakdown['einlagerung'])])
+            cost_rows.append(['Einlagerung', format_eur(breakdown['einlagerung'])])
 
         cost_rows.append(['', ''])
         cost_rows.append(['GESAMTSUMME', format_eur(total)])
@@ -1745,15 +1629,13 @@ def init_session_state():
 # ================================================================================================
 def _ensure_item_defaults(item_id):
     st.session_state.setdefault(f"qty_{item_id}", st.session_state.cart_quantities.get(item_id, 4))
-    st.session_state.cart_services.setdefault(item_id, {'reifenservice':False,'auswuchten':False,'raederwechsel':False,'raederwechsel_anzahl':4,'einlagerung':False,'einlagerung_typ':'standard'})
+    st.session_state.cart_services.setdefault(item_id, {'montage':False,'radwechsel':False,'radwechsel_type':'4_raeder','einlagerung':False})
 
     cs = st.session_state.cart_services[item_id]
-    st.session_state.setdefault(f"reifenservice_{item_id}", cs.get('reifenservice', False))
-    st.session_state.setdefault(f"auswuchten_{item_id}", cs.get('auswuchten', False))
-    st.session_state.setdefault(f"raederwechsel_{item_id}", cs.get('raederwechsel', False))
-    st.session_state.setdefault(f"cart_raederwechsel_anzahl_{item_id}", cs.get('raederwechsel_anzahl', 4))
+    st.session_state.setdefault(f"montage_{item_id}", cs.get('montage', False))
+    st.session_state.setdefault(f"radwechsel_{item_id}", cs.get('radwechsel', False))
+    st.session_state.setdefault(f"cart_radwechsel_type_{item_id}", cs.get('radwechsel_type', '4_raeder'))
     st.session_state.setdefault(f"einlagerung_{item_id}", cs.get('einlagerung', False))
-    st.session_state.setdefault(f"einlagerung_typ_{item_id}", cs.get('einlagerung_typ', 'standard'))
 
 def _update_qty(item_id):
     st.session_state.cart_quantities[item_id] = st.session_state.get(f"qty_{item_id}", 4)
@@ -1762,20 +1644,16 @@ def _update_service(item_id, field):
     st.session_state.cart_services.setdefault(item_id, {})
     st.session_state.cart_services[item_id][field] = st.session_state.get(f"{field}_{item_id}", False)
 
-def _update_raederwechsel_anzahl(item_id):
+def _update_radwechsel_type(item_id):
     st.session_state.cart_services.setdefault(item_id, {})
-    st.session_state.cart_services[item_id]['raederwechsel_anzahl'] = st.session_state.get(f"cart_raederwechsel_anzahl_{item_id}", 4)
-
-def _update_einlagerung_typ(item_id):
-    st.session_state.cart_services.setdefault(item_id, {})
-    st.session_state.cart_services[item_id]['einlagerung_typ'] = st.session_state.get(f"einlagerung_typ_{item_id}", 'standard')
+    st.session_state.cart_services[item_id]['radwechsel_type'] = st.session_state.get(f"cart_radwechsel_type_{item_id}", '4_raeder')
 
 def _clear_item_widget_keys(item_id):
-    for key in [f"qty_{item_id}", f"reifenservice_{item_id}", f"auswuchten_{item_id}", f"raederwechsel_{item_id}", f"cart_raederwechsel_anzahl_{item_id}", f"einlagerung_{item_id}", f"einlagerung_typ_{item_id}"]:
+    for key in [f"qty_{item_id}", f"montage_{item_id}", f"radwechsel_{item_id}", f"cart_radwechsel_type_{item_id}", f"einlagerung_{item_id}"]:
         st.session_state.pop(key, None)
 
 # ================================================================================================
-# RENDER FUNCTIONS - MIT SCHÖNER POSITIONS-ABTRENNUNG UND NEUEN SERVICE-PAKETEN
+# RENDER FUNCTIONS - MIT SCHÖNER POSITIONS-ABTRENNUNG
 # ================================================================================================
 def render_empty_cart():
     st.markdown("### Der Warenkorb ist leer")
@@ -1793,7 +1671,6 @@ def render_cart_content():
             st.markdown("---")
 
 def render_cart_item(item, position_number):
-    """Rendert Warenkorb-Position mit neuen Service-Paketen"""
     st.markdown(f"### Position {position_number}")
 
     item_id = item['id']
@@ -1828,45 +1705,36 @@ def render_cart_item(item, position_number):
     st.markdown(f"Reifen: {reifen_kosten:.2f}EUR + Services: {service_kosten:.2f}EUR")
 
 def render_item_services(item):
-    """Rendert Service-Auswahl mit neuen Service-Paketen"""
     item_id = item['id']
     _ensure_item_defaults(item_id)
+    sp = get_service_prices()
 
     st.markdown("**Services:**")
 
-    # REIFENSERVICE
-    st.checkbox("Reifenservice", key=f"reifenservice_{item_id}",
-                on_change=_update_service, args=(item_id,'reifenservice'),
-                help="Kompletter Reifenservice inkl. Montage, Auswuchten, Ventil und Entsorgung")
+    z = item['Zoll']
+    montage_price = (sp.get('montage_bis_17',25.0) if z<=17 else sp.get('montage_18_19',30.0) if z<=19 else sp.get('montage_ab_20',40.0))
+    montage_label = f"Montage ({montage_price:.2f}EUR/Stk)"
+    st.checkbox(montage_label, key=f"montage_{item_id}",
+                on_change=_update_service, args=(item_id,'montage'))
 
-    # AUSWUCHTEN (nur wenn kein Reifenservice)
-    auswuchten_disabled = st.session_state.get(f"reifenservice_{item_id}", False)
-    st.checkbox("Nur Auswuchten", key=f"auswuchten_{item_id}",
-                disabled=auswuchten_disabled,
-                on_change=_update_service, args=(item_id,'auswuchten'),
-                help="Nur Räder auswuchten ohne Montage")
+    st.checkbox("Radwechsel", key=f"radwechsel_{item_id}",
+                on_change=_update_service, args=(item_id,'radwechsel'))
 
-    # RÄDERWECHSEL
-    st.checkbox("Räderwechsel", key=f"raederwechsel_{item_id}",
-                on_change=_update_service, args=(item_id,'raederwechsel'))
+    if st.session_state.get(f"radwechsel_{item_id}", False):
+        options = [
+            ('4_raeder', f"4 Räder ({sp.get('radwechsel_4_raeder',39.90):.2f}EUR)"),
+            ('3_raeder', f"3 Räder ({sp.get('radwechsel_3_raeder',29.95):.2f}EUR)"),
+            ('2_raeder', f"2 Räder ({sp.get('radwechsel_2_raeder',19.95):.2f}EUR)"),
+            ('1_rad',   f"1 Rad ({sp.get('radwechsel_1_rad',9.95):.2f}EUR)")
+        ]
+        st.selectbox("Anzahl:", options=[k for k,_ in options],
+                     format_func=lambda x: next(lbl for k,lbl in options if k==x),
+                     key=f"cart_radwechsel_type_{item_id}",
+                     on_change=_update_radwechsel_type, args=(item_id,))
 
-    if st.session_state.get(f"raederwechsel_{item_id}", False):
-        anzahl_options = [4, 2, 1]
-        st.selectbox("Anzahl Räder:", options=anzahl_options,
-                     key=f"cart_raederwechsel_anzahl_{item_id}",
-                     on_change=_update_raederwechsel_anzahl, args=(item_id,))
-
-    # EINLAGERUNG
-    st.checkbox("Mit Einlagerung", key=f"einlagerung_{item_id}",
+    st.checkbox(f"Einlagerung ({sp.get('nur_einlagerung',55.00):.2f}EUR)",
+                key=f"einlagerung_{item_id}",
                 on_change=_update_service, args=(item_id,'einlagerung'))
-
-    if st.session_state.get(f"einlagerung_{item_id}", False):
-        typ_options = ['standard', 'komfort']
-        st.selectbox("Einlagerung-Typ:",
-                     options=typ_options,
-                     format_func=lambda x: 'Standard (94,90 EUR)' if x == 'standard' else 'Komfort (109,90 EUR)',
-                     key=f"einlagerung_typ_{item_id}",
-                     on_change=_update_einlagerung_typ, args=(item_id,))
 
 def render_price_summary(total, breakdown):
     st.markdown("---")
@@ -1874,10 +1742,9 @@ def render_price_summary(total, breakdown):
     col_breakdown, col_total = st.columns([2, 1])
     with col_breakdown:
         st.markdown(f"**Reifen-Kosten:** {breakdown['reifen']:.2f}EUR")
-        if breakdown['reifenservice']>0: st.markdown(f"**Reifenservice:** {breakdown['reifenservice']:.2f}EUR")
-        if breakdown['auswuchten']>0: st.markdown(f"**Auswuchten:** {breakdown['auswuchten']:.2f}EUR")
-        if breakdown['raederwechsel']>0: st.markdown(f"**Räderwechsel:** {breakdown['raederwechsel']:.2f}EUR")
-        if breakdown['einlagerung']>0: st.markdown(f"**Räderwechsel + Einlagerung:** {breakdown['einlagerung']:.2f}EUR")
+        if breakdown['montage']>0: st.markdown(f"**Montage:** {breakdown['montage']:.2f}EUR")
+        if breakdown['radwechsel']>0: st.markdown(f"**Radwechsel:** {breakdown['radwechsel']:.2f}EUR")
+        if breakdown['einlagerung']>0: st.markdown(f"**Einlagerung:** {breakdown['einlagerung']:.2f}EUR")
     with col_total:
         st.markdown(f"### **GESAMT: {total:.2f}EUR**")
 
