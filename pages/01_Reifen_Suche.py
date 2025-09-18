@@ -306,33 +306,122 @@ def get_reifen_data():
         st.session_state.data_loaded = True
     return st.session_state.reifen_data
 
-def init_default_services():
-    """Initialisiert Standard Service-Konfiguration"""
-    services_data = {
-        'service_name': ['montage_bis_17', 'montage_18_19', 'montage_ab_20', 
-                         'radwechsel_1_rad', 'radwechsel_2_raeder', 'radwechsel_3_raeder', 
-                         'radwechsel_4_raeder', 'nur_einlagerung'],
-        'service_label': ['Montage bis 17 Zoll', 'Montage 18-19 Zoll', 'Montage ab 20 Zoll',
-                          'Radwechsel 1 Rad', 'Radwechsel 2 Räder', 'Radwechsel 3 Räder',
-                          'Radwechsel 4 Räder', 'Nur Einlagerung'],
-        'price': [25.0, 30.0, 40.0, 9.95, 19.95, 29.95, 39.90, 55.00],
-        'unit': ['pro Reifen', 'pro Reifen', 'pro Reifen', 
-                 'pauschal', 'pauschal', 'pauschal', 'pauschal', 'pauschal']
-    }
-    return pd.DataFrame(services_data)
+# ================================================================================================
+# NEUE SERVICE-PAKET FUNKTIONEN
+# ================================================================================================
+def load_service_packages():
+    """Lädt die neuen Service-Pakete aus CSV"""
+    data_dir = Path("data")
+    csv_path = data_dir / "ramsperger_services_config.csv"
+    
+    if not csv_path.exists():
+        return create_default_service_packages()
+    
+    try:
+        df = pd.read_csv(csv_path, encoding='utf-8')
+        return df
+    except Exception:
+        return create_default_service_packages()
 
-def get_service_prices():
-    """Gibt aktuelle Service-Preise zurück"""
-    if 'services_config' not in st.session_state:
-        st.session_state.services_config = init_default_services()
-    services_config = st.session_state.services_config
-    prices = {}
-    for _, row in services_config.iterrows():
-        prices[row['service_name']] = row['price']
-    return prices
+def create_default_service_packages():
+    """Erstellt Standard Service-Pakete basierend auf deinen neuen Paketen"""
+    packages = [
+        # REIFENSERVICE bis 17 Zoll
+        {'Positionsnummer': 'Z4409', 'Bezeichnung': 'SERVICE PAKET REIFENSERVICE 1 RAD', 'Teilenummer': '44401995', 'Detail': 'REIFENSERVICE 1 RAD', 'Preis': 25.00, 'Hinweis': 'inkl. Auswuchtgewichte, Ventil und Altreifenentsorgung', 'Kategorie': 'reifenservice', 'Zoll': 'bis_17', 'Anzahl': 1},
+        {'Positionsnummer': 'Z44091', 'Bezeichnung': 'SERVICE PAKET REIFENSERVICE 2 RÄDER', 'Teilenummer': '44402095', 'Detail': 'REIFENSERVICE 2 RÄDER', 'Preis': 50.00, 'Hinweis': 'inkl. Auswuchtgewichte, Ventile und Altreifenentsorgung', 'Kategorie': 'reifenservice', 'Zoll': 'bis_17', 'Anzahl': 2},
+        {'Positionsnummer': 'Z44092', 'Bezeichnung': 'SERVICE PAKET REIFENSERVICE 4 RÄDER', 'Teilenummer': '44402295', 'Detail': 'REIFENSERVICE 4 RÄDER', 'Preis': 100.00, 'Hinweis': 'inkl. Auswuchtgewichte, Ventile und Altreifenentsorgung', 'Kategorie': 'reifenservice', 'Zoll': 'bis_17', 'Anzahl': 4},
+        
+        # REIFENSERVICE 18-19 Zoll
+        {'Positionsnummer': 'Z44093', 'Bezeichnung': 'SERVICE PAKET REIFENSERVICE 1 RAD', 'Teilenummer': '44401996', 'Detail': 'REIFENSERVICE 1 RAD', 'Preis': 30.00, 'Hinweis': 'inkl. Auswuchtgewichte, Ventil und Altreifenentsorgung', 'Kategorie': 'reifenservice', 'Zoll': '18_19', 'Anzahl': 1},
+        {'Positionsnummer': 'Z44094', 'Bezeichnung': 'SERVICE PAKET REIFENSERVICE 2 RÄDER', 'Teilenummer': '44402096', 'Detail': 'REIFENSERVICE 2 RÄDER', 'Preis': 60.00, 'Hinweis': 'inkl. Auswuchtgewichte, Ventile und Altreifenentsorgung', 'Kategorie': 'reifenservice', 'Zoll': '18_19', 'Anzahl': 2},
+        {'Positionsnummer': 'Z44095', 'Bezeichnung': 'SERVICE PAKET REIFENSERVICE 4 RÄDER', 'Teilenummer': '44402296', 'Detail': 'REIFENSERVICE 4 RÄDER', 'Preis': 120.00, 'Hinweis': 'inkl. Auswuchtgewichte, Ventile und Altreifenentsorgung', 'Kategorie': 'reifenservice', 'Zoll': '18_19', 'Anzahl': 4},
+        
+        # REIFENSERVICE ab 20 Zoll
+        {'Positionsnummer': 'Z44096', 'Bezeichnung': 'SERVICE PAKET REIFENSERVICE 1 RAD', 'Teilenummer': '44401997', 'Detail': 'REIFENSERVICE 1 RAD', 'Preis': 40.00, 'Hinweis': 'inkl. Auswuchtgewichte, Ventil und Altreifenentsorgung', 'Kategorie': 'reifenservice', 'Zoll': 'ab_20', 'Anzahl': 1},
+        {'Positionsnummer': 'Z44097', 'Bezeichnung': 'SERVICE PAKET REIFENSERVICE 2 RÄDER', 'Teilenummer': '44402097', 'Detail': 'REIFENSERVICE 2 RÄDER', 'Preis': 80.00, 'Hinweis': 'inkl. Auswuchtgewichte, Ventile und Altreifenentsorgung', 'Kategorie': 'reifenservice', 'Zoll': 'ab_20', 'Anzahl': 2},
+        {'Positionsnummer': 'Z44098', 'Bezeichnung': 'SERVICE PAKET REIFENSERVICE 4 RÄDER', 'Teilenummer': '44402297', 'Detail': 'REIFENSERVICE 4 RÄDER', 'Preis': 160.00, 'Hinweis': 'inkl. Auswuchtgewichte, Ventile und Altreifenentsorgung', 'Kategorie': 'reifenservice', 'Zoll': 'ab_20', 'Anzahl': 4},
+        
+        # AUSWUCHTEN
+        {'Positionsnummer': 'Z4404', 'Bezeichnung': 'SERVICE PAKET RÄDER AUSWUCHTEN 1 RAD', 'Teilenummer': '44056799', 'Detail': '1 RAD AUSGEWUCHTET', 'Preis': 7.50, 'Hinweis': 'inkl. Auswuchtgewichte', 'Kategorie': 'auswuchten', 'Zoll': 'alle', 'Anzahl': 1},
+        {'Positionsnummer': 'Z44041', 'Bezeichnung': 'SERVICE PAKET RÄDER AUSWUCHTEN 2 RÄDER', 'Teilenummer': '44056899', 'Detail': '2 RÄDER AUSGEWUCHTET', 'Preis': 15.00, 'Hinweis': 'inkl. Auswuchtgewichte', 'Kategorie': 'auswuchten', 'Zoll': 'alle', 'Anzahl': 2},
+        {'Positionsnummer': 'Z44042', 'Bezeichnung': 'SERVICE PAKET RÄDER AUSWUCHTEN 4 RÄDER', 'Teilenummer': '44056999', 'Detail': '4 RÄDER AUSGEWUCHTET', 'Preis': 30.00, 'Hinweis': 'inkl. Auswuchtgewichte', 'Kategorie': 'auswuchten', 'Zoll': 'alle', 'Anzahl': 4},
+        
+        # RÄDERWECHSEL
+        {'Positionsnummer': 'Z44058', 'Bezeichnung': 'SERVICE PAKET RÄDERWECHSEL', 'Teilenummer': '44051091', 'Detail': 'RÄDERWECHSEL (1 Rad)', 'Preis': 9.98, 'Hinweis': '', 'Kategorie': 'raederwechsel', 'Zoll': 'alle', 'Anzahl': 1},
+        {'Positionsnummer': 'Z44059', 'Bezeichnung': 'SERVICE PAKET RÄDERWECHSEL', 'Teilenummer': '44051092', 'Detail': 'RÄDERWECHSEL (2 Räder)', 'Preis': 19.95, 'Hinweis': '', 'Kategorie': 'raederwechsel', 'Zoll': 'alle', 'Anzahl': 2},
+        {'Positionsnummer': 'Z44060', 'Bezeichnung': 'SERVICE PAKET RÄDERWECHSEL', 'Teilenummer': '44051099', 'Detail': 'RÄDERWECHSEL', 'Preis': 39.90, 'Hinweis': '', 'Kategorie': 'raederwechsel', 'Zoll': 'alle', 'Anzahl': 4},
+        
+        # KOMBIPAKETE
+        {'Positionsnummer': 'Z44053', 'Bezeichnung': 'RÄDERWECHSEL INKL. EINLAGERUNG KOMFORT', 'Teilenummer': '44051099', 'Detail': 'RÄDERWECHSEL, SAISONALE RÄDEREINLAGERUNG', 'Preis': 109.90, 'Hinweis': '', 'Kategorie': 'kombi_komfort', 'Zoll': 'alle', 'Anzahl': 4},
+        {'Positionsnummer': 'Z44066', 'Bezeichnung': 'SERVICE PAKET RÄDERWECHSEL & EINLAGERUNG', 'Teilenummer': '44051099', 'Detail': 'RÄDERWECHSEL, SAISONALE RÄDEREINLAGERUNG', 'Preis': 94.90, 'Hinweis': '', 'Kategorie': 'kombi_standard', 'Zoll': 'alle', 'Anzahl': 4}
+    ]
+    return pd.DataFrame(packages)
+
+def get_service_packages():
+    """Gibt Service-Pakete zurück"""
+    if 'service_packages' not in st.session_state:
+        st.session_state.service_packages = load_service_packages()
+    return st.session_state.service_packages
+
+def get_reifenservice_package(zoll_size, anzahl):
+    """Gibt das passende Reifenservice-Paket zurück"""
+    packages = get_service_packages()
+    
+    # Zoll-Kategorie bestimmen
+    if zoll_size <= 17:
+        zoll_cat = 'bis_17'
+    elif zoll_size <= 19:
+        zoll_cat = '18_19'
+    else:
+        zoll_cat = 'ab_20'
+    
+    # Passendes Paket finden
+    package = packages[
+        (packages['Kategorie'] == 'reifenservice') & 
+        (packages['Zoll'] == zoll_cat) & 
+        (packages['Anzahl'] == anzahl)
+    ]
+    
+    if not package.empty:
+        return package.iloc[0]
+    return None
+
+def get_auswuchten_package(anzahl):
+    """Gibt das passende Auswuchten-Paket zurück"""
+    packages = get_service_packages()
+    package = packages[
+        (packages['Kategorie'] == 'auswuchten') & 
+        (packages['Anzahl'] == anzahl)
+    ]
+    
+    if not package.empty:
+        return package.iloc[0]
+    return None
+
+def get_raederwechsel_package(anzahl):
+    """Gibt das passende Räderwechsel-Paket zurück"""
+    packages = get_service_packages()
+    package = packages[
+        (packages['Kategorie'] == 'raederwechsel') & 
+        (packages['Anzahl'] == anzahl)
+    ]
+    
+    if not package.empty:
+        return package.iloc[0]
+    return None
+
+def get_kombi_package(typ):
+    """Gibt das passende Kombi-Paket zurück"""
+    packages = get_service_packages()
+    kategorie = 'kombi_komfort' if typ == 'komfort' else 'kombi_standard'
+    package = packages[packages['Kategorie'] == kategorie]
+    
+    if not package.empty:
+        return package.iloc[0]
+    return None
 
 # ================================================================================================
-# CART MANAGEMENT - DIREKT EINGEBETTET
+# CART MANAGEMENT - ANGEPASST FÜR NEUE SERVICE-PAKETE
 # ================================================================================================
 def add_to_cart_with_config(tire_data, quantity, services):
     """Fügt einen Reifen mit Konfiguration zum Warenkorb hinzu"""
@@ -363,18 +452,14 @@ def remove_from_cart(tire_data):
     """Entfernt einen Reifen aus dem Warenkorb"""
     tire_id = f"{tire_data['Teilenummer']}_{tire_data['Preis_EUR']}"
     
-    # Entferne aus cart_items
     st.session_state.cart_items = [item for item in st.session_state.cart_items if item['id'] != tire_id]
     
-    # Entferne aus cart_quantities
     if tire_id in st.session_state.cart_quantities:
         del st.session_state.cart_quantities[tire_id]
     
-    # Entferne aus cart_services
     if tire_id in st.session_state.cart_services:
         del st.session_state.cart_services[tire_id]
     
-    # Aktualisiere cart_count
     st.session_state.cart_count = len(st.session_state.cart_items)
     
     return True, f"Reifen {tire_data['Fabrikat']} {tire_data['Profil']} aus Warenkorb entfernt"
@@ -404,10 +489,10 @@ def init_session_state():
         st.session_state.cart_count = 0
 
 # ================================================================================================
-# RENDER FUNCTIONS
+# RENDER FUNCTIONS - ANGEPASST FÜR NEUE SERVICE-PAKETE
 # ================================================================================================
 def render_config_card(row, idx, filtered_df):
-    """Rendert die Konfigurationskarte für einen Reifen"""
+    """Rendert die Konfigurationskarte für einen Reifen mit neuen Service-Paketen"""
     st.markdown(f"""<div class="config-card">""", unsafe_allow_html=True)
     saison_badge = get_saison_badge_html(row.get('Saison', 'Unbekannt'))
     st.markdown(f"**Konfiguration für {row['Reifengröße']} - {row['Fabrikat']} {row['Profil']}** {saison_badge}", unsafe_allow_html=True)
@@ -429,69 +514,97 @@ def render_config_card(row, idx, filtered_df):
 
     with col_config2:
         st.markdown("**Service-Leistungen:**")
-        service_prices = get_service_prices()
-
+        
         zoll_size = row['Zoll']
-        if zoll_size <= 17:
-            montage_price = service_prices.get('montage_bis_17', 25.0)
-            montage_label = f"Reifenservice bis 17 Zoll ({montage_price:.2f}EUR pro Reifen)"
-        elif zoll_size <= 19:
-            montage_price = service_prices.get('montage_18_19', 30.0)
-            montage_label = f"Reifenservice 18-19 Zoll ({montage_price:.2f}EUR pro Reifen)"
-        else:
-            montage_price = service_prices.get('montage_ab_20', 40.0)
-            montage_label = f"Reifenservice ab 20 Zoll ({montage_price:.2f}EUR pro Reifen)"
-
-        montage_selected = st.checkbox(
-            montage_label,
-            key=f"montage_{idx}",
-            value=True
+        
+        # REIFENSERVICE-AUSWAHL
+        reifenservice_selected = st.checkbox(
+            "Reifenservice",
+            key=f"reifenservice_{idx}",
+            value=True,
+            help="Kompletter Reifenservice inkl. Montage, Auswuchten, Ventil und Entsorgung"
         )
-
-        radwechsel_selected = st.checkbox(
-            "Radwechsel",
-            key=f"radwechsel_{idx}"
+        
+        # AUSWUCHTEN-AUSWAHL (nur wenn kein Reifenservice)
+        auswuchten_selected = False
+        if not reifenservice_selected:
+            auswuchten_selected = st.checkbox(
+                "Nur Auswuchten",
+                key=f"auswuchten_{idx}",
+                help="Nur Räder auswuchten ohne Montage"
+            )
+        
+        # RÄDERWECHSEL-AUSWAHL
+        raederwechsel_selected = st.checkbox(
+            "Räderwechsel",
+            key=f"raederwechsel_{idx}"
         )
-
-        radwechsel_type = '4_raeder'
-        if radwechsel_selected:
-            with st.expander("Radwechsel-Optionen", expanded=True):
-                radwechsel_options = [
-                    ('4_raeder', f"4 Räder ({service_prices.get('radwechsel_4_raeder', 39.90):.2f}EUR)"),
-                    ('3_raeder', f"3 Räder ({service_prices.get('radwechsel_3_raeder', 29.95):.2f}EUR)"),
-                    ('2_raeder', f"2 Räder ({service_prices.get('radwechsel_2_raeder', 19.95):.2f}EUR)"),
-                    ('1_rad', f"1 Rad ({service_prices.get('radwechsel_1_rad', 9.95):.2f}EUR)")
+        
+        raederwechsel_anzahl = quantity
+        if raederwechsel_selected:
+            with st.expander("Räderwechsel-Optionen", expanded=True):
+                raederwechsel_options = [
+                    (4, "4 Räder (Standard)"),
+                    (2, "2 Räder"),
+                    (1, "1 Rad")
                 ]
-                radwechsel_type = st.radio(
+                
+                raederwechsel_anzahl = st.radio(
                     "Anzahl Räder:",
-                    options=[opt[0] for opt in radwechsel_options],
-                    format_func=lambda x: next(opt[1] for opt in radwechsel_options if opt[0] == x),
-                    key=f"radwechsel_type_{idx}",
+                    options=[opt[0] for opt in raederwechsel_options],
+                    format_func=lambda x: next(opt[1] for opt in raederwechsel_options if opt[0] == x),
+                    key=f"raederwechsel_anzahl_{idx}",
                     index=0
                 )
-
+        
+        # EINLAGERUNG-AUSWAHL
         einlagerung_selected = st.checkbox(
-            f"Mit Einlagerung (+{service_prices.get('nur_einlagerung', 55.00):.2f}EUR)",
+            "Mit Einlagerung",
             key=f"einlagerung_{idx}"
         )
-
-        service_total = 0.0
-        if montage_selected:
-            service_total += montage_price * quantity
-        if radwechsel_selected:
-            if radwechsel_type == '1_rad':
-                service_total += service_prices.get('radwechsel_1_rad', 9.95)
-            elif radwechsel_type == '2_raeder':
-                service_total += service_prices.get('radwechsel_2_raeder', 19.95)
-            elif radwechsel_type == '3_raeder':
-                service_total += service_prices.get('radwechsel_3_raeder', 29.95)
-            else:
-                service_total += service_prices.get('radwechsel_4_raeder', 39.90)
+        
+        einlagerung_typ = 'standard'
         if einlagerung_selected:
-            service_total += service_prices.get('nur_einlagerung', 55.00)
-
+            einlagerung_typ = st.radio(
+                "Einlagerung-Typ:",
+                options=['standard', 'komfort'],
+                format_func=lambda x: 'Standard (94,90 EUR)' if x == 'standard' else 'Komfort (109,90 EUR)',
+                key=f"einlagerung_typ_{idx}",
+                index=0
+            )
+        
+        # KOSTENBERECHNUNG
+        service_total = 0.0
+        service_details = []
+        
+        if reifenservice_selected:
+            package = get_reifenservice_package(zoll_size, quantity)
+            if package is not None:
+                service_total += package['Preis']
+                service_details.append(f"Reifenservice: {package['Preis']:.2f} EUR ({package['Positionsnummer']})")
+        
+        elif auswuchten_selected:
+            package = get_auswuchten_package(quantity)
+            if package is not None:
+                service_total += package['Preis']
+                service_details.append(f"Auswuchten: {package['Preis']:.2f} EUR ({package['Positionsnummer']})")
+        
+        if raederwechsel_selected and not einlagerung_selected:
+            package = get_raederwechsel_package(raederwechsel_anzahl)
+            if package is not None:
+                service_total += package['Preis']
+                service_details.append(f"Räderwechsel: {package['Preis']:.2f} EUR ({package['Positionsnummer']})")
+        
+        if einlagerung_selected:
+            package = get_kombi_package(einlagerung_typ)
+            if package is not None:
+                service_total += package['Preis']
+                service_details.append(f"Räderwechsel + Einlagerung: {package['Preis']:.2f} EUR ({package['Positionsnummer']})")
+        
         if service_total > 0:
             st.metric("Service-Kosten", f"{service_total:.2f} EUR")
+            for detail in service_details:
+                st.caption(detail)
 
     grand_total = total_price + service_total
     st.markdown(f"### **Gesamtsumme: {grand_total:.2f} EUR**")
@@ -500,10 +613,12 @@ def render_config_card(row, idx, filtered_df):
     with col_add:
         if st.button("In Warenkorb legen", key=f"add_cart_{idx}", use_container_width=True, type="primary"):
             service_config = {
-                'montage': montage_selected,
-                'radwechsel': radwechsel_selected,
-                'radwechsel_type': radwechsel_type,
-                'einlagerung': einlagerung_selected
+                'reifenservice': reifenservice_selected,
+                'auswuchten': auswuchten_selected,
+                'raederwechsel': raederwechsel_selected,
+                'raederwechsel_anzahl': raederwechsel_anzahl,
+                'einlagerung': einlagerung_selected,
+                'einlagerung_typ': einlagerung_typ
             }
             tire_data = filtered_df.iloc[idx]
             success, message = add_to_cart_with_config(tire_data, quantity, service_config)
@@ -535,7 +650,6 @@ def render_tire_list(filtered_df):
     for idx, row in display.iterrows():
         is_in_cart = is_tire_in_cart(row)
         
-        # Layout: Info + Button + Remove Button (wenn im Warenkorb)
         if is_in_cart:
             col_info, col_button, col_remove = st.columns([4, 1, 1])
         else:
@@ -584,7 +698,6 @@ def render_tire_list(filtered_df):
                     st.session_state.opened_tire_cards.add(card_key)
                 st.rerun()
 
-        # Neuer Remove Button - nur wenn Reifen im Warenkorb ist
         if is_in_cart:
             with col_remove:
                 if st.button("🗑️", 
@@ -622,7 +735,7 @@ def render_statistics(filtered_df):
         st.markdown(create_metric_card("Verfügbare Größen", str(unique_sizes)), unsafe_allow_html=True)
 
 def render_legend(mit_bestand, saison_filter, zoll_filter):
-    """Rendert die Legende"""
+    """Rendert die Legende mit neuen Service-Paketen"""
     st.markdown("---")
     st.markdown("**Legende:**")
     col1, col2 = st.columns(2)
@@ -631,6 +744,8 @@ def render_legend(mit_bestand, saison_filter, zoll_filter):
         st.markdown("R = 170 km/h | S = 180 km/h | T = 190 km/h | H = 210 km/h | V = 240 km/h")
         st.markdown("**Saison-Kennzeichnung:**")
         st.markdown("ZTW = Winter | ZTR = Ganzjahres | ZTS = Sommer")
+        st.markdown("**Neue Service-Pakete:**")
+        st.markdown("Reifenservice: Komplettservice nach Zoll-Größe | Auswuchten: Nur Auswuchten | Räderwechsel + Einlagerung: Kombipakete")
     with col2:
         st.markdown("**Reifengröße:** Breite/Höhe R Zoll")
         st.markdown("**Loadindex:** Tragfähigkeit pro Reifen in kg")
