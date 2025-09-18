@@ -1144,17 +1144,13 @@ def create_professional_pdf(customer_data, offer_scenario, detected_season, cart
             eu_parts.append(f"Saison: {item.get('Saison')}")
         eu_label = " | ".join(eu_parts) if eu_parts else "EU-Label: –"
 
-        # Service-Aufschlüsselung für linke Spalte - NEUE LOGIK
+        # Service-Aufschlüsselung für linke Spalte - KORRIGIERTE LOGIK
         service_lines = []
         for package in selected_packages:
             pkg_price = float(package['preis'])
             
-            # Service-Kosten berechnen (je nach Paket-Typ)
-            if 'REIFENSERVICE' in package['bezeichnung'].upper():
-                total_pkg_cost = pkg_price * quantity
-                service_lines.append(f"{package['bezeichnung']}: {format_eur(total_pkg_cost)}")
-            else:
-                service_lines.append(f"{package['bezeichnung']}: {format_eur(pkg_price)}")
+            # Alle Service-Pakete sind Pauschalpreise
+            service_lines.append(f"{package['bezeichnung']}: {format_eur(pkg_price)}")
 
         # Linke Spalte (Info + Services) - größere Schrift
         left_rows = [
