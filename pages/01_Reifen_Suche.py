@@ -170,7 +170,6 @@ def get_reifen_data():
 # ================================================================================================
 SERVICE_REQUIRED = {"Positionsnummer","Bezeichnung","Teilenummer","Detail","Preis","Hinweis","Kategorie","Zoll","Anzahl"}
 
-# Map möglicher Header-Synonyme -> Ziel
 SERVICE_HEADER_ALIASES = {
     'position':'Positionsnummer','positionsnummer':'Positionsnummer','pos':'Positionsnummer',
     'name':'Bezeichnung','bezeichung':'Bezeichnung','title':'Bezeichnung',
@@ -184,7 +183,6 @@ SERVICE_HEADER_ALIASES = {
 }
 
 def _read_services_csv(csv_path: Path) -> pd.DataFrame:
-    # 1) Autodetect-Dialekt
     try:
         df = pd.read_csv(csv_path, sep=None, engine='python', encoding='utf-8-sig')
     except Exception:
@@ -195,7 +193,6 @@ def _read_services_csv(csv_path: Path) -> pd.DataFrame:
     return df
 
 def _normalize_service_df(df: pd.DataFrame) -> pd.DataFrame:
-    # Header trim + BOM fix + alias map (case-insensitive)
     original_cols = list(df.columns)
     new_cols = []
     for c in original_cols:
@@ -204,15 +201,13 @@ def _normalize_service_df(df: pd.DataFrame) -> pd.DataFrame:
         if low in SERVICE_HEADER_ALIASES:
             new_cols.append(SERVICE_HEADER_ALIASES[low])
         else:
-            # Falls bereits korrekter Name (irgendeine Groß-/Kleinschreibung)
             for req in SERVICE_REQUIRED:
                 if low == req.lower():
                     new_cols.append(req); break
             else:
-                new_cols.append(key)  # unbekannt, übernehmen
+                new_cols.append(key)
     df.columns = new_cols
 
-    # Minimal prüfen & nur notwendige Spalten normalisieren
     if "Kategorie" in df.columns:
         df["Kategorie"] = df["Kategorie"].astype(str).str.strip().str.lower()
     if "Zoll" in df.columns:
@@ -226,7 +221,6 @@ def _normalize_service_df(df: pd.DataFrame) -> pd.DataFrame:
                        .str.replace("-","",regex=False)
                        .str.strip())
         df["Preis"] = pd.to_numeric(df["Preis"], errors="coerce")
-    # Restliche Textspalten freundlich trimmen
     for c in ["Positionsnummer","Bezeichnung","Teilenummer","Detail","Hinweis"]:
         if c in df.columns:
             df[c] = df[c].astype(str).str.replace("\ufeff","",regex=False).str.strip()
@@ -288,26 +282,6 @@ def get_service_packages() -> pd.DataFrame:
     return st.session_state.service_packages
 
 # ================================================================================================
-# SERVICE-PAKET AUSWAHL-FUNKTIONEN
-# ================================================================================================
-def _zoll_cat_from_size(zoll_size: int) -> str:
-    try: z = int(zoll_size)
-    except Exception: return 'alle'
-    if z <= 17: return 'bis_17'
-    if z <= 19: return '18_19'
-    return 'ab_20'
-
-def lookup_package(kategorie: str, zoll: str = None, anzahl: int = None):
-    df = get_service_packages()
-    q = df['Kategorie'].eq(kategorie)
-    if zoll is not None and 'Zoll' in df.columns:
-        q = q & df['Zoll'].eq(zoll)
-    if anzahl is not None and 'Anzahl' in df.columns:
-        q = q & df['Anzahl'].astype('Int64').eq(int(anzahl))
-    res = df[q]
-    return None if res.empty else res.iloc[0]
-
-# ================================================================================================
 # CART MANAGEMENT
 # ================================================================================================
 def add_to_cart_with_config(tire_data, quantity, services):
@@ -330,7 +304,7 @@ def add_to_cart_with_config(tire_data, quantity, services):
     }
     st.session_state.cart_items.append(cart_item)
     st.session_state.cart_quantities[tire_id] = quantity
-    st.session_state.cart_services[tire_id] = services  # Liste gebuchter Pakete + Summe
+    st.session_state.cart_services[tire_id] = services  # {'pakete': [...], 'service_summe': ...}
     st.session_state.cart_count = len(st.session_state.cart_items)
     return True, f"{quantity}x {cart_item['Reifengröße']} hinzugefügt"
 
@@ -357,88 +331,20 @@ def init_session_state():
     if 'cart_count' not in st.session_state:        st.session_state.cart_count = 0
 
 # ================================================================================================
-# RENDER FUNCTIONS – MIT NEUEN SERVICE-PAKETEN (aufklappbar)
+# RENDER FUNCTIONS – NEUE SERVICE-UI (Schalter unter Gesamtsumme, alle CSV-Pakete)
 # ================================================================================================
 def render_config_card(row, idx, filtered_df):
     st.markdown(f"""<div class="config-card">""", unsafe_allow_html=True)
     saison_badge = get_saison_badge_html(row.get('Saison', 'Unbekannt'))
     st.markdown(f"**Konfiguration für {row['Reifengröße']} - {row['Fabrikat']} {row['Profil']}** {saison_badge}", unsafe_allow_html=True)
 
-    col_config1, col_config2 = st.columns(2)
+    col_left, col_right = st.columns([2,1])
 
-    with col_config1:
-        quantity = st.number_input("Stückzahl:", min_value=1, max_value=8, value=4, step=1, key=f"qty_{idx}", help="Anzahl der Reifen (1-8 Stück)")
-        tire_total = float(row['Preis_EUR']) * quantity
-        st.metric("Reifen-Gesamtpreis", f"{tire_total:.2f} EUR")
-
-    with col_config2:
-        # Hauptschalter für Zusatzleistungen
-        show_services = st.checkbox("Service-Leistungen hinzufügen", key=f"services_toggle_{idx}", value=False)
-        service_total = 0.0
-        selected_packages = []
-
-        if show_services:
-            with st.expander("Pakete auswählen", expanded=True):
-                zoll_cat = _zoll_cat_from_size(row['Zoll'])
-                # --- Reifenservice (ein passendes Paket, an/aus) ---
-                rs_pkg = lookup_package("reifenservice", zoll=zoll_cat, anzahl=quantity)
-                rs_checked = False
-                if rs_pkg is not None and pd.notna(rs_pkg['Preis']):
-                    rs_label = f"Reifenservice ({quantity} Räder, {zoll_cat.replace('_','/').replace('bis','bis ').replace('ab','ab ')}) – {rs_pkg['Preis']:.2f} EUR"
-                    rs_checked = st.checkbox(rs_label, key=f"svc_reifenservice_{idx}", value=True, help="Montage, Auswuchten, Ventile, Entsorgung")
-                # --- Auswuchten (nur wenn kein Reifenservice) ---
-                aw_checked = False; aw_pkg = None
-                if not rs_checked:
-                    aw_options = [1,2,4]
-                    aw_default_index = min(len(aw_options)-1, aw_options.index(4) if 4 in aw_options else 0)
-                    aw_count = st.radio("Auswuchten (Anzahl Räder):", options=aw_options, index=aw_default_index, key=f"svc_aw_count_{idx}", horizontal=True)
-                    aw_pkg = lookup_package("auswuchten", zoll="alle", anzahl=aw_count)
-                    if aw_pkg is not None and pd.notna(aw_pkg['Preis']):
-                        aw_checked = st.checkbox(f"Auswuchten ({aw_count} Räder) – {aw_pkg['Preis']:.2f} EUR", key=f"svc_auswuchten_{idx}")
-                # --- Räderwechsel (wenn keine Einlagerung gewählt) ---
-                rw_checked = False; rw_pkg = None; rw_count = 4
-                # --- Einlagerung (Kombi) ---
-                el_checked = st.checkbox("Mit Einlagerung (Kombipaket)", key=f"svc_einlagerung_toggle_{idx}")
-                el_pkg = None; el_typ = 'standard'
-                if el_checked:
-                    el_typ = st.radio("Einlagerung-Typ:", options=['standard','komfort'], format_func=lambda x: 'Standard (94,90 EUR)' if x=='standard' else 'Komfort (109,90 EUR)', key=f"svc_einlagerung_typ_{idx}", horizontal=True)
-                else:
-                    rw_options = [4,2,1]
-                    rw_count = st.radio("Räderwechsel (Anzahl Räder):", options=rw_options, index=0, key=f"svc_rw_count_{idx}", horizontal=True)
-                    rw_pkg = lookup_package("raederwechsel", zoll="alle", anzahl=rw_count)
-                    if rw_pkg is not None and pd.notna(rw_pkg['Preis']):
-                        rw_checked = st.checkbox(f"Räderwechsel ({rw_count} Räder) – {rw_pkg['Preis']:.2f} EUR", key=f"svc_raederwechsel_{idx}")
-
-                # Preise aufsummieren / Auswahl sammeln
-                if rs_checked and rs_pkg is not None:
-                    service_total += float(rs_pkg['Preis'])
-                    selected_packages.append({'pos': rs_pkg['Positionsnummer'], 'title': rs_pkg['Bezeichnung'], 'preis': float(rs_pkg['Preis'])})
-                if (not rs_checked) and aw_checked and aw_pkg is not None:
-                    service_total += float(aw_pkg['Preis'])
-                    selected_packages.append({'pos': aw_pkg['Positionsnummer'], 'title': aw_pkg['Bezeichnung'], 'preis': float(aw_pkg['Preis'])})
-                if (not el_checked) and rw_checked and rw_pkg is not None:
-                    service_total += float(rw_pkg['Preis'])
-                    selected_packages.append({'pos': rw_pkg['Positionsnummer'], 'title': rw_pkg['Bezeichnung'], 'preis': float(rw_pkg['Preis'])})
-                if el_checked:
-                    kategorie = 'kombi_komfort' if el_typ == 'komfort' else 'kombi_standard'
-                    el_pkg = lookup_package(kategorie)
-                    if el_pkg is not None and pd.notna(el_pkg['Preis']):
-                        service_total += float(el_pkg['Preis'])
-                        selected_packages.append({'pos': el_pkg['Positionsnummer'], 'title': el_pkg['Bezeichnung'], 'preis': float(el_pkg['Preis'])})
-
-        if service_total > 0:
-            st.metric("Service-Kosten", f"{service_total:.2f} EUR")
-        # Speichere getroffene Auswahl (für Warenkorb)
-        st.session_state[f"selected_packages_{idx}"] = selected_packages
-        st.session_state[f"service_total_{idx}"] = service_total
-
-    grand_total = tire_total + service_total
-    st.markdown(f"### **Gesamtsumme: {grand_total:.2f} EUR**")
-
-    col_add, col_cancel = st.columns(2)
-    with col_add:
-        if st.button("In Warenkorb legen", key=f"add_cart_{idx}", use_container_width=True, type="primary"):
-            # baue kompakten Services-Eintrag
+    # -------------------- Rechte Spalte: "In Warenkorb legen" (neue Position) --------------------
+    with col_right:
+        # Button oben rechts (nutzt Werte, die links gesetzt werden)
+        if st.button("In Warenkorb legen", key=f"add_cart_top_{idx}", use_container_width=True, type="primary"):
+            quantity = st.session_state.get(f"qty_{idx}", 4)
             services_payload = {
                 'pakete': st.session_state.get(f"selected_packages_{idx}", []),
                 'service_summe': st.session_state.get(f"service_total_{idx}", 0.0)
@@ -447,16 +353,92 @@ def render_config_card(row, idx, filtered_df):
             success, message = add_to_cart_with_config(tire_data, quantity, services_payload)
             if success:
                 st.success(message)
-                card_key = f"tire_card_{idx}"
-                st.session_state.opened_tire_cards.discard(card_key)
+                st.session_state.opened_tire_cards.discard(f"tire_card_{idx}")
+                st.rerun()
+            else:
+                st.warning(message)
+
+    # -------------------- Linke Spalte: Menge, Preise, Service-Schalter unter Gesamtsumme --------
+    with col_left:
+        quantity = st.number_input(
+            "Stückzahl:", min_value=1, max_value=8, value=4, step=1, key=f"qty_{idx}",
+            help="Anzahl der Reifen (1-8 Stück)"
+        )
+        tire_total = float(row['Preis_EUR']) * quantity
+        st.metric("Reifen-Gesamtpreis", f"{tire_total:.2f} EUR")
+
+        # (vorläufige) Gesamtsumme nur Reifen; Service kommt darunter
+        service_total = st.session_state.get(f"service_total_{idx}", 0.0)
+        grand_total = tire_total + service_total
+        st.markdown(f"### **Gesamtsumme: {grand_total:.2f} EUR**")
+
+        # Toggle unter der Gesamtsumme
+        show_services = st.checkbox("Service-Leistungen hinzufügen", key=f"services_toggle_{idx}", value=False)
+
+        selected_packages = st.session_state.get(f"selected_packages_{idx}", [])
+        # Wenn zum ersten Mal geöffnet, leeren wir die Auswahl (damit nichts „hängen“ bleibt)
+        if not show_services and selected_packages:
+            selected_packages = []
+            st.session_state[f"selected_packages_{idx}"] = []
+            st.session_state[f"service_total_{idx}"] = 0.0
+            service_total = 0.0
+
+        if show_services:
+            with st.expander("Alle Pakete (aus aktueller CSV)", expanded=True):
+                df_pkg = get_service_packages()
+                # Einfache, flache Liste aller Pakete als Checkboxen
+                new_selected = []
+                new_total = 0.0
+
+                for r_i, pkg in df_pkg.reset_index(drop=True).iterrows():
+                    price = float(pkg['Preis']) if pd.notna(pkg['Preis']) else 0.0
+                    label = f"[{pkg['Kategorie']}] {pkg['Bezeichnung']} – {price:.2f} EUR"
+                    # Zusatz-Info klein: Positionsnummer / Anzahl / Zoll
+                    sub = f"Pos: {pkg['Positionsnummer']} | Anzahl: {pkg['Anzahl']} | Zoll: {pkg['Zoll']}"
+                    st.caption(sub)
+                    checked = st.checkbox(label, key=f"pkg_{idx}_{r_i}", value=False)
+                    if checked:
+                        new_total += price
+                        new_selected.append({
+                            'pos': str(pkg['Positionsnummer']),
+                            'title': str(pkg['Bezeichnung']),
+                            'preis': price
+                        })
+
+                service_total = new_total
+                selected_packages = new_selected
+                st.session_state[f"selected_packages_{idx}"] = selected_packages
+                st.session_state[f"service_total_{idx}"] = service_total
+
+                if service_total > 0:
+                    st.metric("Service-Kosten", f"{service_total:.2f} EUR")
+
+            # Gesamtsumme neu zeigen (inkl. Service)
+            grand_total = tire_total + service_total
+            st.markdown(f"### **Gesamtsumme: {grand_total:.2f} EUR**")
+
+    # Untere Buttons (Abbrechen optional)
+    col_add, col_cancel = st.columns(2)
+    with col_add:
+        # Platzhalter-Button unten (optional), damit bestehender Flow erhalten bleibt
+        if st.button("In Warenkorb legen", key=f"add_cart_bottom_{idx}", use_container_width=True, type="primary"):
+            quantity = st.session_state.get(f"qty_{idx}", 4)
+            services_payload = {
+                'pakete': st.session_state.get(f"selected_packages_{idx}", []),
+                'service_summe': st.session_state.get(f"service_total_{idx}", 0.0)
+            }
+            tire_data = filtered_df.iloc[idx]
+            success, message = add_to_cart_with_config(tire_data, quantity, services_payload)
+            if success:
+                st.success(message)
+                st.session_state.opened_tire_cards.discard(f"tire_card_{idx}")
                 st.rerun()
             else:
                 st.warning(message)
 
     with col_cancel:
         if st.button("Abbrechen", key=f"cancel_{idx}", use_container_width=True):
-            card_key = f"tire_card_{idx}"
-            st.session_state.opened_tire_cards.discard(card_key)
+            st.session_state.opened_tire_cards.discard(f"tire_card_{idx}")
             st.rerun()
 
     st.markdown("</div>", unsafe_allow_html=True)
@@ -506,7 +488,7 @@ def render_tire_list(filtered_df):
                     else:
                         st.error("Fehler beim Entfernen aus dem Warenkorb")
 
-        if card_key in st.session_state.opened_tire_cards:
+        if f"tire_card_{idx}" in st.session_state.opened_tire_cards:
             render_config_card(row, idx, filtered_df)
         st.markdown("---")
 
@@ -531,7 +513,7 @@ def render_legend(mit_bestand, saison_filter, zoll_filter):
         st.markdown("**Saison-Kennzeichnung:**")
         st.markdown("ZTW = Winter | ZTR = Ganzjahres | ZTS = Sommer")
         st.markdown("**Service-Pakete:**")
-        st.markdown("Reifenservice (Komplett) | Auswuchten | Räderwechsel | Räderwechsel+Einlagerung (Kombi)")
+        st.markdown("Alle Pakete aus der CSV können hinzugebucht werden.")
     with c2:
         st.markdown("**Reifengröße:** Breite/Höhe R Zoll")
         st.markdown("**Loadindex:** Tragfähigkeit pro Reifen in kg")
