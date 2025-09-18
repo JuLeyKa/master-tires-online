@@ -521,11 +521,8 @@ def render_config_card(row, idx, filtered_df):
                                 'hinweis': package['Hinweis'] if pd.notna(package['Hinweis']) else ''
                             })
                             
-                            # Service-Kosten berechnen (je nach Paket-Typ)
-                            if 'pro Reifen' in str(package.get('Hinweis', '')).lower() or 'reifenservice' in package['Bezeichnung'].lower():
-                                service_total += pkg_price * quantity
-                            else:
-                                service_total += pkg_price
+                            # Alle Service-Pakete sind Pauschalpreise
+                            service_total += pkg_price
                     
                     st.markdown('</div>', unsafe_allow_html=True)
             else:

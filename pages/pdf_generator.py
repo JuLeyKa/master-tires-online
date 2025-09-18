@@ -927,16 +927,11 @@ def calculate_position_total(item, quantity, selected_packages):
     reifen_kosten = item['Preis_EUR'] * quantity
     service_kosten = 0.0
     
-    # Service-Pakete durchgehen
+    # Service-Pakete durchgehen - alle sind Pauschalpreise
     for package in selected_packages:
         pkg_price = float(package['preis'])
-        
-        # Prüfen ob pro Reifen oder pauschal
-        # Vereinfachte Logik: wenn "REIFENSERVICE" im Namen, dann pro Reifen
-        if 'REIFENSERVICE' in package['bezeichnung'].upper():
-            service_kosten += pkg_price * quantity
-        else:
-            service_kosten += pkg_price
+        # Alle Service-Pakete sind Pauschalpreise
+        service_kosten += pkg_price
     
     return reifen_kosten, service_kosten, reifen_kosten + service_kosten
 
