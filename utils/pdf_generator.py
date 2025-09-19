@@ -975,7 +975,7 @@ def format_date_german(date_obj):
     return str(date_obj)
 
 # ================================================================================================
-# OPTIMIERTE PDF LAYOUT NACH VORLAGE - NUR LAYOUT-ÄNDERUNGEN
+# OPTIMIERTE PDF LAYOUT NACH VORLAGE - MIT MWST-TABELLE AUF SEITE 1
 # ================================================================================================
 def create_header_footer(canvas, doc):
     """Header mit Logo links oben, ANGEBOT darunter zentriert, nichts rechts"""
@@ -1024,7 +1024,7 @@ def create_header_footer(canvas, doc):
     canvas.restoreState()
 
 def create_professional_pdf(customer_data, detected_season, cart_items, cart_quantities, cart_services, selected_filial_info, selected_mitarbeiter_info):
-    """Erstellt PDF mit optimiertem Layout - KLEINERE FIRMENADRESSE, KEINE LEERZEILEN"""
+    """Erstellt PDF mit optimiertem Layout - MWST-TABELLE AUF SEITE 1, ZWISCHENSUMME ENTFERNT"""
     if not cart_items:
         return None
 
@@ -1305,9 +1305,63 @@ def create_professional_pdf(customer_data, detected_season, cart_items, cart_qua
                           ParagraphStyle('NettoTotal', parent=normal_style, alignment=TA_RIGHT)))
     story.append(Spacer(1, 15))
 
-    # Zwischensumme
-    story.append(Paragraph("Zwischensumme", ParagraphStyle('Zwischensumme', parent=normal_style, alignment=TA_RIGHT)))
-    story.append(Paragraph(format_currency_german(total_netto), ParagraphStyle('ZwischensummeWert', parent=normal_style, alignment=TA_RIGHT, fontName='Helvetica-Bold')))
+    # === NEUE MWST-TABELLE DIREKT HIER AUF SEITE 1 - IM FAHRZEUGDATEN-STIL ===
+    mwst_betrag = total_netto * 0.19
+    brutto_gesamt = total_netto + mwst_betrag
+
+    mwst_headers = [
+        "Steuer-\nCode", "Arbeit", "Material", "Steuerbasis", "%-Mwst", 
+        "Mwst", "Steuerbasis\nAltwert", "Mwst auf\nAltwert", "Gesamtbetrag"
+    ]
+    
+    mwst_data = [
+        mwst_headers,
+        [
+            "#3", 
+            format_currency_german(total_netto), 
+            "0,00", 
+            format_currency_german(total_netto), 
+            "19%", 
+            format_currency_german(mwst_betrag), 
+            "0,00", 
+            "0,00", 
+            ""
+        ],
+        [
+            "Summe", 
+            format_currency_german(total_netto), 
+            "0,00", 
+            format_currency_german(total_netto), 
+            "", 
+            format_currency_german(mwst_betrag), 
+            "0,00", 
+            "", 
+            format_currency_german(brutto_gesamt)
+        ]
+    ]
+
+    # MWST-TABELLE MIT GLEICHER GESAMTBREITE WIE FAHRZEUGDATEN-TABELLE (19.2cm)
+    mwst_table = Table(mwst_data, colWidths=[1.5*cm, 2.0*cm, 2.0*cm, 2.2*cm, 1.2*cm, 2.0*cm, 2.2*cm, 2.0*cm, 2.1*cm])
+    
+    # GLEICHER STIL WIE FAHRZEUGDATEN-TABELLE
+    mwst_table.setStyle(TableStyle([
+        ('BACKGROUND',(0,0),(-1,0), colors.Color(0.95, 0.95, 0.95)),  # Grauer Header wie Fahrzeugdaten
+        ('TEXTCOLOR',(0,0),(-1,0), colors.black),
+        ('ALIGN',(0,0),(-1,-1),'CENTER'),
+        ('FONTNAME',(0,0),(-1,0),'Helvetica-Bold'),  # Header bold wie Fahrzeugdaten
+        ('FONTSIZE',(0,0),(-1,0),5),  # Gleiche Header-Schriftgröße
+        ('FONTSIZE',(0,1),(-1,-1),7), # Gleiche Daten-Schriftgröße
+        ('BOTTOMPADDING',(0,0),(-1,-1),2),
+        ('TOPPADDING',(0,0),(-1,-1),2),
+        ('LINEBELOW',(0,0),(-1,0),0.5,colors.black),  # Nur eine Linie unter Header
+        ('FONTNAME',(0,1),(-1,-1),'Helvetica'),
+        ('TEXTCOLOR',(0,1),(-1,-1), colors.black),
+        ('ALIGN',(1,1),(-1,-1),'RIGHT'),  # Beträge rechtsbündig
+    ]))
+
+    story.append(mwst_table)
+    story.append(Spacer(1, 8))
+    story.append(Paragraph("Zahlungsziel: Bar / Kasse bar", normal_style))
 
     # Footer Seite 1 (mit Filial-Infos)
     story.append(Spacer(1, 15))
@@ -1342,7 +1396,7 @@ def create_professional_pdf(customer_data, detected_season, cart_items, cart_qua
     ]))
     story.append(footer_table1)
 
-    # === SEITE 2: ÜBERTRAG UND MWST ===
+    # === SEITE 2: NUR ÜBERTRAG UND SERVICEBERATER-TEXT ===
     story.append(PageBreak())
 
     # Kundendaten wiederholen auf Seite 2
@@ -1408,34 +1462,6 @@ def create_professional_pdf(customer_data, detected_season, cart_items, cart_qua
         story.append(Paragraph(service_text, normal_style))
     
     story.append(Paragraph('Besuchen Sie uns doch im Internet. Unter www.ramsperger-automobile.de finden Sie alles über uns und "...die Menschen machen den Unterschied!"', normal_style))
-    story.append(Spacer(1, 15))
-
-    # === MWST-TABELLE ===
-    mwst_betrag = total_netto * 0.19
-    brutto_gesamt = total_netto + mwst_betrag
-
-    mwst_headers = ["Steuer-\nCode", "Arbeit", "Material", "Steuerbasis", "%-Mwst", "Mwst", "Steuerbasis\nAltwert", "Mwst auf\nAltwert", "Gesamtbetrag"]
-    mwst_data = [
-        mwst_headers,
-        ["#3", format_currency_german(total_netto), "0,00", format_currency_german(total_netto), "19%", format_currency_german(mwst_betrag), "0,00", "0,00", ""],
-        ["Summe", format_currency_german(total_netto), "0,00", format_currency_german(total_netto), "", format_currency_german(mwst_betrag), "0,00", "", format_currency_german(brutto_gesamt)]
-    ]
-
-    mwst_table = Table(mwst_data, colWidths=[1*cm, 1.3*cm, 1.3*cm, 1.8*cm, 1*cm, 1.3*cm, 1.3*cm, 1.2*cm, 1.8*cm])
-    mwst_table.setStyle(TableStyle([
-        ('FONTNAME',(0,0),(-1,-1),'Helvetica'),
-        ('FONTSIZE',(0,0),(-1,-1),7),
-        ('GRID',(0,0),(-1,-1),0.5,colors.black),
-        ('BACKGROUND',(0,0),(-1,0), colors.lightgrey),
-        ('ALIGN',(0,0),(-1,-1),'CENTER'),
-        ('ALIGN',(1,1),(-1,-1),'RIGHT'),
-        ('LEFTPADDING',(0,0),(-1,-1),2),
-        ('RIGHTPADDING',(0,0),(-1,-1),2),
-    ]))
-
-    story.append(mwst_table)
-    story.append(Spacer(1, 8))
-    story.append(Paragraph("Zahlungsziel: Bar / Kasse bar", normal_style))
 
     # PDF erstellen
     doc.build(story, onFirstPage=create_header_footer, onLaterPages=create_header_footer)
