@@ -1063,12 +1063,17 @@ def create_professional_pdf(customer_data, detected_season, cart_items, cart_qua
     date_today = datetime.now()
     date_str = date_today.strftime('%d.%m.%Y')
 
-    # === SEITE 1: KUNDENDATEN UND HAUPTTABELLE ===
+    # === SEITE 1: FIRMENADRESSE + KUNDENDATEN ===
+    
+    # FESTE FIRMENADRESSE direkt über Kundendaten
+    story.append(Paragraph("Ramsperger Automobile . Postfach 1516 . 73223 Kirchheim u.T.", normal_style))
+    story.append(Spacer(1, 8))
     
     # Kundendaten zweispaltig EXAKT wie im Original
     left_address_lines = []
     if customer_data and customer_data.get('name'):
         if customer_data.get('anrede') and customer_data.get('name'):
+            # KEIN Leerzeile zwischen Anrede und Name
             left_address_lines.append(f"{customer_data['anrede']}")
             left_address_lines.append(f"{customer_data['name']}")
         elif customer_data.get('name'):
@@ -1121,8 +1126,8 @@ def create_professional_pdf(customer_data, detected_season, cart_items, cart_qua
         ('VALIGN',(0,0),(-1,-1),'TOP'),
         ('LEFTPADDING',(0,0),(-1,-1),0),
         ('RIGHTPADDING',(0,0),(-1,-1),0),
-        ('TOPPADDING',(0,0),(-1,-1),1),
-        ('BOTTOMPADDING',(0,0),(-1,-1),1),
+        ('TOPPADDING',(0,0),(-1,-1),0),  # Kein Padding oben für engere Zeilen
+        ('BOTTOMPADDING',(0,0),(-1,-1),0),  # Kein Padding unten für engere Zeilen
     ]))
     story.append(addr_table)
     story.append(Spacer(1, 20))
