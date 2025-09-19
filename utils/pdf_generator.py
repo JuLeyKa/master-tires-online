@@ -1050,6 +1050,16 @@ def create_professional_pdf(customer_data, detected_season, cart_items, cart_qua
         textColor=colors.black
     )
     
+    # KLEINERE Schriftgröße für Kundendaten
+    customer_style = ParagraphStyle(
+        'Customer',
+        parent=styles['Normal'],
+        fontName="Helvetica",
+        fontSize=8,  # Kleiner: von 9 auf 8
+        leading=10,  # Entsprechend angepasst
+        textColor=colors.black
+    )
+    
     small_style = ParagraphStyle(
         'Small',
         parent=styles['Normal'], 
@@ -1066,10 +1076,10 @@ def create_professional_pdf(customer_data, detected_season, cart_items, cart_qua
     # === SEITE 1: FIRMENADRESSE + KUNDENDATEN ===
     
     # FESTE FIRMENADRESSE direkt über Kundendaten
-    story.append(Paragraph("Ramsperger Automobile . Postfach 1516 . 73223 Kirchheim u.T.", normal_style))
-    story.append(Spacer(1, 8))
+    story.append(Paragraph("Ramsperger Automobile . Postfach 1516 . 73223 Kirchheim u.T.", customer_style))
+    story.append(Spacer(1, 5))
     
-    # Kundendaten zweispaltig EXAKT wie im Original
+    # Kundendaten zweispaltig mit kleinerer Schrift
     left_address_lines = []
     if customer_data and customer_data.get('name'):
         if customer_data.get('anrede') and customer_data.get('name'):
@@ -1088,7 +1098,7 @@ def create_professional_pdf(customer_data, detected_season, cart_items, cart_qua
         if customer_data.get('plz') and customer_data.get('ort'):
             left_address_lines.append(f"{customer_data['plz']} {customer_data['ort']}")
 
-    # Rechte Spalte: Geschäftsdaten
+    # Rechte Spalte: Geschäftsdaten (weiter nach rechts)
     right_data_lines = []
     right_data_lines.append(f"Bei Zahlungen bitte Rechnungs-Nr. und Kunden-Nr. angeben.")
     right_data_lines.append(f"Datum (= Tag der Lieferung): {date_str}")
@@ -1107,7 +1117,7 @@ def create_professional_pdf(customer_data, detected_season, cart_items, cart_qua
             if leistung_str:
                 right_data_lines.append(f"Leistungsdatum: {leistung_str}")
 
-    # Kundendaten-Tabelle
+    # Kundendaten-Tabelle mit kleinerer Schrift und weiter nach rechts verschobenem rechten Block
     max_lines = max(len(left_address_lines), len(right_data_lines))
     while len(left_address_lines) < max_lines:
         left_address_lines.append("")
@@ -1117,11 +1127,12 @@ def create_professional_pdf(customer_data, detected_season, cart_items, cart_qua
     addr_data = []
     for i in range(max_lines):
         addr_data.append([
-            Paragraph(left_address_lines[i], normal_style),
-            Paragraph(right_data_lines[i], normal_style)
+            Paragraph(left_address_lines[i], customer_style),  # Kleinere Schrift
+            Paragraph(right_data_lines[i], customer_style)     # Kleinere Schrift
         ])
 
-    addr_table = Table(addr_data, colWidths=[9*cm, 8*cm])
+    # Spaltenbreiten angepasst: Linke Spalte kleiner, rechte weiter nach rechts
+    addr_table = Table(addr_data, colWidths=[7*cm, 10*cm])  # Rechte Spalte breiter und weiter rechts
     addr_table.setStyle(TableStyle([
         ('VALIGN',(0,0),(-1,-1),'TOP'),
         ('LEFTPADDING',(0,0),(-1,-1),0),
