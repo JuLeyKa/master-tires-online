@@ -978,48 +978,51 @@ def format_date_german(date_obj):
 # 1:1 PDF LAYOUT NACH VORLAGE - KOMPLETT NEU
 # ================================================================================================
 def create_header_footer(canvas, doc):
-    """Header und Footer nach Original-Vorlage"""
+    """Header und Footer EXAKT nach Original-Vorlage"""
     canvas.saveState()
     width, height = A4
     margin = 20 * mm
 
-    # === HEADER NACH ORIGINAL-VORLAGE ===
-    # Logo/Firmenname links
+    # === HEADER EXAKT WIE IM ORIGINAL ===
+    # Logo links
     try:
         logo_path = Path("data/Logo.png")
         if logo_path.exists():
             logo = ImageReader(str(logo_path))
-            # Logo links positionieren wie im Original
-            logo_width = 60 * mm
+            logo_width = 65 * mm
             logo_height = 18 * mm
-            canvas.drawImage(logo, margin, height - margin - logo_height, 
+            canvas.drawImage(logo, margin, height - margin - logo_height - 5, 
                            width=logo_width, height=logo_height, 
                            mask='auto', preserveAspectRatio=True)
         else:
-            # Fallback Text falls Logo nicht gefunden
             canvas.setFont("Helvetica-Bold", 12)
             canvas.setFillColor(colors.black)
-            canvas.drawString(margin, height - margin - 8, "RAMSPERGER")
-            canvas.drawString(margin, height - margin - 20, "AUTOMOBILE")
+            canvas.drawString(margin, height - margin - 15, "RAMSPERGER")
+            canvas.drawString(margin, height - margin - 27, "AUTOMOBILE")
     except Exception:
-        # Fallback bei Fehlern
         canvas.setFont("Helvetica-Bold", 12)
         canvas.setFillColor(colors.black)
-        canvas.drawString(margin, height - margin - 8, "RAMSPERGER")
-        canvas.drawString(margin, height - margin - 20, "AUTOMOBILE")
+        canvas.drawString(margin, height - margin - 15, "RAMSPERGER")
+        canvas.drawString(margin, height - margin - 27, "AUTOMOBILE")
 
-    # ANGEBOT zentriert wie im Original
-    canvas.setFont("Helvetica-Bold", 16)
+    # VW Logo rechts (als Text-Fallback)
+    canvas.setFont("Helvetica-Bold", 14)
+    canvas.setFillColor(colors.blue)
+    vw_width = canvas.stringWidth("VW", "Helvetica-Bold", 14)
+    canvas.drawString(width - margin - vw_width, height - margin - 18, "VW")
+
+    # ANGEBOT zentriert
+    canvas.setFont("Helvetica-Bold", 14)
     canvas.setFillColor(colors.black)
-    text_width = canvas.stringWidth("ANGEBOT", "Helvetica-Bold", 16)
-    canvas.drawString((width - text_width) / 2, height - margin - 8, "ANGEBOT")
+    angebot_width = canvas.stringWidth("ANGEBOT", "Helvetica-Bold", 14)
+    canvas.drawString((width - angebot_width) / 2, height - margin - 10, "ANGEBOT")
     
     # "unverbindlich" zentriert darunter
     canvas.setFont("Helvetica", 8)
-    text_width_unverb = canvas.stringWidth("unverbindlich", "Helvetica", 8)
-    canvas.drawString((width - text_width_unverb) / 2, height - margin - 20, "unverbindlich")
+    unverb_width = canvas.stringWidth("unverbindlich", "Helvetica", 8)
+    canvas.drawString((width - unverb_width) / 2, height - margin - 20, "unverbindlich")
 
-    # Firmenadresse unter Header wie im Original
+    # Firmenadresse unter Header
     canvas.setFont("Helvetica", 8)
     canvas.setFillColor(colors.black)
     company_address = "Ramsperger Automobile . Postfach 1516 . 73223 Kirchheim u.T."
@@ -1028,7 +1031,7 @@ def create_header_footer(canvas, doc):
     canvas.restoreState()
 
 def create_professional_pdf(customer_data, detected_season, cart_items, cart_quantities, cart_services, selected_filial_info, selected_mitarbeiter_info):
-    """Erstellt PDF im EXAKTEN Layout der Vorlage"""
+    """Erstellt PDF EXAKT nach Original-Vorlage"""
     if not cart_items:
         return None
 
@@ -1038,14 +1041,13 @@ def create_professional_pdf(customer_data, detected_season, cart_items, cart_qua
         pagesize=A4,
         rightMargin=20*mm,
         leftMargin=20*mm,
-        topMargin=35*mm,  # Platz für Header
-        bottomMargin=20*mm
+        topMargin=45*mm,  # Mehr Platz für Header
+        bottomMargin=25*mm
     )
 
-    # Styles genau wie im Original
+    # Styles EXAKT wie im Original
     styles = getSampleStyleSheet()
     
-    # Standard-Textstil für Hauptinhalt
     normal_style = ParagraphStyle(
         'Normal',
         parent=styles['Normal'],
@@ -1065,35 +1067,28 @@ def create_professional_pdf(customer_data, detected_season, cart_items, cart_qua
     )
 
     story = []
-
-    # === KUNDENDATEN UND GESCHÄFTSDATEN (wie im Original 2-spaltig) ===
     date_today = datetime.now()
     date_str = date_today.strftime('%d.%m.%Y')
+
+    # === SEITE 1: KUNDENDATEN UND HAUPTTABELLE ===
     
-    # Linke Spalte: Kundenadresse
+    # Kundendaten zweispaltig EXAKT wie im Original
     left_address_lines = []
     if customer_data and customer_data.get('name'):
-        # Vollständige Adresse aufbauen
         if customer_data.get('anrede') and customer_data.get('name'):
             left_address_lines.append(f"{customer_data['anrede']}")
             left_address_lines.append(f"{customer_data['name']}")
         elif customer_data.get('name'):
             left_address_lines.append(customer_data['name'])
         
-        # Straße + Hausnummer
         if customer_data.get('strasse'):
             strasse_haus = customer_data['strasse']
             if customer_data.get('hausnummer'):
                 strasse_haus += f" {customer_data['hausnummer']}"
             left_address_lines.append(strasse_haus)
         
-        # PLZ + Ort
         if customer_data.get('plz') and customer_data.get('ort'):
             left_address_lines.append(f"{customer_data['plz']} {customer_data['ort']}")
-        elif customer_data.get('plz'):
-            left_address_lines.append(customer_data['plz'])
-        elif customer_data.get('ort'):
-            left_address_lines.append(customer_data['ort'])
 
     # Rechte Spalte: Geschäftsdaten
     right_data_lines = []
@@ -1114,16 +1109,13 @@ def create_professional_pdf(customer_data, detected_season, cart_items, cart_qua
             if leistung_str:
                 right_data_lines.append(f"Leistungsdatum: {leistung_str}")
 
-    # Zwei-Spalten-Layout erstellen
+    # Kundendaten-Tabelle
     max_lines = max(len(left_address_lines), len(right_data_lines))
-    
-    # Listen auf gleiche Länge bringen
     while len(left_address_lines) < max_lines:
         left_address_lines.append("")
     while len(right_data_lines) < max_lines:
         right_data_lines.append("")
 
-    # Tabelle für Address/Business Data
     addr_data = []
     for i in range(max_lines):
         addr_data.append([
@@ -1140,32 +1132,23 @@ def create_professional_pdf(customer_data, detected_season, cart_items, cart_qua
         ('BOTTOMPADDING',(0,0),(-1,-1),1),
     ]))
     story.append(addr_table)
-    story.append(Spacer(1, 15))
+    story.append(Spacer(1, 20))
 
-    # === SEITENINFORMATION WIE IM ORIGINAL ===
+    # Seite 1 von 2 (rechtsbündig)
     story.append(Paragraph("Seite 1 von 2", ParagraphStyle('PageInfo', parent=normal_style, alignment=TA_RIGHT)))
-    story.append(Spacer(1, 10))
+    story.append(Spacer(1, 12))
 
-    # === FAHRZEUGDATEN-TABELLE WIE IM ORIGINAL ===
-    if customer_data and (customer_data.get('kennzeichen') or customer_data.get('typ_modellschluessel') or customer_data.get('fahrgestellnummer')):
-        
-        # Serviceberater aus Auswahl
+    # === FAHRZEUGDATEN-TABELLE ===
+    if customer_data and (customer_data.get('kennzeichen') or customer_data.get('typ_modellschluessel')):
         serviceberater_name = ""
         if selected_mitarbeiter_info:
             serviceberater_name = selected_mitarbeiter_info.get('name', '')
 
-        # Header-Zeile der Fahrzeugdaten-Tabelle (EXAKT wie im Original)
         vehicle_headers = [
-            "Amtl. Kennzeichen",
-            "Typ/\nModellschlüssel", 
-            "Datum\nErstzulassung",
-            "Fahrzeug-Ident.-Nr.",
-            "Fzg.-\nAnnahmedatum",
-            "km-Stand\nFahrzeugannahme",
-            "Serviceberater"
+            "Amtl. Kennzeichen", "Typ/\nModellschlüssel", "Datum\nErstzulassung",
+            "Fahrzeug-Ident.-Nr.", "Fzg.-\nAnnahmedatum", "km-Stand\nFahrzeugannahme", "Serviceberater"
         ]
         
-        # Daten-Zeile
         vehicle_row = [
             customer_data.get('kennzeichen', ''),
             customer_data.get('typ_modellschluessel', ''),
@@ -1177,196 +1160,218 @@ def create_professional_pdf(customer_data, detected_season, cart_items, cart_qua
         ]
         
         vehicle_data = [vehicle_headers, vehicle_row]
-
-        # Spaltenbreiten wie im Original
-        vehicle_table = Table(vehicle_data, colWidths=[2.4*cm, 1.8*cm, 1.8*cm, 3.2*cm, 2.0*cm, 2.2*cm, 2.8*cm])
+        vehicle_table = Table(vehicle_data, colWidths=[2.3*cm, 1.8*cm, 1.8*cm, 3.0*cm, 2.0*cm, 2.2*cm, 2.7*cm])
         vehicle_table.setStyle(TableStyle([
-            # Header-Style
             ('BACKGROUND',(0,0),(-1,0), colors.grey),
             ('TEXTCOLOR',(0,0),(-1,0), colors.whitesmoke),
             ('ALIGN',(0,0),(-1,-1),'CENTER'),
             ('FONTNAME',(0,0),(-1,0),'Helvetica-Bold'),
             ('FONTSIZE',(0,0),(-1,-1),7),
-            ('BOTTOMPADDING',(0,0),(-1,-1),4),
-            ('TOPPADDING',(0,0),(-1,-1),4),
+            ('BOTTOMPADDING',(0,0),(-1,-1),3),
+            ('TOPPADDING',(0,0),(-1,-1),3),
             ('GRID',(0,0),(-1,-1),0.5,colors.black),
-            # Datenzeilen
             ('FONTNAME',(0,1),(-1,-1),'Helvetica'),
             ('TEXTCOLOR',(0,1),(-1,-1), colors.black),
-            ('FONTSIZE',(0,1),(-1,-1),8),
         ]))
         story.append(vehicle_table)
         story.append(Spacer(1, 12))
 
-        # HU/AU Datum und Standard-Texte wie im Original
+        # HU/AU und Kostenvoranschläge-Text
         if customer_data.get('hu_au_datum'):
             story.append(Paragraph(f"Ihre nächste HU/AU ist: {customer_data['hu_au_datum']}", normal_style))
-        
         story.append(Paragraph("Kostenvoranschläge werden im unzerlegten Zustand erstellt. Schäden die erst nach der Demontage sichtbar werden, sind hierbei nicht berücksichtigt!", normal_style))
-        story.append(Spacer(1, 15))
+        story.append(Spacer(1, 12))
 
-    # === HAUPTTABELLE FÜR POSITIONEN (EXAKT wie im Original) ===
-    
-    # Header der Haupttabelle
+    # === HAUPTTABELLE EXAKT WIE IM ORIGINAL ===
     main_headers = [
-        "Nr.", "Arbeitsposition/\nTeilenummer", "Bezeichnung", "Mit-\narbeiter", 
-        "Einzel-\npreis", "Menge/\nZeit", "Rabatt", "Steuer-\nCode", "Betrag\nEUR"
+        "Nr.", "Arbeitsposition/\nTeilenummer", "Bezeichnung", 
+        "Mit-\narbeiter", "Einzel-\npreis", "Menge/\nZeit", "Rabatt", "Steuer-\nCode", "Betrag\nEUR"
     ]
     
     main_table_data = [main_headers]
+    total_netto, _ = get_cart_total(cart_items, cart_quantities, cart_services)
     
-    # Positionen hinzufügen
+    # Hauptposition wie im Original
     for i, item in enumerate(cart_items, 1):
         quantity = cart_quantities.get(item['id'], 4)
         selected_packages = cart_services.get(item['id'], [])
+        reifen_kosten_netto, service_kosten_netto, position_total_netto = calculate_position_total(item, quantity, selected_packages)
         
-        reifen_kosten_netto, service_kosten_netto, _ = calculate_position_total(item, quantity, selected_packages)
-        
-        # Reifen-Position
         if selected_packages:
-            # Service-Paket Struktur wie im Original
-            service_package_info = f"SERVICE PAKET {item['Fabrikat'].upper()} {item['Profil'].upper()}"
-            
-            # Erste Zeile: Service-Paket Header
+            # Service-Paket Hauptzeile
             main_table_data.append([
                 str(i),
-                f"Z{40000 + i}",  # Beispiel Service-Paket Nummer
-                service_package_info,
-                "",  # Mitarbeiter
-                "",  # Einzelpreis
+                f"Z{44066}",
+                "SERVICE PAKET RÄDERWECHSEL &\nEINLAGERUNG",
+                "",
+                "",
                 f"{quantity},00 Stück",
-                "",  # Rabatt
-                "#3",  # Steuer-Code
-                format_currency_german(reifen_kosten_netto + service_kosten_netto)
+                "",
+                "#3",
+                format_currency_german(position_total_netto)
             ])
             
-            # Unter-Positionen für Services
+            # Service-Details als Unterzeilen
             for package in selected_packages:
-                netto_pkg_price = float(package['preis']) / 1.19
                 main_table_data.append([
-                    "",  # Nr leer
-                    package['positionsnummer'],
-                    package['bezeichnung'].upper(),
-                    "",  # Mitarbeiter
-                    "",  # Einzelpreis
-                    "",  # Menge
-                    "",  # Rabatt
-                    "",  # Steuer-Code
-                    ""   # Betrag
+                    "", package['positionsnummer'], package['bezeichnung'].upper(), "", "", "", "", "", ""
                 ])
-                
-                # Service-Details als weitere Zeilen
-                if package.get('hinweis'):
-                    main_table_data.append([
-                        "", "", package['hinweis'], "", "", "", "", "", ""
-                    ])
-            
-            # Reifen-Details
-            reifendetails = f"{item['Reifengröße']} - {item['Fabrikat']} {item['Profil']}"
-            main_table_data.append([
-                "", "", reifendetails, "", "", "", "", "", ""
-            ])
-            
         else:
-            # Nur Reifen ohne Service-Paket
-            reifeninfo = f"{item['Reifengröße']} - {item['Fabrikat']} {item['Profil']}"
+            # Nur Reifen
             main_table_data.append([
                 str(i),
                 item['Teilenummer'],
-                reifeninfo,
-                "",  # Mitarbeiter
-                format_currency_german(item['Preis_EUR'] / 1.19),  # Netto-Preis
+                f"{item['Reifengröße']} - {item['Fabrikat']} {item['Profil']}",
+                "",
+                format_currency_german(item['Preis_EUR'] / 1.19),
                 f"{quantity},00 Stück",
-                "",  # Rabatt
-                "#3",  # Steuer-Code
+                "",
+                "#3",
                 format_currency_german(reifen_kosten_netto)
             ])
 
-    # Haupttabelle erstellen
-    main_table = Table(main_table_data, colWidths=[1*cm, 2*cm, 4.5*cm, 1.2*cm, 1.5*cm, 1.5*cm, 1*cm, 1.2*cm, 1.8*cm])
+    # Haupttabelle
+    main_table = Table(main_table_data, colWidths=[0.8*cm, 2.2*cm, 4.2*cm, 1.0*cm, 1.4*cm, 1.4*cm, 1.0*cm, 1.0*cm, 1.6*cm])
     main_table.setStyle(TableStyle([
-        # Header
         ('BACKGROUND',(0,0),(-1,0), colors.grey),
         ('TEXTCOLOR',(0,0),(-1,0), colors.whitesmoke),
         ('FONTNAME',(0,0),(-1,0),'Helvetica-Bold'),
         ('FONTSIZE',(0,0),(-1,0),7),
         ('ALIGN',(0,0),(-1,0),'CENTER'),
-        
-        # Datenzeilen
         ('FONTNAME',(0,1),(-1,-1),'Helvetica'),
         ('FONTSIZE',(0,1),(-1,-1),8),
-        ('TEXTCOLOR',(0,1),(-1,-1), colors.black),
-        ('LEFTPADDING',(0,0),(-1,-1),3),
-        ('RIGHTPADDING',(0,0),(-1,-1),3),
+        ('LEFTPADDING',(0,0),(-1,-1),2),
+        ('RIGHTPADDING',(0,0),(-1,-1),2),
         ('TOPPADDING',(0,0),(-1,-1),2),
         ('BOTTOMPADDING',(0,0),(-1,-1),2),
-        
-        # Rahmen
         ('GRID',(0,0),(-1,-1),0.5,colors.black),
-        
-        # Preise rechtsbündig
         ('ALIGN',(4,1),(-1,-1),'RIGHT'),
         ('ALIGN',(5,1),(5,-1),'CENTER'),
         ('ALIGN',(-1,1),(-1,-1),'RIGHT'),
     ]))
     
     story.append(main_table)
-    story.append(Spacer(1, 15))
+    story.append(Spacer(1, 12))
 
-    # === STANDARD-TEXTE NACH DER HAUPTTABELLE (wie im Original) ===
-    
-    # Reifen/Kompletträder Garantie-Text
-    garantie_text = """Reifen/Kompletträder in dieser Rechnung sind inklusive kostenloser 36 Monate Reifen 
-Garantie gemäß den Bedingungen im Reifen Garantie Pass (Original Rechnung 
-oder Rechnungskopie bitte als Garantienachweis im Fahrzeug mitführen)"""
-    
+    # Garantie-Text
+    garantie_text = """Reifen/Kompletträder in dieser Rechnung sind inklusive kostenloser 36 Monate Reifen Garantie gemäß den Bedingungen im Reifen Garantie Pass (Original Rechnung oder Rechnungskopie bitte als Garantienachweis im Fahrzeug mitführen)"""
     story.append(Paragraph(garantie_text, small_style))
-    story.append(Spacer(1, 10))
+    story.append(Spacer(1, 12))
 
-    # === GESAMTBETRAG (NETTO) ===
-    total_netto, breakdown = get_cart_total(cart_items, cart_quantities, cart_services)
-    
+    # Gesamtbetrag (netto)
     story.append(Paragraph(f"Gesamtbetrag (netto): {format_currency_german(total_netto)}", 
                           ParagraphStyle('NettoTotal', parent=normal_style, alignment=TA_RIGHT)))
-    story.append(Spacer(1, 20))
-
-    # === ZWEITE SEITE - ÜBERTRAG UND MWST-AUFSCHLÜSSELUNG ===
-    story.append(PageBreak())
-    
-    # Übertrag
-    story.append(Paragraph("Übertrag", ParagraphStyle('Uebertrag', parent=normal_style, alignment=TA_RIGHT)))
-    story.append(Paragraph(format_currency_german(total_netto), ParagraphStyle('UebtragWert', parent=normal_style, alignment=TA_RIGHT, fontName='Helvetica-Bold')))
     story.append(Spacer(1, 15))
 
-    # === ANGEBOT GÜLTIGKEITSDATUM (INTERAKTIV - 30 TAGE) ===
+    # Zwischensumme
+    story.append(Paragraph("Zwischensumme", ParagraphStyle('Zwischensumme', parent=normal_style, alignment=TA_RIGHT)))
+    story.append(Paragraph(format_currency_german(total_netto), ParagraphStyle('ZwischensummeWert', parent=normal_style, alignment=TA_RIGHT, fontName='Helvetica-Bold')))
+
+    # Footer Seite 1 (mit Filial-Infos)
+    story.append(Spacer(1, 15))
+    footer_text1 = "Die Lieferung auf Rechnung Dritter (z.B. Agenturware) erfolgt im Namen und für Rechnung des Leistungserbringers. Ggf. enthaltene USt. ist den beigefügten Belegen zu entnehmen."
+    story.append(Paragraph(footer_text1, small_style))
+    story.append(Spacer(1, 8))
+
+    # Firmen-Footer Seite 1
+    if selected_filial_info:
+        filial_adresse = selected_filial_info.get('adresse', 'Robert-Bosch-Str. 9-11 | 72622 Nürtingen')
+        filial_telefon = selected_filial_info.get('zentrale', '07022/9211-0')
+    else:
+        filial_adresse = "Robert-Bosch-Str. 9-11 | 72622 Nürtingen"
+        filial_telefon = "07022/9211-0"
+
+    footer_data1 = [
+        [
+            Paragraph(f"Ramsperger Automobile<br/>GmbH &amp; Co.KG<br/>{filial_adresse}<br/>Telefon ({filial_telefon})<br/>Telefax ({filial_telefon.replace('-0', '-613')})<br/>eMail:<br/>info@ramsperger-automobile.de<br/>Internet:<br/>www.ramsperger-automobile.de", small_style),
+            Paragraph("Bankverbindung:<br/>Volksbank Mittlerer Neckar eG<br/>IBAN:<br/>DE36 6129 0120 0439 6380 03<br/>BIC: GENODES1NUE", small_style),
+            Paragraph("Rechtsform: KG Sitz: Kirchheim u. T.<br/>Amtsgericht Stuttgart<br/>Handelsregister: HRA 231034<br/>USt-Id.Nr. DE 199 195 203<br/>Steuer-Nr.69026/26107", small_style),
+            Paragraph("Komplementär:<br/>Ramsperger Automobile<br/>Verwaltungs-GmbH<br/>Sitz Kirchheim u.T.<br/>HRB: 231579<br/>Geschäftsführer:<br/>Frank Eberhart", small_style)
+        ]
+    ]
+    
+    footer_table1 = Table(footer_data1, colWidths=[4*cm, 4*cm, 4*cm, 4*cm])
+    footer_table1.setStyle(TableStyle([
+        ('FONTNAME',(0,0),(-1,-1),'Helvetica'),
+        ('FONTSIZE',(0,0),(-1,-1),6),
+        ('VALIGN',(0,0),(-1,-1),'TOP'),
+        ('LEFTPADDING',(0,0),(-1,-1),1),
+        ('RIGHTPADDING',(0,0),(-1,-1),1),
+    ]))
+    story.append(footer_table1)
+
+    # === SEITE 2: ÜBERTRAG UND MWST ===
+    story.append(PageBreak())
+
+    # Kundendaten wiederholen auf Seite 2
+    story.append(addr_table)
+    story.append(Spacer(1, 20))
+    
+    # Seite 2 von 2
+    story.append(Paragraph("Seite 2 von 2", ParagraphStyle('PageInfo2', parent=normal_style, alignment=TA_RIGHT)))
+    story.append(Spacer(1, 12))
+
+    # Fahrzeugdaten wiederholen
+    if customer_data and (customer_data.get('kennzeichen') or customer_data.get('typ_modellschluessel')):
+        story.append(vehicle_table)
+        story.append(Spacer(1, 12))
+
+    # Haupttabelle Header + Übertrag
+    main_headers_page2 = [
+        "Nr.", "Arbeitsposition/\nTeilenummer", "Bezeichnung", 
+        "Mit-\narbeiter", "Einzel-\npreis", "Menge/\nZeit", "Rabatt", "Steuer-\nCode", "Betrag\nEUR"
+    ]
+    
+    uebertrag_data = [
+        main_headers_page2,
+        ["", "", "Übertrag", "", "", "", "", "", format_currency_german(total_netto)]
+    ]
+    
+    uebertrag_table = Table(uebertrag_data, colWidths=[0.8*cm, 2.2*cm, 4.2*cm, 1.0*cm, 1.4*cm, 1.4*cm, 1.0*cm, 1.0*cm, 1.6*cm])
+    uebertrag_table.setStyle(TableStyle([
+        ('BACKGROUND',(0,0),(-1,0), colors.grey),
+        ('TEXTCOLOR',(0,0),(-1,0), colors.whitesmoke),
+        ('FONTNAME',(0,0),(-1,0),'Helvetica-Bold'),
+        ('FONTSIZE',(0,0),(-1,0),7),
+        ('ALIGN',(0,0),(-1,0),'CENTER'),
+        ('FONTNAME',(0,1),(-1,-1),'Helvetica'),
+        ('FONTSIZE',(0,1),(-1,-1),8),
+        ('LEFTPADDING',(0,0),(-1,-1),2),
+        ('RIGHTPADDING',(0,0),(-1,-1),2),
+        ('TOPPADDING',(0,0),(-1,-1),2),
+        ('BOTTOMPADDING',(0,0),(-1,-1),2),
+        ('GRID',(0,0),(-1,-1),0.5,colors.black),
+        ('ALIGN',(-1,1),(-1,-1),'RIGHT'),
+        ('FONTNAME',(0,1),(-1,1),'Helvetica-Bold'),
+    ]))
+    
+    story.append(uebertrag_table)
+    story.append(Spacer(1, 15))
+
+    # Angebot gültig bis (30 Tage)
     gueltig_bis = date_today + timedelta(days=30)
     gueltig_str = gueltig_bis.strftime('%d-%m-%Y')
     story.append(Paragraph(f"Angebot gültig bis {gueltig_str}", normal_style))
 
-    # === MITARBEITER-REFERENZ (INTERAKTIV) ===
+    # Serviceberater Text (interaktiv)
     if selected_mitarbeiter_info:
         mitarbeiter_name = selected_mitarbeiter_info.get('name', '')
         mitarbeiter_email = selected_mitarbeiter_info.get('email', '')
         
-        # Check if it's a collective email
         if "E-Mail" in selected_mitarbeiter_info.get('position', ''):
-            # Collective email - generic formulation
             service_text = f"Es bediente Sie Ihr Service-Team. Für Rückfragen stehen wir Ihnen gerne zur Verfügung. e-Mail: {mitarbeiter_email}"
         else:
-            # Individual employee
             service_text = f"Es bediente Sie Ihr Serviceberater Herr {mitarbeiter_name}. Für Rückfragen stehe ich Ihnen gerne persönlich zur Verfügung. e-Mail: {mitarbeiter_email}"
         
         story.append(Paragraph(service_text, normal_style))
     
-    # Standard Schlusstext
     story.append(Paragraph('Besuchen Sie uns doch im Internet. Unter www.ramsperger-automobile.de finden Sie alles über uns und "...die Menschen machen den Unterschied!"', normal_style))
-    story.append(Spacer(1, 20))
+    story.append(Spacer(1, 15))
 
-    # === MWST-AUFSCHLÜSSELUNG (wie im Original) ===
+    # === MWST-TABELLE ===
     mwst_betrag = total_netto * 0.19
     brutto_gesamt = total_netto + mwst_betrag
 
-    # MwSt-Tabelle
     mwst_headers = ["Steuer-\nCode", "Arbeit", "Material", "Steuerbasis", "%-Mwst", "Mwst", "Steuerbasis\nAltwert", "Mwst auf\nAltwert", "Gesamtbetrag"]
     mwst_data = [
         mwst_headers,
@@ -1374,60 +1379,21 @@ oder Rechnungskopie bitte als Garantienachweis im Fahrzeug mitführen)"""
         ["Summe", format_currency_german(total_netto), "0,00", format_currency_german(total_netto), "", format_currency_german(mwst_betrag), "0,00", "", format_currency_german(brutto_gesamt)]
     ]
 
-    mwst_table = Table(mwst_data, colWidths=[1*cm, 1.5*cm, 1.5*cm, 1.8*cm, 1*cm, 1.5*cm, 1.5*cm, 1.2*cm, 1.8*cm])
+    mwst_table = Table(mwst_data, colWidths=[1*cm, 1.3*cm, 1.3*cm, 1.8*cm, 1*cm, 1.3*cm, 1.3*cm, 1.2*cm, 1.8*cm])
     mwst_table.setStyle(TableStyle([
         ('FONTNAME',(0,0),(-1,-1),'Helvetica'),
-        ('FONTSIZE',(0,0),(-1,-1),8),
+        ('FONTSIZE',(0,0),(-1,-1),7),
         ('GRID',(0,0),(-1,-1),0.5,colors.black),
         ('BACKGROUND',(0,0),(-1,0), colors.lightgrey),
         ('ALIGN',(0,0),(-1,-1),'CENTER'),
         ('ALIGN',(1,1),(-1,-1),'RIGHT'),
-    ]))
-
-    story.append(mwst_table)
-    story.append(Spacer(1, 10))
-
-    # Zahlungsziel
-    story.append(Paragraph("Zahlungsziel: Bar / Kasse bar", normal_style))
-    story.append(Spacer(1, 20))
-
-    # === FOOTER MIT FILIAL-INFORMATIONEN (INTERAKTIV) ===
-    footer_text = "Die Lieferung auf Rechnung Dritter (z.B. Agenturware) erfolgt im Namen und für Rechnung des Leistungserbringers. Ggf. enthaltene USt. ist den beigefügten Belegen zu entnehmen."
-    story.append(Paragraph(footer_text, small_style))
-    story.append(Spacer(1, 15))
-
-    # Firmen-Footer-Info (angepasst an gewählte Filiale)
-    if selected_filial_info:
-        filial_adresse = selected_filial_info.get('adresse', 'Robert-Bosch-Str. 9-11\n72622 Nürtingen')
-        filial_telefon = selected_filial_info.get('zentrale', '07022/9211-0')
-    else:
-        # Default Filiale
-        filial_adresse = "Robert-Bosch-Str. 9-11\n72622 Nürtingen"
-        filial_telefon = "07022/9211-0"
-
-    # Footer-Informations-Tabelle (ohne QR-Code, aber alle anderen Infos)
-    footer_data = [
-        [
-            Paragraph("Ramsperger Automobile<br/>GmbH &amp; Co.KG<br/>" + filial_adresse.replace('\n', '<br/>') + f"<br/>Telefon ({filial_telefon})<br/>Telefax ({filial_telefon.replace('-0', '-613')})<br/>eMail:<br/>info@ramsperger-automobile.de<br/>Internet:<br/>www.ramsperger-automobile.de", small_style),
-            
-            Paragraph("Bankverbindung:<br/>Volksbank Mittlerer Neckar eG<br/>IBAN:<br/>DE36 6129 0120 0439 6380 03<br/>BIC: GENODES1NUE", small_style),
-            
-            Paragraph("Rechtsform: KG Sitz: Kirchheim u. T.<br/>Amtsgericht Stuttgart<br/>Handelsregister: HRA 231034<br/>USt-Id.Nr. DE 199 195 203<br/>Steuer-Nr.69026/26107", small_style),
-            
-            Paragraph("Komplementär:<br/>Ramsperger Automobile<br/>Verwaltungs-GmbH<br/>Sitz Kirchheim u.T.<br/>HRB: 231579<br/>Geschäftsführer:<br/>Frank Eberhart", small_style)
-        ]
-    ]
-    
-    footer_table = Table(footer_data, colWidths=[4*cm, 4*cm, 4*cm, 4*cm])
-    footer_table.setStyle(TableStyle([
-        ('FONTNAME',(0,0),(-1,-1),'Helvetica'),
-        ('FONTSIZE',(0,0),(-1,-1),7),
-        ('VALIGN',(0,0),(-1,-1),'TOP'),
         ('LEFTPADDING',(0,0),(-1,-1),2),
         ('RIGHTPADDING',(0,0),(-1,-1),2),
     ]))
-    
-    story.append(footer_table)
+
+    story.append(mwst_table)
+    story.append(Spacer(1, 8))
+    story.append(Paragraph("Zahlungsziel: Bar / Kasse bar", normal_style))
 
     # PDF erstellen
     doc.build(story, onFirstPage=create_header_footer, onLaterPages=create_header_footer)
