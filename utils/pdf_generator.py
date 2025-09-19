@@ -978,55 +978,48 @@ def format_date_german(date_obj):
 # 1:1 PDF LAYOUT NACH VORLAGE - KOMPLETT NEU
 # ================================================================================================
 def create_header_footer(canvas, doc):
-    """Header und Footer EXAKT nach Original-Vorlage"""
+    """Header mit Logo links oben, ANGEBOT darunter zentriert, nichts rechts"""
     canvas.saveState()
     width, height = A4
     margin = 20 * mm
 
-    # === HEADER EXAKT WIE IM ORIGINAL ===
-    # Logo links
+    # === LOGO LINKS OBEN ===
     try:
         logo_path = Path("data/Logo.png")
         if logo_path.exists():
             logo = ImageReader(str(logo_path))
             logo_width = 65 * mm
             logo_height = 18 * mm
-            canvas.drawImage(logo, margin, height - margin - logo_height - 5, 
+            # Logo ganz oben links
+            canvas.drawImage(logo, margin, height - margin - logo_height, 
                            width=logo_width, height=logo_height, 
                            mask='auto', preserveAspectRatio=True)
         else:
+            # Fallback Text - ganz oben
             canvas.setFont("Helvetica-Bold", 12)
             canvas.setFillColor(colors.black)
-            canvas.drawString(margin, height - margin - 15, "RAMSPERGER")
-            canvas.drawString(margin, height - margin - 27, "AUTOMOBILE")
+            canvas.drawString(margin, height - margin - 12, "RAMSPERGER")
+            canvas.drawString(margin, height - margin - 24, "AUTOMOBILE")
     except Exception:
+        # Fallback Text - ganz oben
         canvas.setFont("Helvetica-Bold", 12)
         canvas.setFillColor(colors.black)
-        canvas.drawString(margin, height - margin - 15, "RAMSPERGER")
-        canvas.drawString(margin, height - margin - 27, "AUTOMOBILE")
+        canvas.drawString(margin, height - margin - 12, "RAMSPERGER")
+        canvas.drawString(margin, height - margin - 24, "AUTOMOBILE")
 
-    # VW Logo rechts (als Text-Fallback)
-    canvas.setFont("Helvetica-Bold", 14)
-    canvas.setFillColor(colors.blue)
-    vw_width = canvas.stringWidth("VW", "Helvetica-Bold", 14)
-    canvas.drawString(width - margin - vw_width, height - margin - 18, "VW")
-
-    # ANGEBOT zentriert
+    # === ANGEBOT ZENTRIERT UNTER DEM LOGO ===
     canvas.setFont("Helvetica-Bold", 14)
     canvas.setFillColor(colors.black)
     angebot_width = canvas.stringWidth("ANGEBOT", "Helvetica-Bold", 14)
-    canvas.drawString((width - angebot_width) / 2, height - margin - 10, "ANGEBOT")
+    # Unter dem Logo positionieren
+    canvas.drawString((width - angebot_width) / 2, height - margin - 35, "ANGEBOT")
     
     # "unverbindlich" zentriert darunter
     canvas.setFont("Helvetica", 8)
     unverb_width = canvas.stringWidth("unverbindlich", "Helvetica", 8)
-    canvas.drawString((width - unverb_width) / 2, height - margin - 20, "unverbindlich")
+    canvas.drawString((width - unverb_width) / 2, height - margin - 45, "unverbindlich")
 
-    # Firmenadresse unter Header
-    canvas.setFont("Helvetica", 8)
-    canvas.setFillColor(colors.black)
-    company_address = "Ramsperger Automobile . Postfach 1516 . 73223 Kirchheim u.T."
-    canvas.drawString(margin, height - margin - 35, company_address)
+    # === RECHTS BLEIBT LEER (kein VW-Logo) ===
 
     canvas.restoreState()
 
@@ -1041,7 +1034,7 @@ def create_professional_pdf(customer_data, detected_season, cart_items, cart_qua
         pagesize=A4,
         rightMargin=20*mm,
         leftMargin=20*mm,
-        topMargin=45*mm,  # Mehr Platz für Header
+        topMargin=65*mm,  # VIEL MEHR Platz für Header - Firmenadresse und Kundendaten weiter runter
         bottomMargin=25*mm
     )
 
