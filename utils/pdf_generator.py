@@ -981,7 +981,7 @@ def create_header_footer(canvas, doc):
     """Header mit Logo links oben, ANGEBOT darunter zentriert, nichts rechts"""
     canvas.saveState()
     width, height = A4
-    margin = 20 * mm
+    margin = 10 * mm  # REDUZIERT: von 20mm auf 10mm für höhere Positionierung
 
     # === LOGO LINKS OBEN ===
     try:
@@ -990,18 +990,18 @@ def create_header_footer(canvas, doc):
             logo = ImageReader(str(logo_path))
             logo_width = 65 * mm
             logo_height = 18 * mm
-            # Logo ganz oben links
+            # Logo höher positioniert - weniger Abstand zum oberen Rand
             canvas.drawImage(logo, margin, height - margin - logo_height, 
                            width=logo_width, height=logo_height, 
                            mask='auto', preserveAspectRatio=True)
         else:
-            # Fallback Text - ganz oben
+            # Fallback Text - höher positioniert
             canvas.setFont("Helvetica-Bold", 12)
             canvas.setFillColor(colors.black)
             canvas.drawString(margin, height - margin - 12, "RAMSPERGER")
             canvas.drawString(margin, height - margin - 24, "AUTOMOBILE")
     except Exception:
-        # Fallback Text - ganz oben
+        # Fallback Text - höher positioniert
         canvas.setFont("Helvetica-Bold", 12)
         canvas.setFillColor(colors.black)
         canvas.drawString(margin, height - margin - 12, "RAMSPERGER")
@@ -1011,10 +1011,10 @@ def create_header_footer(canvas, doc):
     canvas.setFont("Helvetica-Bold", 14)
     canvas.setFillColor(colors.black)
     angebot_width = canvas.stringWidth("ANGEBOT", "Helvetica-Bold", 14)
-    # Unter dem Logo positionieren
+    # Entsprechend höher positioniert
     canvas.drawString((width - angebot_width) / 2, height - margin - 35, "ANGEBOT")
     
-    # "unverbindlich" zentriert darunter
+    # "unverbindlich" zentriert darunter - entsprechend höher
     canvas.setFont("Helvetica", 8)
     unverb_width = canvas.stringWidth("unverbindlich", "Helvetica", 8)
     canvas.drawString((width - unverb_width) / 2, height - margin - 45, "unverbindlich")
@@ -1034,7 +1034,7 @@ def create_professional_pdf(customer_data, detected_season, cart_items, cart_qua
         pagesize=A4,
         rightMargin=20*mm,
         leftMargin=20*mm,
-        topMargin=65*mm,
+        topMargin=55*mm,    # REDUZIERT: von 65mm auf 55mm - alles 10mm höher
         bottomMargin=25*mm
     )
 
