@@ -1289,7 +1289,13 @@ def create_professional_pdf(customer_data, detected_season, cart_items, cart_qua
     story.append(main_table)
     story.append(Spacer(1, 12))
 
-    # Garantie-Text
+    # GARANTIE-TEXTE IMMER NACH LETZTER POSITION
+    # Text 1: Radschrauben-Hinweis
+    radschrauben_text = """Wir weisen darauf hin, dass die Radschrauben nach 50 - 100 km nachgezogen werden müssen. Die max. Einlagerungszeit beträgt 7 Monate, bei Überschreitung erfolgt eine weitere Saisonabrechnung. Die zur Aufbewahrung übergebenen Räder müssen innerhalb von 12 Monate abgeholt werden."""
+    story.append(Paragraph(radschrauben_text, small_style))
+    story.append(Spacer(1, 8))
+    
+    # Text 2: Reifen-Garantie
     garantie_text = """Reifen/Kompletträder in dieser Rechnung sind inklusive kostenloser 36 Monate Reifen Garantie gemäß den Bedingungen im Reifen Garantie Pass (Original Rechnung oder Rechnungskopie bitte als Garantienachweis im Fahrzeug mitführen)"""
     story.append(Paragraph(garantie_text, small_style))
     story.append(Spacer(1, 12))
