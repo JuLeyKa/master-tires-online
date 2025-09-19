@@ -352,31 +352,32 @@ def init_session_state():
         st.session_state.stock_mode = False
 
 # ================================================================================================
-# SERVICE KONFIGURATION
+# PAKET KONFIGURATION (NEUE FUNKTIONEN FÜR PAKET-SYSTEM)
 # ================================================================================================
-def load_services_config():
-    """Lädt oder erstellt die Service-Konfiguration"""
-    if not SERVICES_CONFIG_CSV.exists():
-        default_services = pd.DataFrame({
-            'service_name': ['montage_bis_17', 'montage_18_19', 'montage_ab_20', 'radwechsel_1_rad', 'radwechsel_2_raeder', 'radwechsel_3_raeder', 'radwechsel_4_raeder', 'nur_einlagerung'],
-            'service_label': ['Montage bis 17 Zoll', 'Montage 18-19 Zoll', 'Montage ab 20 Zoll', 'Radwechsel 1 Rad', 'Radwechsel 2 Räder', 'Radwechsel 3 Räder', 'Radwechsel 4 Räder', 'Nur Einlagerung'],
-            'price': [25.0, 30.0, 40.0, 9.95, 19.95, 29.95, 39.90, 55.00],
-            'unit': ['pro Reifen', 'pro Reifen', 'pro Reifen', 'pauschal', 'pauschal', 'pauschal', 'pauschal', 'pauschal']
-        })
-        SERVICES_CONFIG_CSV.parent.mkdir(parents=True, exist_ok=True)
-        default_services.to_csv(SERVICES_CONFIG_CSV, index=False, encoding='utf-8')
-        return default_services
-    else:
-        return pd.read_csv(SERVICES_CONFIG_CSV, encoding='utf-8')
+@st.cache_data
+def load_service_packages():
+    """Lädt die Service-Pakete aus der CSV - verwendet die neue Struktur"""
+    try:
+        if SERVICES_CONFIG_CSV.exists():
+            df = pd.read_csv(SERVICES_CONFIG_CSV, encoding='utf-8')
+            return df
+        else:
+            # Fallback falls CSV nicht existiert
+            return pd.DataFrame(columns=['Positionsnummer', 'Bezeichnung', 'Teilenummer_Detail', 'Preis', 'Hinweis', 'Zoll'])
+    except Exception as e:
+        st.error(f"Fehler beim Laden der Service-Pakete: {e}")
+        return pd.DataFrame(columns=['Positionsnummer', 'Bezeichnung', 'Teilenummer_Detail', 'Preis', 'Hinweis', 'Zoll'])
 
-def save_services_config(services_df):
-    """Speichert die Service-Konfiguration"""
+def save_service_packages(packages_df):
+    """Speichert die Service-Pakete in die CSV - neue Struktur"""
     try:
         SERVICES_CONFIG_CSV.parent.mkdir(parents=True, exist_ok=True)
-        services_df.to_csv(SERVICES_CONFIG_CSV, index=False, encoding='utf-8')
+        packages_df.to_csv(SERVICES_CONFIG_CSV, index=False, encoding='utf-8')
+        # Cache leeren damit neue Daten geladen werden
+        load_service_packages.clear()
         return True
     except Exception as e:
-        st.error(f"Fehler beim Speichern der Service-Konfiguration: {e}")
+        st.error(f"Fehler beim Speichern der Service-Pakete: {e}")
         return False
 
 # ================================================================================================
@@ -801,120 +802,158 @@ def check_authentication():
     return True
 
 # ================================================================================================
-# SERVICE MANAGEMENT
+# PAKET MANAGEMENT (KOMPLETT NEU FÜR PAKET-SYSTEM)
 # ================================================================================================
-def render_services_management():
-    """Service-Preise Verwaltung"""
-    st.markdown("#### ⚙️ Service-Preise verwalten")
-    st.markdown("Hier können die Preise für Montage, Radwechsel und Einlagerung angepasst werden.")
+def render_package_management():
+    """Paket-Preise Verwaltung - KOMPLETT NEU FÜR PAKET-SYSTEM"""
+    st.markdown("#### 📦 Service-Paket Preise verwalten")
+    st.markdown("Hier können die Preise und Eigenschaften der Service-Pakete angepasst werden.")
     
-    services_df = load_services_config()
+    packages_df = load_service_packages()
     
-    st.markdown("**Aktuelle Service-Preise:**")
-    
-    current_prices = {}
-    for _, row in services_df.iterrows():
-        current_prices[row['service_name']] = float(row['price'])
-    
-    col1, col2 = st.columns(2)
-    
-    with col1:
-        st.markdown("**Montage-Preise:**")
-        
-        montage_17 = st.number_input(
-            "Montage bis 17 Zoll (€ pro Reifen):",
-            min_value=0.0,
-            max_value=100.0,
-            value=current_prices.get('montage_bis_17', 25.0),
-            step=0.10,
-            key="service_montage_17"
-        )
-        
-        montage_18 = st.number_input(
-            "Montage 18-19 Zoll (€ pro Reifen):",
-            min_value=0.0,
-            max_value=100.0,
-            value=current_prices.get('montage_18_19', 30.0),
-            step=0.10,
-            key="service_montage_18"
-        )
-        
-        montage_20 = st.number_input(
-            "Montage ab 20 Zoll (€ pro Reifen):",
-            min_value=0.0,
-            max_value=100.0,
-            value=current_prices.get('montage_ab_20', 40.0),
-            step=0.10,
-            key="service_montage_20"
-        )
-    
-    with col2:
-        st.markdown("**Radwechsel & Einlagerung:**")
-        
-        radwechsel_1 = st.number_input(
-            "Radwechsel 1 Rad (€):",
-            min_value=0.0,
-            max_value=50.0,
-            value=current_prices.get('radwechsel_1_rad', 9.95),
-            step=0.05,
-            key="service_radwechsel_1"
-        )
-        
-        radwechsel_2 = st.number_input(
-            "Radwechsel 2 Räder (€):",
-            min_value=0.0,
-            max_value=50.0,
-            value=current_prices.get('radwechsel_2_raeder', 19.95),
-            step=0.05,
-            key="service_radwechsel_2"
-        )
-        
-        radwechsel_3 = st.number_input(
-            "Radwechsel 3 Räder (€):",
-            min_value=0.0,
-            max_value=50.0,
-            value=current_prices.get('radwechsel_3_raeder', 29.95),
-            step=0.05,
-            key="service_radwechsel_3"
-        )
-        
-        radwechsel_4 = st.number_input(
-            "Radwechsel 4 Räder (€):",
-            min_value=0.0,
-            max_value=100.0,
-            value=current_prices.get('radwechsel_4_raeder', 39.90),
-            step=0.10,
-            key="service_radwechsel_4"
-        )
-        
-        einlagerung = st.number_input(
-            "Nur Einlagerung (€ pauschal):",
-            min_value=0.0,
-            max_value=200.0,
-            value=current_prices.get('nur_einlagerung', 55.00),
-            step=0.10,
-            key="service_einlagerung"
-        )
-    
-    if st.button("💾 Preise speichern", use_container_width=True, type="primary"):
-        services_df.loc[services_df['service_name'] == 'montage_bis_17', 'price'] = montage_17
-        services_df.loc[services_df['service_name'] == 'montage_18_19', 'price'] = montage_18
-        services_df.loc[services_df['service_name'] == 'montage_ab_20', 'price'] = montage_20
-        services_df.loc[services_df['service_name'] == 'radwechsel_1_rad', 'price'] = radwechsel_1
-        services_df.loc[services_df['service_name'] == 'radwechsel_2_raeder', 'price'] = radwechsel_2
-        services_df.loc[services_df['service_name'] == 'radwechsel_3_raeder', 'price'] = radwechsel_3
-        services_df.loc[services_df['service_name'] == 'radwechsel_4_raeder', 'price'] = radwechsel_4
-        services_df.loc[services_df['service_name'] == 'nur_einlagerung', 'price'] = einlagerung
-        
-        if save_services_config(services_df):
-            st.success("Service-Preise erfolgreich aktualisiert!")
+    if packages_df.empty:
+        st.warning("Keine Service-Pakete gefunden. Prüfe ob die CSV-Datei 'ramsperger_services_config.csv' existiert.")
+        if st.button("🔧 Zur Reifen-Verwaltung", use_container_width=True):
+            st.session_state.services_mode = False
             st.rerun()
-        else:
-            st.error("Fehler beim Speichern der Service-Preise!")
+        return
     
-    if st.button("🔧 Zur Reifen-Verwaltung", use_container_width=True):
-        st.session_state.services_mode = False
-        st.rerun()
+    st.markdown(f"**{len(packages_df)} Service-Pakete gefunden:**")
+    
+    # Service-Pakete als bearbeitbare Tabelle anzeigen
+    edited_packages = {}
+    
+    for idx, package in packages_df.iterrows():
+        with st.expander(f"📦 {package['Bezeichnung']} - {package['Preis']:.2f}€", expanded=False):
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                st.markdown("**Paket-Information:**")
+                
+                new_bezeichnung = st.text_input(
+                    "Bezeichnung:",
+                    value=str(package['Bezeichnung']),
+                    key=f"bezeichnung_{package['Positionsnummer']}"
+                )
+                
+                new_preis = st.number_input(
+                    "Preis (€ pauschal):",
+                    min_value=0.0,
+                    max_value=500.0,
+                    value=float(package['Preis']),
+                    step=0.10,
+                    key=f"preis_{package['Positionsnummer']}"
+                )
+                
+                new_hinweis = st.text_input(
+                    "Hinweis:",
+                    value=str(package['Hinweis']) if pd.notna(package['Hinweis']) else '',
+                    key=f"hinweis_{package['Positionsnummer']}"
+                )
+            
+            with col2:
+                st.markdown("**Konfiguration:**")
+                
+                st.text_input(
+                    "Positionsnummer:",
+                    value=str(package['Positionsnummer']),
+                    disabled=True,
+                    help="Positionsnummer kann nicht geändert werden"
+                )
+                
+                new_teilenummer_detail = st.text_input(
+                    "Teilenummer Detail:",
+                    value=str(package['Teilenummer_Detail']) if pd.notna(package['Teilenummer_Detail']) else '',
+                    key=f"teilenummer_{package['Positionsnummer']}"
+                )
+                
+                # Zoll-Beschränkung mit Optionen
+                zoll_options = ["", "-17", "18-19", "20-"]
+                current_zoll = str(package['Zoll']) if pd.notna(package['Zoll']) else ""
+                zoll_index = zoll_options.index(current_zoll) if current_zoll in zoll_options else 0
+                
+                new_zoll = st.selectbox(
+                    "Reifengrößen-Beschränkung:",
+                    options=zoll_options,
+                    index=zoll_index,
+                    format_func=lambda x: {
+                        "": "Alle Reifengrößen",
+                        "-17": "Bis 17 Zoll",
+                        "18-19": "18-19 Zoll",
+                        "20-": "Ab 20 Zoll"
+                    }.get(x, x),
+                    key=f"zoll_{package['Positionsnummer']}"
+                )
+            
+            # Änderungen zwischenspeichern
+            edited_packages[package['Positionsnummer']] = {
+                'Positionsnummer': package['Positionsnummer'],
+                'Bezeichnung': new_bezeichnung,
+                'Teilenummer_Detail': new_teilenummer_detail,
+                'Preis': new_preis,
+                'Hinweis': new_hinweis,
+                'Zoll': new_zoll if new_zoll != "" else None
+            }
+    
+    # Alle Änderungen speichern
+    st.markdown("---")
+    col_save, col_reset = st.columns(2)
+    
+    with col_save:
+        if st.button("💾 Alle Paket-Preise speichern", use_container_width=True, type="primary"):
+            # DataFrame mit bearbeiteten Werten aktualisieren
+            updated_packages = []
+            
+            for pos_nr, edited_data in edited_packages.items():
+                updated_packages.append(edited_data)
+            
+            new_packages_df = pd.DataFrame(updated_packages)
+            
+            if save_service_packages(new_packages_df):
+                st.success("Service-Paket Preise erfolgreich aktualisiert!")
+                st.rerun()
+            else:
+                st.error("Fehler beim Speichern der Service-Paket Preise!")
+    
+    with col_reset:
+        if st.button("🔧 Zur Reifen-Verwaltung", use_container_width=True):
+            st.session_state.services_mode = False
+            st.rerun()
+    
+    # Übersicht der aktuellen Pakete
+    st.markdown("---")
+    st.markdown("**📊 Übersicht der Service-Pakete:**")
+    
+    # Summary Statistics
+    total_packages = len(packages_df)
+    avg_price = packages_df['Preis'].mean()
+    min_price = packages_df['Preis'].min()
+    max_price = packages_df['Preis'].max()
+    
+    col1, col2, col3, col4 = st.columns(4)
+    with col1:
+        st.metric("Gesamt Pakete", total_packages)
+    with col2:
+        st.metric("Durchschnittspreis", f"{avg_price:.2f}€")
+    with col3:
+        st.metric("Günstigstes Paket", f"{min_price:.2f}€")
+    with col4:
+        st.metric("Teuerstes Paket", f"{max_price:.2f}€")
+    
+    # Zoll-Verteilung
+    zoll_counts = packages_df['Zoll'].fillna('Alle').value_counts()
+    if not zoll_counts.empty:
+        st.markdown("**Verteilung nach Reifengrößen:**")
+        for zoll, count in zoll_counts.items():
+            if zoll == 'Alle':
+                st.markdown(f"- **{zoll} Reifengrößen:** {count} Pakete")
+            else:
+                size_desc = {
+                    "-17": "Bis 17 Zoll",
+                    "18-19": "18-19 Zoll", 
+                    "20-": "Ab 20 Zoll"
+                }.get(zoll, zoll)
+                st.markdown(f"- **{size_desc}:** {count} Pakete")
 
 # ================================================================================================
 # STOCK MANAGEMENT
@@ -1757,10 +1796,10 @@ def render_reifen_tab():
         st.markdown("---")
         st.header("Verwaltungsmodus")
         
-        modus_options = ["Reifen Verwaltung", "Service-Preise", "Bestandsmanagement"]
+        modus_options = ["Reifen Verwaltung", "Paket-Preise", "Bestandsmanagement"]
         
         if st.session_state.services_mode:
-            current_modus = "Service-Preise"
+            current_modus = "Paket-Preise"
         elif getattr(st.session_state, 'stock_mode', False):
             current_modus = "Bestandsmanagement"
         else:
@@ -1774,13 +1813,13 @@ def render_reifen_tab():
         )
         
         if new_modus != current_modus:
-            st.session_state.services_mode = (new_modus == "Service-Preise")
+            st.session_state.services_mode = (new_modus == "Paket-Preise")
             st.session_state.stock_mode = (new_modus == "Bestandsmanagement")
             st.rerun()
     
     # Modus-spezifischer Content
     if st.session_state.services_mode:
-        render_services_management()
+        render_package_management()
     elif getattr(st.session_state, 'stock_mode', False):
         render_stock_management()
     else:
