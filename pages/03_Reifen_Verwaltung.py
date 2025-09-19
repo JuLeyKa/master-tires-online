@@ -380,6 +380,24 @@ def save_service_packages(packages_df):
         st.error(f"Fehler beim Speichern der Service-Pakete: {e}")
         return False
 
+def create_service_packages_export():
+    """Erstellt CSV-Export der aktuellen Service-Pakete"""
+    try:
+        packages_df = load_service_packages()
+        
+        if packages_df.empty:
+            return None
+        
+        # CSV erstellen
+        csv_buffer = io.StringIO()
+        packages_df.to_csv(csv_buffer, index=False, encoding='utf-8')
+        
+        return csv_buffer.getvalue()
+        
+    except Exception as e:
+        st.error(f"Fehler beim Erstellen des Service-Paket Exports: {e}")
+        return None
+
 # ================================================================================================
 # DATENBANK FUNKTIONEN (VEREINFACHT - NUR MASTER CSV)
 # ================================================================================================
@@ -897,7 +915,7 @@ def render_package_management():
     
     # Alle Änderungen speichern
     st.markdown("---")
-    col_save, col_reset = st.columns(2)
+    col_save, col_download, col_reset = st.columns(3)
     
     with col_save:
         if st.button("💾 Alle Paket-Preise speichern", use_container_width=True, type="primary"):
@@ -914,6 +932,21 @@ def render_package_management():
                 st.rerun()
             else:
                 st.error("Fehler beim Speichern der Service-Paket Preise!")
+    
+    with col_download:
+        # Service-Pakete CSV Download
+        service_export_data = create_service_packages_export()
+        if service_export_data:
+            st.download_button(
+                label="📥 CSV herunterladen",
+                data=service_export_data,
+                file_name="ramsperger_services_config.csv",
+                mime="text/csv",
+                help="Aktuelle Service-Paket Konfiguration herunterladen",
+                use_container_width=True
+            )
+        else:
+            st.button("📥 Keine Daten", disabled=True, use_container_width=True)
     
     with col_reset:
         if st.button("🔧 Zur Reifen-Verwaltung", use_container_width=True):
