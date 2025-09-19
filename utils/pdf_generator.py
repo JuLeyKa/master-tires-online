@@ -1306,6 +1306,11 @@ def create_professional_pdf(customer_data, detected_season, cart_items, cart_qua
     story.append(Spacer(1, 15))
 
     # === NEUE MWST-TABELLE DIREKT HIER AUF SEITE 1 - IM FAHRZEUGDATEN-STIL ===
+    # Material/Arbeit aufteilen aus breakdown
+    total_netto, breakdown = get_cart_total(cart_items, cart_quantities, cart_services)
+    material_kosten = breakdown['reifen']    # Reifen = Material
+    arbeit_kosten = breakdown['services']    # Service-Pakete = Arbeit
+    
     mwst_betrag = total_netto * 0.19
     brutto_gesamt = total_netto + mwst_betrag
 
@@ -1318,8 +1323,8 @@ def create_professional_pdf(customer_data, detected_season, cart_items, cart_qua
         mwst_headers,
         [
             "#3", 
-            format_currency_german(total_netto), 
-            "0,00", 
+            format_currency_german(arbeit_kosten),   # Service-Pakete in Arbeit
+            format_currency_german(material_kosten), # Reifen in Material
             format_currency_german(total_netto), 
             "19%", 
             format_currency_german(mwst_betrag), 
@@ -1329,8 +1334,8 @@ def create_professional_pdf(customer_data, detected_season, cart_items, cart_qua
         ],
         [
             "Summe", 
-            format_currency_german(total_netto), 
-            "0,00", 
+            format_currency_german(arbeit_kosten),   # Service-Pakete in Arbeit
+            format_currency_german(material_kosten), # Reifen in Material
             format_currency_german(total_netto), 
             "", 
             format_currency_german(mwst_betrag), 
