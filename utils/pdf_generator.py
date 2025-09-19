@@ -1265,8 +1265,8 @@ def create_professional_pdf(customer_data, detected_season, cart_items, cart_qua
                 ])
                 position_counter += 1
 
-    # Haupttabelle im neuen Stil - GENAUSO BREIT WIE FAHRZEUG-TABELLE
-    main_table = Table(main_table_data, colWidths=[1.2*cm, 3.0*cm, 5.5*cm, 1.3*cm, 2.0*cm, 2.0*cm, 1.3*cm, 1.3*cm, 2.2*cm])  # Noch breitere Spalten - einheitlich mit Fahrzeug-Tabelle
+    # Haupttabelle im neuen Stil - ETWAS SCHMÄLER, NICHT ZU NAH AN RÄNDERN
+    main_table = Table(main_table_data, colWidths=[1.1*cm, 2.6*cm, 5.2*cm, 1.2*cm, 1.8*cm, 1.8*cm, 1.1*cm, 1.1*cm, 1.9*cm])  # Etwas schmäler als zuvor
     main_table.setStyle(TableStyle([
         ('BACKGROUND',(0,0),(-1,0), colors.Color(0.95, 0.95, 0.95)),  # Helleres Grau wie Fahrzeug-Tabelle
         ('TEXTCOLOR',(0,0),(-1,0), colors.black),  # Schwarzer Text
@@ -1283,7 +1283,7 @@ def create_professional_pdf(customer_data, detected_season, cart_items, cart_qua
         ('LINEBELOW',(0,0),(-1,0),0.5,colors.black),
         ('ALIGN',(4,1),(-1,-1),'RIGHT'),
         ('ALIGN',(5,1),(5,-1),'CENTER'),
-        ('ALIGN',(-1,1),(-1,-1),'RIGHT'),
+        ('ALIGN',(-1,1),(-1,-1),'CENTER'),  # Beträge zentriert unter "Betrag EUR"
     ]))
     
     story.append(main_table)
