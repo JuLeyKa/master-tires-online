@@ -1241,44 +1241,37 @@ def create_professional_pdf(customer_data, detected_season, cart_items, cart_qua
         ])
         position_counter += 1
     
-    # DANN ALLE SERVICES
+    # DANN ALLE SERVICES - JEDES SERVICE ALS EIGENE POSITION
     for item in cart_items:
         selected_packages = cart_services.get(item['id'], [])
         if selected_packages:
             quantity = cart_quantities.get(item['id'], 4)
-            service_kosten_netto = 0.0
+            
+            # Jedes Service-Paket als eigene Position (keine Unterzeilen mehr)
             for package in selected_packages:
                 brutto_pkg_price = float(package['preis'])
                 netto_pkg_price = brutto_pkg_price / 1.19
-                service_kosten_netto += netto_pkg_price
-            
-            # Service-Paket Hauptzeile
-            main_table_data.append([
-                str(position_counter),
-                f"Z44066",
-                "SERVICE PAKET RÄDERWECHSEL &\nEINLAGERUNG",
-                "",
-                "",
-                f"{quantity},00 Stück",
-                "",
-                "#3",
-                format_currency_german(service_kosten_netto)
-            ])
-            
-            # Service-Details als Unterzeilen
-            for package in selected_packages:
+                
                 main_table_data.append([
-                    "", package['positionsnummer'], package['bezeichnung'].upper(), "", "", "", "", "", ""
+                    str(position_counter),
+                    package['positionsnummer'],
+                    package['bezeichnung'].upper(),
+                    "",
+                    format_currency_german(netto_pkg_price),
+                    f"{quantity},00 Stück",
+                    "",
+                    "#3",
+                    format_currency_german(netto_pkg_price)
                 ])
-            position_counter += 1
+                position_counter += 1
 
     # Haupttabelle im neuen Stil (wie Fahrzeug-Tabelle) - BREIT BIS AN DEN RAND
     main_table = Table(main_table_data, colWidths=[1.0*cm, 2.8*cm, 5.0*cm, 1.2*cm, 1.8*cm, 1.8*cm, 1.2*cm, 1.2*cm, 2.0*cm])  # Viel breitere Spalten
     main_table.setStyle(TableStyle([
         ('BACKGROUND',(0,0),(-1,0), colors.Color(0.95, 0.95, 0.95)),  # Helleres Grau wie Fahrzeug-Tabelle
         ('TEXTCOLOR',(0,0),(-1,0), colors.black),  # Schwarzer Text
-        ('FONTNAME',(0,0),(-1,0),'Helvetica-Bold'),
-        ('FONTSIZE',(0,0),(-1,0),5),  # Kleine Header-Schrift
+        ('FONTNAME',(0,0),(-1,0),'Helvetica'),  # Normal statt Bold
+        ('FONTSIZE',(0,0),(-1,0),6),  # Größer: 6 statt 5
         ('ALIGN',(0,0),(-1,0),'CENTER'),
         ('FONTNAME',(0,1),(-1,-1),'Helvetica'),
         ('FONTSIZE',(0,1),(-1,-1),8),
