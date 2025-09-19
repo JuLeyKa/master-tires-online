@@ -978,48 +978,113 @@ def format_date_german(date_obj):
 # OPTIMIERTE PDF LAYOUT NACH VORLAGE - NUR LAYOUT-ÄNDERUNGEN
 # ================================================================================================
 def create_header_footer(canvas, doc):
-    """Header mit Logo links oben, ANGEBOT darunter zentriert, nichts rechts"""
+    """Header und Footer für jede Seite"""
     canvas.saveState()
     width, height = A4
     margin = 20 * mm
 
-    # === LOGO LINKS OBEN ===
+    # === HEADER ===
+    # Logo links oben
     try:
         logo_path = Path("data/Logo.png")
         if logo_path.exists():
             logo = ImageReader(str(logo_path))
             logo_width = 65 * mm
             logo_height = 18 * mm
-            # Logo ganz oben links
             canvas.drawImage(logo, margin, height - margin - logo_height, 
                            width=logo_width, height=logo_height, 
                            mask='auto', preserveAspectRatio=True)
         else:
-            # Fallback Text - ganz oben
             canvas.setFont("Helvetica-Bold", 12)
             canvas.setFillColor(colors.black)
             canvas.drawString(margin, height - margin - 12, "RAMSPERGER")
             canvas.drawString(margin, height - margin - 24, "AUTOMOBILE")
     except Exception:
-        # Fallback Text - ganz oben
         canvas.setFont("Helvetica-Bold", 12)
         canvas.setFillColor(colors.black)
         canvas.drawString(margin, height - margin - 12, "RAMSPERGER")
         canvas.drawString(margin, height - margin - 24, "AUTOMOBILE")
 
-    # === ANGEBOT ZENTRIERT UNTER DEM LOGO ===
+    # ANGEBOT zentriert unter dem Logo
     canvas.setFont("Helvetica-Bold", 14)
     canvas.setFillColor(colors.black)
     angebot_width = canvas.stringWidth("ANGEBOT", "Helvetica-Bold", 14)
-    # Unter dem Logo positionieren
     canvas.drawString((width - angebot_width) / 2, height - margin - 35, "ANGEBOT")
     
-    # "unverbindlich" zentriert darunter
     canvas.setFont("Helvetica", 8)
     unverb_width = canvas.stringWidth("unverbindlich", "Helvetica", 8)
     canvas.drawString((width - unverb_width) / 2, height - margin - 45, "unverbindlich")
 
-    # === RECHTS BLEIBT LEER (kein VW-Logo) ===
+    # === FOOTER GANZ UNTEN AUF JEDER SEITE ===
+    footer_y = 50  # Fester Abstand vom unteren Rand
+    
+    # Footer-Text Bereiche (4 Spalten, aber breiter)
+    col_width = (width - 2*margin) / 4
+    
+    # Spalte 1: Firmen-Info
+    canvas.setFont("Helvetica", 6)
+    canvas.setFillColor(colors.black)
+    
+    footer_text_1 = [
+        "Ramsperger Automobile",
+        "GmbH & Co.KG", 
+        "Robert-Bosch-Str. 9-11 | 72622 Nürtingen",
+        "Telefon (07022/9211-0)",
+        "Telefax (07022/9211-613)",
+        "eMail:",
+        "info@ramsperger-automobile.de",
+        "Internet:",
+        "www.ramsperger-automobile.de"
+    ]
+    
+    y_pos = footer_y + 40
+    for line in footer_text_1:
+        canvas.drawString(margin, y_pos, line)
+        y_pos -= 8
+    
+    # Spalte 2: Bankverbindung
+    footer_text_2 = [
+        "Bankverbindung:",
+        "Volksbank Mittlerer Neckar eG",
+        "IBAN:",
+        "DE36 6129 0120 0439 6380 03",
+        "BIC: GENODES1NUE"
+    ]
+    
+    y_pos = footer_y + 40
+    for line in footer_text_2:
+        canvas.drawString(margin + col_width, y_pos, line)
+        y_pos -= 8
+    
+    # Spalte 3: Rechtsform
+    footer_text_3 = [
+        "Rechtsform: KG Sitz: Kirchheim u. T.",
+        "Amtsgericht Stuttgart",
+        "Handelsregister: HRA 231034",
+        "USt-Id.Nr. DE 199 195 203",
+        "Steuer-Nr.69026/26107"
+    ]
+    
+    y_pos = footer_y + 40
+    for line in footer_text_3:
+        canvas.drawString(margin + 2*col_width, y_pos, line)
+        y_pos -= 8
+    
+    # Spalte 4: Komplementär
+    footer_text_4 = [
+        "Komplementär:",
+        "Ramsperger Automobile",
+        "Verwaltungs-GmbH",
+        "Sitz Kirchheim u.T.",
+        "HRB: 231579",
+        "Geschäftsführer:",
+        "Frank Eberhart"
+    ]
+    
+    y_pos = footer_y + 40
+    for line in footer_text_4:
+        canvas.drawString(margin + 3*col_width, y_pos, line)
+        y_pos -= 8
 
     canvas.restoreState()
 
@@ -1308,39 +1373,11 @@ def create_professional_pdf(customer_data, detected_season, cart_items, cart_qua
     # Zwischensumme
     story.append(Paragraph("Zwischensumme", ParagraphStyle('Zwischensumme', parent=normal_style, alignment=TA_RIGHT)))
     story.append(Paragraph(format_currency_german(total_netto), ParagraphStyle('ZwischensummeWert', parent=normal_style, alignment=TA_RIGHT, fontName='Helvetica-Bold')))
-
-    # Footer Seite 1 (mit Filial-Infos)
     story.append(Spacer(1, 15))
-    footer_text1 = "Die Lieferung auf Rechnung Dritter (z.B. Agenturware) erfolgt im Namen und für Rechnung des Leistungserbringers. Ggf. enthaltene USt. ist den beigefügten Belegen zu entnehmen."
-    story.append(Paragraph(footer_text1, small_style))
-    story.append(Spacer(1, 8))
 
-    # Firmen-Footer Seite 1
-    if selected_filial_info:
-        filial_adresse = selected_filial_info.get('adresse', 'Robert-Bosch-Str. 9-11 | 72622 Nürtingen')
-        filial_telefon = selected_filial_info.get('zentrale', '07022/9211-0')
-    else:
-        filial_adresse = "Robert-Bosch-Str. 9-11 | 72622 Nürtingen"
-        filial_telefon = "07022/9211-0"
-
-    footer_data1 = [
-        [
-            Paragraph(f"Ramsperger Automobile<br/>GmbH &amp; Co.KG<br/>{filial_adresse}<br/>Telefon ({filial_telefon})<br/>Telefax ({filial_telefon.replace('-0', '-613')})<br/>eMail:<br/>info@ramsperger-automobile.de<br/>Internet:<br/>www.ramsperger-automobile.de", small_style),
-            Paragraph("Bankverbindung:<br/>Volksbank Mittlerer Neckar eG<br/>IBAN:<br/>DE36 6129 0120 0439 6380 03<br/>BIC: GENODES1NUE", small_style),
-            Paragraph("Rechtsform: KG Sitz: Kirchheim u. T.<br/>Amtsgericht Stuttgart<br/>Handelsregister: HRA 231034<br/>USt-Id.Nr. DE 199 195 203<br/>Steuer-Nr.69026/26107", small_style),
-            Paragraph("Komplementär:<br/>Ramsperger Automobile<br/>Verwaltungs-GmbH<br/>Sitz Kirchheim u.T.<br/>HRB: 231579<br/>Geschäftsführer:<br/>Frank Eberhart", small_style)
-        ]
-    ]
-    
-    footer_table1 = Table(footer_data1, colWidths=[4*cm, 4*cm, 4*cm, 4*cm])
-    footer_table1.setStyle(TableStyle([
-        ('FONTNAME',(0,0),(-1,-1),'Helvetica'),
-        ('FONTSIZE',(0,0),(-1,-1),6),
-        ('VALIGN',(0,0),(-1,-1),'TOP'),
-        ('LEFTPADDING',(0,0),(-1,-1),1),
-        ('RIGHTPADDING',(0,0),(-1,-1),1),
-    ]))
-    story.append(footer_table1)
+    # Lieferungshinweis
+    story.append(Paragraph("Die Lieferung auf Rechnung Dritter (z.B. Agenturware) erfolgt im Namen und für Rechnung des Leistungserbringers. Ggf. enthaltene USt. ist den beigefügten Belegen zu entnehmen.", small_style))
+    story.append(Spacer(1, 20))  # Mehr Platz, da Footer jetzt fest unten ist
 
     # === SEITE 2: ÜBERTRAG UND MWST ===
     story.append(PageBreak())
