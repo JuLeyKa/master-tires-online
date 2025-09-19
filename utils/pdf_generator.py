@@ -1213,7 +1213,7 @@ def create_professional_pdf(customer_data, detected_season, cart_items, cart_qua
     story.append(Paragraph("Kostenvoranschläge werden im unzerlegten Zustand erstellt. Schäden die erst nach der Demontage sichtbar werden, sind hierbei nicht berücksichtigt!", normal_style))
     story.append(Spacer(1, 12))
 
-    # === HAUPTTABELLE EXAKT WIE IM ORIGINAL ===
+    # === HAUPTTABELLE IM NEUEN STIL ===
     main_headers = [
         "Nr.", "Arbeitsposition/\nTeilenummer", "Bezeichnung", 
         "Mit-\narbeiter", "Einzel-\npreis", "Menge/\nZeit", "Rabatt", "Steuer-\nCode", "Betrag\nEUR"
@@ -1221,25 +1221,48 @@ def create_professional_pdf(customer_data, detected_season, cart_items, cart_qua
     
     main_table_data = [main_headers]
     total_netto, _ = get_cart_total(cart_items, cart_quantities, cart_services)
+    position_counter = 1
     
-    # Hauptposition wie im Original
-    for i, item in enumerate(cart_items, 1):
+    # ERST ALLE REIFEN
+    for item in cart_items:
         quantity = cart_quantities.get(item['id'], 4)
-        selected_packages = cart_services.get(item['id'], [])
-        reifen_kosten_netto, service_kosten_netto, position_total_netto = calculate_position_total(item, quantity, selected_packages)
+        reifen_kosten_netto = (item['Preis_EUR'] / 1.19) * quantity
         
+        main_table_data.append([
+            str(position_counter),
+            item['Teilenummer'],
+            f"{item['Reifengröße']} - {item['Fabrikat']} {item['Profil']}",
+            "",
+            format_currency_german(item['Preis_EUR'] / 1.19),
+            f"{quantity},00 Stück",
+            "",
+            "#3",
+            format_currency_german(reifen_kosten_netto)
+        ])
+        position_counter += 1
+    
+    # DANN ALLE SERVICES
+    for item in cart_items:
+        selected_packages = cart_services.get(item['id'], [])
         if selected_packages:
+            quantity = cart_quantities.get(item['id'], 4)
+            service_kosten_netto = 0.0
+            for package in selected_packages:
+                brutto_pkg_price = float(package['preis'])
+                netto_pkg_price = brutto_pkg_price / 1.19
+                service_kosten_netto += netto_pkg_price
+            
             # Service-Paket Hauptzeile
             main_table_data.append([
-                str(i),
-                f"Z{44066}",
+                str(position_counter),
+                f"Z44066",
                 "SERVICE PAKET RÄDERWECHSEL &\nEINLAGERUNG",
                 "",
                 "",
                 f"{quantity},00 Stück",
                 "",
                 "#3",
-                format_currency_german(position_total_netto)
+                format_currency_german(service_kosten_netto)
             ])
             
             # Service-Details als Unterzeilen
@@ -1247,27 +1270,15 @@ def create_professional_pdf(customer_data, detected_season, cart_items, cart_qua
                 main_table_data.append([
                     "", package['positionsnummer'], package['bezeichnung'].upper(), "", "", "", "", "", ""
                 ])
-        else:
-            # Nur Reifen
-            main_table_data.append([
-                str(i),
-                item['Teilenummer'],
-                f"{item['Reifengröße']} - {item['Fabrikat']} {item['Profil']}",
-                "",
-                format_currency_german(item['Preis_EUR'] / 1.19),
-                f"{quantity},00 Stück",
-                "",
-                "#3",
-                format_currency_german(reifen_kosten_netto)
-            ])
+            position_counter += 1
 
-    # Haupttabelle
+    # Haupttabelle im neuen Stil (wie Fahrzeug-Tabelle)
     main_table = Table(main_table_data, colWidths=[0.8*cm, 2.2*cm, 4.2*cm, 1.0*cm, 1.4*cm, 1.4*cm, 1.0*cm, 1.0*cm, 1.6*cm])
     main_table.setStyle(TableStyle([
-        ('BACKGROUND',(0,0),(-1,0), colors.grey),
-        ('TEXTCOLOR',(0,0),(-1,0), colors.whitesmoke),
+        ('BACKGROUND',(0,0),(-1,0), colors.Color(0.95, 0.95, 0.95)),  # Helleres Grau wie Fahrzeug-Tabelle
+        ('TEXTCOLOR',(0,0),(-1,0), colors.black),  # Schwarzer Text
         ('FONTNAME',(0,0),(-1,0),'Helvetica-Bold'),
-        ('FONTSIZE',(0,0),(-1,0),7),
+        ('FONTSIZE',(0,0),(-1,0),5),  # Kleine Header-Schrift
         ('ALIGN',(0,0),(-1,0),'CENTER'),
         ('FONTNAME',(0,1),(-1,-1),'Helvetica'),
         ('FONTSIZE',(0,1),(-1,-1),8),
@@ -1275,7 +1286,8 @@ def create_professional_pdf(customer_data, detected_season, cart_items, cart_qua
         ('RIGHTPADDING',(0,0),(-1,-1),2),
         ('TOPPADDING',(0,0),(-1,-1),2),
         ('BOTTOMPADDING',(0,0),(-1,-1),2),
-        ('GRID',(0,0),(-1,-1),0.5,colors.black),
+        # Nur EINE Trennlinie unter Header (wie Fahrzeug-Tabelle)
+        ('LINEBELOW',(0,0),(-1,0),0.5,colors.black),
         ('ALIGN',(4,1),(-1,-1),'RIGHT'),
         ('ALIGN',(5,1),(5,-1),'CENTER'),
         ('ALIGN',(-1,1),(-1,-1),'RIGHT'),
