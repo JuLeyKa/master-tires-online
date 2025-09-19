@@ -1169,51 +1169,49 @@ def create_professional_pdf(customer_data, detected_season, cart_items, cart_qua
     story.append(Paragraph("Seite 1 von 2", ParagraphStyle('PageInfo', parent=normal_style, alignment=TA_RIGHT)))
     story.append(Spacer(1, 12))
 
-    # === FAHRZEUGDATEN-TABELLE ===
-    if customer_data and (customer_data.get('kennzeichen') or customer_data.get('typ_modellschluessel')):
-        serviceberater_name = ""
-        if selected_mitarbeiter_info:
-            serviceberater_name = selected_mitarbeiter_info.get('name', '')
+    # === FAHRZEUGDATEN-TABELLE - IMMER ANZEIGEN ===
+    serviceberater_name = ""
+    if selected_mitarbeiter_info:
+        serviceberater_name = selected_mitarbeiter_info.get('name', '')
 
-        vehicle_headers = [
-            "Amtl. Kennzeichen", "Typ/Modellschlüssel", "Datum Erstzulassung",
-            "Fahrzeug-Ident.-Nr.", "Fzg.-Annahmedatum", "km-Stand Fahrzeugannahme", "Serviceberater"
-        ]
-        
-        vehicle_row = [
-            customer_data.get('kennzeichen', ''),
-            customer_data.get('typ_modellschluessel', ''),
-            format_date_german(customer_data.get('erstzulassung')),
-            customer_data.get('fahrgestellnummer', ''),
-            format_date_german(customer_data.get('fahrzeugannahme')),
-            customer_data.get('km_stand', ''),
-            serviceberater_name
-        ]
-        
-        vehicle_data = [vehicle_headers, vehicle_row]
-        vehicle_table = Table(vehicle_data, colWidths=[2.7*cm, 2.3*cm, 2.2*cm, 3.8*cm, 2.4*cm, 2.8*cm, 3.0*cm])  # Noch breitere Spalten bis fast an den Rand
-        vehicle_table.setStyle(TableStyle([
-            ('BACKGROUND',(0,0),(-1,0), colors.Color(0.95, 0.95, 0.95)),  # Viel helleres Grau
-            ('TEXTCOLOR',(0,0),(-1,0), colors.black),  # Schwarzer Text
-            ('ALIGN',(0,0),(-1,-1),'CENTER'),
-            ('FONTNAME',(0,0),(-1,0),'Helvetica-Bold'),
-            ('FONTSIZE',(0,0),(-1,0),5),  # Noch kleinere Schrift für Header (5 statt 6)
-            ('FONTSIZE',(0,1),(-1,-1),7),  # Normale Schrift für Datenzeile
-            ('BOTTOMPADDING',(0,0),(-1,-1),2),  # Weniger Padding für schmäleren Header
-            ('TOPPADDING',(0,0),(-1,-1),2),
-            # Nur EINE Trennlinie zwischen Header und Daten
-            ('LINEBELOW',(0,0),(-1,0),0.5,colors.black),  # Nur unter Header
-            ('FONTNAME',(0,1),(-1,-1),'Helvetica'),
-            ('TEXTCOLOR',(0,1),(-1,-1), colors.black),
-        ]))
-        story.append(vehicle_table)
-        story.append(Spacer(1, 12))
+    vehicle_headers = [
+        "Amtl. Kennzeichen", "Typ/\nModellschlüssel", "Datum\nErstzulassung",
+        "Fahrzeug-Ident.-Nr.", "Fzg.-\nAnnahmedatum", "km-Stand\nFahrzeugannahme", "Serviceberater"
+    ]
+    
+    vehicle_row = [
+        customer_data.get('kennzeichen', '') if customer_data else '',
+        customer_data.get('typ_modellschluessel', '') if customer_data else '',
+        format_date_german(customer_data.get('erstzulassung')) if customer_data else '',
+        customer_data.get('fahrgestellnummer', '') if customer_data else '',
+        format_date_german(customer_data.get('fahrzeugannahme')) if customer_data else '',
+        customer_data.get('km_stand', '') if customer_data else '',
+        serviceberater_name
+    ]
+    
+    vehicle_data = [vehicle_headers, vehicle_row]
+    vehicle_table = Table(vehicle_data, colWidths=[2.7*cm, 2.3*cm, 2.2*cm, 3.8*cm, 2.4*cm, 2.8*cm, 3.0*cm])
+    vehicle_table.setStyle(TableStyle([
+        ('BACKGROUND',(0,0),(-1,0), colors.Color(0.95, 0.95, 0.95)),
+        ('TEXTCOLOR',(0,0),(-1,0), colors.black),
+        ('ALIGN',(0,0),(-1,-1),'CENTER'),
+        ('FONTNAME',(0,0),(-1,0),'Helvetica-Bold'),
+        ('FONTSIZE',(0,0),(-1,0),5),
+        ('FONTSIZE',(0,1),(-1,-1),7),
+        ('BOTTOMPADDING',(0,0),(-1,-1),2),
+        ('TOPPADDING',(0,0),(-1,-1),2),
+        ('LINEBELOW',(0,0),(-1,0),0.5,colors.black),
+        ('FONTNAME',(0,1),(-1,-1),'Helvetica'),
+        ('TEXTCOLOR',(0,1),(-1,-1), colors.black),
+    ]))
+    story.append(vehicle_table)
+    story.append(Spacer(1, 12))
 
-        # HU/AU und Kostenvoranschläge-Text
-        if customer_data.get('hu_au_datum'):
-            story.append(Paragraph(f"Ihre nächste HU/AU ist: {customer_data['hu_au_datum']}", normal_style))
-        story.append(Paragraph("Kostenvoranschläge werden im unzerlegten Zustand erstellt. Schäden die erst nach der Demontage sichtbar werden, sind hierbei nicht berücksichtigt!", normal_style))
-        story.append(Spacer(1, 12))
+    # HU/AU und Kostenvoranschläge-Text
+    if customer_data and customer_data.get('hu_au_datum'):
+        story.append(Paragraph(f"Ihre nächste HU/AU ist: {customer_data['hu_au_datum']}", normal_style))
+    story.append(Paragraph("Kostenvoranschläge werden im unzerlegten Zustand erstellt. Schäden die erst nach der Demontage sichtbar werden, sind hierbei nicht berücksichtigt!", normal_style))
+    story.append(Spacer(1, 12))
 
     # === HAUPTTABELLE EXAKT WIE IM ORIGINAL ===
     main_headers = [
