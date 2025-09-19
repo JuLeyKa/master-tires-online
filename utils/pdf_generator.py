@@ -975,7 +975,7 @@ def format_date_german(date_obj):
     return str(date_obj)
 
 # ================================================================================================
-# 1:1 PDF LAYOUT NACH VORLAGE - KOMPLETT NEU
+# OPTIMIERTE PDF LAYOUT NACH VORLAGE - NUR LAYOUT-ÄNDERUNGEN
 # ================================================================================================
 def create_header_footer(canvas, doc):
     """Header mit Logo links oben, ANGEBOT darunter zentriert, nichts rechts"""
@@ -1024,7 +1024,7 @@ def create_header_footer(canvas, doc):
     canvas.restoreState()
 
 def create_professional_pdf(customer_data, detected_season, cart_items, cart_quantities, cart_services, selected_filial_info, selected_mitarbeiter_info):
-    """Erstellt PDF EXAKT nach Original-Vorlage"""
+    """Erstellt PDF mit optimiertem Layout - KLEINERE FIRMENADRESSE, KEINE LEERZEILEN"""
     if not cart_items:
         return None
 
@@ -1034,11 +1034,11 @@ def create_professional_pdf(customer_data, detected_season, cart_items, cart_qua
         pagesize=A4,
         rightMargin=20*mm,
         leftMargin=20*mm,
-        topMargin=65*mm,  # VIEL MEHR Platz für Header - Firmenadresse und Kundendaten weiter runter
+        topMargin=65*mm,
         bottomMargin=25*mm
     )
 
-    # Styles EXAKT wie im Original
+    # Styles mit optimierten Schriftgrößen
     styles = getSampleStyleSheet()
     
     normal_style = ParagraphStyle(
@@ -1050,13 +1050,23 @@ def create_professional_pdf(customer_data, detected_season, cart_items, cart_qua
         textColor=colors.black
     )
     
-    # KLEINERE Schriftgröße für Kundendaten
+    # NEUE KLEINERE Schriftgröße für Firmenadresse
+    company_address_style = ParagraphStyle(
+        'CompanyAddress',
+        parent=styles['Normal'],
+        fontName="Helvetica",
+        fontSize=7,  # KLEINER: von 8 auf 7
+        leading=9,   # Entsprechend angepasst
+        textColor=colors.black
+    )
+    
+    # Kundendaten-Style (größer als Firmenadresse)
     customer_style = ParagraphStyle(
         'Customer',
         parent=styles['Normal'],
         fontName="Helvetica",
-        fontSize=8,  # Kleiner: von 9 auf 8
-        leading=10,  # Entsprechend angepasst
+        fontSize=8,  # Bleibt bei 8 für Kundendaten
+        leading=10,
         textColor=colors.black
     )
     
@@ -1065,7 +1075,7 @@ def create_professional_pdf(customer_data, detected_season, cart_items, cart_qua
         'PaymentInfo',
         parent=styles['Normal'],
         fontName="Helvetica",
-        fontSize=7,  # Noch kleiner für "Bei Zahlungen..."
+        fontSize=7,
         leading=9,
         textColor=colors.black
     )
@@ -1085,15 +1095,15 @@ def create_professional_pdf(customer_data, detected_season, cart_items, cart_qua
 
     # === SEITE 1: FIRMENADRESSE + KUNDENDATEN ===
     
-    # FESTE FIRMENADRESSE direkt über Kundendaten
-    story.append(Paragraph("Ramsperger Automobile . Postfach 1516 . 73223 Kirchheim u.T.", customer_style))
-    story.append(Spacer(1, 5))
+    # FIRMENADRESSE mit kleinerer Schrift
+    story.append(Paragraph("Ramsperger Automobile . Postfach 1516 . 73223 Kirchheim u.T.", company_address_style))
+    story.append(Spacer(1, 3))  # Weniger Abstand nach Firmenadresse
     
-    # Kundendaten zweispaltig mit kleinerer Schrift
+    # Kundendaten ohne Leerzeilen zwischen den Einträgen
     left_address_lines = []
     if customer_data and customer_data.get('name'):
         if customer_data.get('anrede') and customer_data.get('name'):
-            # KEIN Leerzeile zwischen Anrede und Name
+            # Anrede und Name direkt zusammen
             left_address_lines.append(f"{customer_data['anrede']}")
             left_address_lines.append(f"{customer_data['name']}")
         elif customer_data.get('name'):
@@ -1108,13 +1118,13 @@ def create_professional_pdf(customer_data, detected_season, cart_items, cart_qua
         if customer_data.get('plz') and customer_data.get('ort'):
             left_address_lines.append(f"{customer_data['plz']} {customer_data['ort']}")
 
-    # Rechte Spalte: Geschäftsdaten (ganz nach rechts, erste Zeile kleiner)
+    # Rechte Spalte: Geschäftsdaten
     right_data_lines = []
-    right_data_styles = []  # Für unterschiedliche Schriftgrößen
+    right_data_styles = []
     
     # Erste Zeile kleiner
     right_data_lines.append(f"Bei Zahlungen bitte Rechnungs-Nr. und Kunden-Nr. angeben.")
-    right_data_styles.append(payment_info_style)  # Kleinere Schrift
+    right_data_styles.append(payment_info_style)
     
     # Rest normal
     right_data_lines.append(f"Datum (= Tag der Lieferung): {date_str}")
@@ -1139,7 +1149,7 @@ def create_professional_pdf(customer_data, detected_season, cart_items, cart_qua
                 right_data_lines.append(f"Leistungsdatum: {leistung_str}")
                 right_data_styles.append(customer_style)
 
-    # Kundendaten-Tabelle: DREI SPALTEN für maximalen Abstand
+    # Kundendaten-Tabelle mit drei Spalten für maximalen Abstand
     max_lines = max(len(left_address_lines), len(right_data_lines))
     while len(left_address_lines) < max_lines:
         left_address_lines.append("")
@@ -1149,23 +1159,21 @@ def create_professional_pdf(customer_data, detected_season, cart_items, cart_qua
 
     addr_data = []
     for i in range(max_lines):
-        # Drei Spalten: Kundendaten | Leerraum | Geschäftsdaten (ganz rechts)
         right_style = right_data_styles[i] if i < len(right_data_styles) else customer_style
         addr_data.append([
-            Paragraph(left_address_lines[i], customer_style),  # Kundendaten links
-            Paragraph("", customer_style),                     # Leerraum Mitte
-            Paragraph(right_data_lines[i], right_style)        # Geschäftsdaten ganz rechts
+            Paragraph(left_address_lines[i], customer_style),
+            Paragraph("", customer_style),
+            Paragraph(right_data_lines[i], right_style)
         ])
 
-    # Drei Spalten: Links | Leerraum | Rechts (ganz außen)
-    addr_table = Table(addr_data, colWidths=[5*cm, 7*cm, 5*cm])  # Maximaler Abstand durch Leerraum
+    # Drei Spalten: Links | Leerraum | Rechts
+    addr_table = Table(addr_data, colWidths=[5*cm, 7*cm, 5*cm])
     addr_table.setStyle(TableStyle([
         ('VALIGN',(0,0),(-1,-1),'TOP'),
         ('LEFTPADDING',(0,0),(-1,-1),0),
         ('RIGHTPADDING',(0,0),(-1,-1),0),
         ('TOPPADDING',(0,0),(-1,-1),0),
         ('BOTTOMPADDING',(0,0),(-1,-1),0),
-        # Rechte Spalte rechtsbündig für äußersten Rand
         ('ALIGN',(2,0),(2,-1),'RIGHT'),
     ]))
     story.append(addr_table)
