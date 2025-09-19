@@ -1193,14 +1193,18 @@ def create_professional_pdf(customer_data, detected_season, cart_items, cart_qua
         vehicle_data = [vehicle_headers, vehicle_row]
         vehicle_table = Table(vehicle_data, colWidths=[2.3*cm, 1.8*cm, 1.8*cm, 3.0*cm, 2.0*cm, 2.2*cm, 2.7*cm])
         vehicle_table.setStyle(TableStyle([
-            ('BACKGROUND',(0,0),(-1,0), colors.grey),
-            ('TEXTCOLOR',(0,0),(-1,0), colors.whitesmoke),
+            ('BACKGROUND',(0,0),(-1,0), colors.Color(0.95, 0.95, 0.95)),  # Viel helleres Grau
+            ('TEXTCOLOR',(0,0),(-1,0), colors.black),  # Schwarzer Text statt whitesmoke
             ('ALIGN',(0,0),(-1,-1),'CENTER'),
             ('FONTNAME',(0,0),(-1,0),'Helvetica-Bold'),
-            ('FONTSIZE',(0,0),(-1,-1),7),
+            ('FONTSIZE',(0,0),(-1,0),6),  # Kleinere Schrift für Header
+            ('FONTSIZE',(0,1),(-1,-1),7),  # Normale Schrift für Datenzeile
             ('BOTTOMPADDING',(0,0),(-1,-1),3),
             ('TOPPADDING',(0,0),(-1,-1),3),
-            ('GRID',(0,0),(-1,-1),0.5,colors.black),
+            # Nur dünne schwarze Trennlinien statt kompletter Umrandung
+            ('LINEBELOW',(0,0),(-1,0),0.5,colors.black),  # Linie unter Header
+            ('LINEABOVE',(0,0),(-1,0),0.5,colors.black),  # Linie über Header
+            ('LINEBELOW',(0,1),(-1,-1),0.5,colors.black),  # Linie unter Datenzeile
             ('FONTNAME',(0,1),(-1,-1),'Helvetica'),
             ('TEXTCOLOR',(0,1),(-1,-1), colors.black),
         ]))
