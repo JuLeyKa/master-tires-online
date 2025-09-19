@@ -116,15 +116,34 @@ def clear_cart():
     st.session_state.cart_count = 0
 
 # ================================================================================================
-# SESSION STATE INITIALISIERUNG
+# SESSION STATE INITIALISIERUNG - ERWEITERT UM NEUE FELDER
 # ================================================================================================
 def init_session_state():
+    # ERWEITERTE KUNDENDATEN mit allen neuen Feldern
     if 'customer_data' not in st.session_state:
         st.session_state.customer_data = {
-            'anrede':'','name':'','email':'','kennzeichen':'','modell':'','fahrgestellnummer':'',
-            'kennzeichen_2':'','modell_2':'','fahrgestellnummer_2':''
+            # Basis-Kundendaten (bestehend)
+            'anrede':'','name':'','email':'',
+            # NEUE Adressfelder
+            'strasse':'','hausnummer':'','plz':'','ort':'',
+            # NEUE Geschäftsdaten  
+            'kunden_nr':'','auftrags_nr':'','betriebs_nr':'',
+            # Fahrzeugdaten (bestehend + neu)
+            'kennzeichen':'','modell':'','fahrgestellnummer':'',
+            # NEUE Fahrzeugdaten
+            'typ_modellschluessel':'','erstzulassung':'','km_stand':'',
+            # Fahrzeug 2 (bestehend + neu) 
+            'kennzeichen_2':'','modell_2':'','fahrgestellnummer_2':'',
+            'typ_modellschluessel_2':'','erstzulassung_2':'','km_stand_2':'',
+            # NEUE Optionale Felder
+            'abnehmer_gruppe':'','leistungsdatum':'','fahrzeugannahme':'','hu_au_datum':'',
+            'abnehmer_gruppe_2':'','leistungsdatum_2':'','fahrzeugannahme_2':'','hu_au_datum_2':'',
+            # Zusätzliche Angaben Toggle
+            'zusaetzliche_angaben': False,
+            'zusaetzliche_angaben_2': False
         }
 
+    # Bestehende Cart Session States (unverändert)
     if 'cart_items' not in st.session_state: st.session_state.cart_items = []
     if 'cart_quantities' not in st.session_state: st.session_state.cart_quantities = {}
     if 'cart_services' not in st.session_state: st.session_state.cart_services = {}
@@ -136,7 +155,7 @@ def init_session_state():
     if 'pdf_created' not in st.session_state:
         st.session_state.pdf_created = False
 
-    # Filial- und Mitarbeiter-Session States
+    # Filial- und Mitarbeiter-Session States (unverändert)
     if 'selected_filial' not in st.session_state:
         st.session_state.selected_filial = ""
     if 'selected_mitarbeiter' not in st.session_state:
@@ -146,20 +165,55 @@ def init_session_state():
     if 'selected_mitarbeiter_info' not in st.session_state:
         st.session_state.selected_mitarbeiter_info = {}
 
+    # ALLE Session State Keys für bestehende + neue Felder
+    # Basis-Kundendaten
     st.session_state.setdefault('customer_anrede', st.session_state.customer_data.get('anrede',''))
     st.session_state.setdefault('customer_name', st.session_state.customer_data.get('name',''))
     st.session_state.setdefault('customer_email', st.session_state.customer_data.get('email',''))
+    # Neue Adressfelder
+    st.session_state.setdefault('customer_strasse', st.session_state.customer_data.get('strasse',''))
+    st.session_state.setdefault('customer_hausnummer', st.session_state.customer_data.get('hausnummer',''))
+    st.session_state.setdefault('customer_plz', st.session_state.customer_data.get('plz',''))
+    st.session_state.setdefault('customer_ort', st.session_state.customer_data.get('ort',''))
+    # Geschäftsdaten
+    st.session_state.setdefault('customer_kunden_nr', st.session_state.customer_data.get('kunden_nr',''))
+    st.session_state.setdefault('customer_auftrags_nr', st.session_state.customer_data.get('auftrags_nr',''))
+    st.session_state.setdefault('customer_betriebs_nr', st.session_state.customer_data.get('betriebs_nr',''))
+    # Fahrzeugdaten 1 (bestehend)
     st.session_state.setdefault('customer_kennzeichen', st.session_state.customer_data.get('kennzeichen',''))
     st.session_state.setdefault('customer_modell', st.session_state.customer_data.get('modell',''))
     st.session_state.setdefault('customer_fahrgestell', st.session_state.customer_data.get('fahrgestellnummer',''))
+    # Fahrzeugdaten 1 (neu)
+    st.session_state.setdefault('customer_typ_modellschluessel', st.session_state.customer_data.get('typ_modellschluessel',''))
+    st.session_state.setdefault('customer_erstzulassung', st.session_state.customer_data.get('erstzulassung',''))
+    st.session_state.setdefault('customer_km_stand', st.session_state.customer_data.get('km_stand',''))
     
-    # Fahrzeug 2 Session States
+    # Fahrzeug 2 (bestehend)
     st.session_state.setdefault('customer_kennzeichen_2', st.session_state.customer_data.get('kennzeichen_2',''))
     st.session_state.setdefault('customer_modell_2', st.session_state.customer_data.get('modell_2',''))
     st.session_state.setdefault('customer_fahrgestell_2', st.session_state.customer_data.get('fahrgestellnummer_2',''))
+    # Fahrzeug 2 (neu)
+    st.session_state.setdefault('customer_typ_modellschluessel_2', st.session_state.customer_data.get('typ_modellschluessel_2',''))
+    st.session_state.setdefault('customer_erstzulassung_2', st.session_state.customer_data.get('erstzulassung_2',''))
+    st.session_state.setdefault('customer_km_stand_2', st.session_state.customer_data.get('km_stand_2',''))
+    
+    # Optionale Felder
+    st.session_state.setdefault('customer_abnehmer_gruppe', st.session_state.customer_data.get('abnehmer_gruppe',''))
+    st.session_state.setdefault('customer_leistungsdatum', st.session_state.customer_data.get('leistungsdatum',''))
+    st.session_state.setdefault('customer_fahrzeugannahme', st.session_state.customer_data.get('fahrzeugannahme',''))
+    st.session_state.setdefault('customer_hu_au_datum', st.session_state.customer_data.get('hu_au_datum',''))
+    # Optionale Felder Fahrzeug 2
+    st.session_state.setdefault('customer_abnehmer_gruppe_2', st.session_state.customer_data.get('abnehmer_gruppe_2',''))
+    st.session_state.setdefault('customer_leistungsdatum_2', st.session_state.customer_data.get('leistungsdatum_2',''))
+    st.session_state.setdefault('customer_fahrzeugannahme_2', st.session_state.customer_data.get('fahrzeugannahme_2',''))
+    st.session_state.setdefault('customer_hu_au_datum_2', st.session_state.customer_data.get('hu_au_datum_2',''))
+    
+    # Toggle States
+    st.session_state.setdefault('customer_zusaetzliche_angaben', st.session_state.customer_data.get('zusaetzliche_angaben', False))
+    st.session_state.setdefault('customer_zusaetzliche_angaben_2', st.session_state.customer_data.get('zusaetzliche_angaben_2', False))
 
 # ================================================================================================
-# INTERNAL UTILITIES FOR WIDGET-STATE - ANGEPASST FÜR NEUE SERVICE-PAKETE
+# INTERNAL UTILITIES FOR WIDGET-STATE - ANGEPASST FÜR NEUE SERVICE-PAKETE (UNVERÄNDERT)
 # ================================================================================================
 def _ensure_item_defaults(item_id):
     st.session_state.setdefault(f"qty_{item_id}", st.session_state.cart_quantities.get(item_id, 4))
@@ -181,7 +235,7 @@ def _clear_item_widget_keys(item_id):
         st.session_state.pop(key, None)
 
 # ================================================================================================
-# RENDER FUNCTIONS - MIT SCHÖNER POSITIONS-ABTRENNUNG UND NEUEN SERVICE-PAKETEN
+# RENDER FUNCTIONS - MIT SCHÖNER POSITIONS-ABTRENNUNG UND NEUEN SERVICE-PAKETEN (UNVERÄNDERT)
 # ================================================================================================
 def render_empty_cart():
     st.markdown("### Der Warenkorb ist leer")
@@ -237,7 +291,7 @@ def render_cart_item(item, position_number):
     st.markdown(f"Reifen: {reifen_kosten:.2f}EUR + Services: {service_kosten:.2f}EUR")
 
 def render_item_services(item):
-    """Rendert Service-Pakete für einen Reifen - KOMPLETT NEUE LOGIK"""
+    """Rendert Service-Pakete für einen Reifen - KOMPLETT NEUE LOGIK (UNVERÄNDERT)"""
     item_id = item['id']
     _ensure_item_defaults(item_id)
 
@@ -332,55 +386,168 @@ def render_price_summary(total, breakdown):
     with col_total:
         st.markdown(f"### **GESAMT: {total:.2f}EUR**")
 
+# ================================================================================================
+# ERWEITERTE KUNDENDATEN EINGABE - KOMPLETT NEUE STRUCTURE
+# ================================================================================================
 def render_customer_data():
     st.markdown("---")
     st.markdown("#### Kundendaten (optional)")
     st.markdown("Diese Angaben werden in das Angebot aufgenommen, falls gewünscht:")
 
-    # Anrede-Dropdown prominent platziert - ganze Breite
-    anrede_options = ["", "Herr", "Frau", "Firma"]
-    st.selectbox("Anrede:", 
-                 options=anrede_options, 
-                 key="customer_anrede", 
-                 help="Für personalisierte Ansprache in Angeboten und E-Mails")
-
-    # Rest der Kundendaten in zwei Spalten
+    # === PERSÖNLICHE DATEN ===
+    st.markdown("##### Persönliche Daten")
     col1, col2 = st.columns(2)
+    
     with col1:
+        # Anrede-Dropdown prominent platziert
+        anrede_options = ["", "Herr", "Frau", "Firma"]
+        st.selectbox("Anrede:", 
+                     options=anrede_options, 
+                     key="customer_anrede", 
+                     help="Für personalisierte Ansprache in Angeboten und E-Mails")
         st.text_input("Kundenname:", key="customer_name", placeholder="z.B. Max Mustermann")
-        st.text_input("E-Mail-Adresse:", key="customer_email", placeholder="z.B. max@mustermann.de", help="Für den E-Mail-Versand des Angebots")
-        st.text_input("Kennzeichen:", key="customer_kennzeichen", placeholder="z.B. GP-AB 123")
+        st.text_input("E-Mail-Adresse:", key="customer_email", placeholder="z.B. max@mustermann.de", 
+                      help="Für den E-Mail-Versand des Angebots")
+
     with col2:
+        # NEUE Adressfelder (getrennt)
+        st.text_input("Straße:", key="customer_strasse", placeholder="z.B. Musterstraße")
+        st.text_input("Hausnummer:", key="customer_hausnummer", placeholder="z.B. 12a")
+        col_plz, col_ort = st.columns([1, 2])
+        with col_plz:
+            st.text_input("PLZ:", key="customer_plz", placeholder="z.B. 12345")
+        with col_ort:
+            st.text_input("Ort:", key="customer_ort", placeholder="z.B. Musterstadt")
+
+    # === GESCHÄFTSDATEN ===
+    st.markdown("##### Geschäftsdaten")
+    col3, col4, col5 = st.columns(3)
+    
+    with col3:
+        st.text_input("Kunden-Nr.:", key="customer_kunden_nr", placeholder="z.B. 12345")
+    with col4:
+        st.text_input("Auftrags-Nr.:", key="customer_auftrags_nr", placeholder="z.B. A-2025-001")
+    with col5:
+        st.text_input("Betriebs-Nr.:", key="customer_betriebs_nr", placeholder="z.B. 26727")
+
+    # === FAHRZEUGDATEN 1 ===
+    st.markdown("##### Fahrzeug 1")
+    col6, col7 = st.columns(2)
+    
+    with col6:
+        st.text_input("Kennzeichen:", key="customer_kennzeichen", placeholder="z.B. GP-AB 123")
         st.text_input("Hersteller / Modell:", key="customer_modell", placeholder="z.B. BMW 3er E90")
         st.text_input("Fahrgestellnummer:", key="customer_fahrgestell", placeholder="z.B. WBAVA31070F123456")
 
-    # Fahrzeug 2 Felder nur bei "separate" Szenario
+    with col7:
+        # NEUE Fahrzeugfelder
+        st.text_input("Typ/Modellschlüssel:", key="customer_typ_modellschluessel", placeholder="z.B. D115LE")
+        st.date_input("Datum Erstzulassung:", key="customer_erstzulassung", value=None, help="Erstzulassung des Fahrzeugs")
+        st.text_input("km-Stand:", key="customer_km_stand", placeholder="z.B. 23000")
+
+    # === ZUSÄTZLICHE ANGABEN FAHRZEUG 1 (Optional) ===
+    zusaetzliche_angaben = st.checkbox("Zusätzliche Angaben für Fahrzeug 1", 
+                                     key="customer_zusaetzliche_angaben",
+                                     help="Weitere optionale Felder anzeigen")
+    
+    if zusaetzliche_angaben:
+        st.markdown("**Zusätzliche Angaben Fahrzeug 1:**")
+        col8, col9 = st.columns(2)
+        
+        with col8:
+            st.text_input("Abnehmer-Gruppe:", key="customer_abnehmer_gruppe", placeholder="z.B. 81")
+            st.date_input("Leistungsdatum:", key="customer_leistungsdatum", value=None)
+        
+        with col9:
+            st.date_input("Fahrzeugannahmedatum:", key="customer_fahrzeugannahme", value=None)
+            st.text_input("HU/AU Datum:", key="customer_hu_au_datum", placeholder="z.B. 06/2027")
+
+    # === FAHRZEUG 2 (nur bei "separate" Szenario) ===
     if st.session_state.offer_scenario == "separate":
         st.markdown("---")
         st.markdown("##### Fahrzeug 2 (Separate Fahrzeuge)")
         
-        col3, col4 = st.columns(2)
-        with col3:
+        col10, col11 = st.columns(2)
+        
+        with col10:
             st.text_input("Kennzeichen 2:", key="customer_kennzeichen_2", placeholder="z.B. GP-CD 456")
             st.text_input("Hersteller / Modell 2:", key="customer_modell_2", placeholder="z.B. Audi A4 B9")
-        with col4:
             st.text_input("Fahrgestellnummer 2:", key="customer_fahrgestell_2", placeholder="z.B. WAUEFE123456789")
 
-    # Session State Update
+        with col11:
+            # NEUE Fahrzeugfelder 2
+            st.text_input("Typ/Modellschlüssel 2:", key="customer_typ_modellschluessel_2", placeholder="z.B. B8K")
+            st.date_input("Datum Erstzulassung 2:", key="customer_erstzulassung_2", value=None)
+            st.text_input("km-Stand 2:", key="customer_km_stand_2", placeholder="z.B. 45000")
+
+        # === ZUSÄTZLICHE ANGABEN FAHRZEUG 2 (Optional) ===
+        zusaetzliche_angaben_2 = st.checkbox("Zusätzliche Angaben für Fahrzeug 2", 
+                                           key="customer_zusaetzliche_angaben_2",
+                                           help="Weitere optionale Felder für Fahrzeug 2 anzeigen")
+        
+        if zusaetzliche_angaben_2:
+            st.markdown("**Zusätzliche Angaben Fahrzeug 2:**")
+            col12, col13 = st.columns(2)
+            
+            with col12:
+                st.text_input("Abnehmer-Gruppe 2:", key="customer_abnehmer_gruppe_2", placeholder="z.B. 82")
+                st.date_input("Leistungsdatum 2:", key="customer_leistungsdatum_2", value=None)
+            
+            with col13:
+                st.date_input("Fahrzeugannahmedatum 2:", key="customer_fahrzeugannahme_2", value=None)
+                st.text_input("HU/AU Datum 2:", key="customer_hu_au_datum_2", placeholder="z.B. 12/2026")
+
+    # === Session State Update mit ALLEN Feldern ===
     st.session_state.customer_data = {
+        # Basis-Kundendaten
         'anrede': st.session_state.get('customer_anrede',''),
         'name': st.session_state.get('customer_name',''),
         'email': st.session_state.get('customer_email',''),
+        # Neue Adressfelder
+        'strasse': st.session_state.get('customer_strasse',''),
+        'hausnummer': st.session_state.get('customer_hausnummer',''),
+        'plz': st.session_state.get('customer_plz',''),
+        'ort': st.session_state.get('customer_ort',''),
+        # Geschäftsdaten
+        'kunden_nr': st.session_state.get('customer_kunden_nr',''),
+        'auftrags_nr': st.session_state.get('customer_auftrags_nr',''),
+        'betriebs_nr': st.session_state.get('customer_betriebs_nr',''),
+        # Fahrzeugdaten 1 (bestehend)
         'kennzeichen': st.session_state.get('customer_kennzeichen',''),
         'modell': st.session_state.get('customer_modell',''),
         'fahrgestellnummer': st.session_state.get('customer_fahrgestell',''),
+        # Fahrzeugdaten 1 (neu)
+        'typ_modellschluessel': st.session_state.get('customer_typ_modellschluessel',''),
+        'erstzulassung': st.session_state.get('customer_erstzulassung', None),
+        'km_stand': st.session_state.get('customer_km_stand',''),
+        # Fahrzeug 2 (bestehend)
         'kennzeichen_2': st.session_state.get('customer_kennzeichen_2',''),
         'modell_2': st.session_state.get('customer_modell_2',''),
-        'fahrgestellnummer_2': st.session_state.get('customer_fahrgestell_2','')
+        'fahrgestellnummer_2': st.session_state.get('customer_fahrgestell_2',''),
+        # Fahrzeug 2 (neu)
+        'typ_modellschluessel_2': st.session_state.get('customer_typ_modellschluessel_2',''),
+        'erstzulassung_2': st.session_state.get('customer_erstzulassung_2', None),
+        'km_stand_2': st.session_state.get('customer_km_stand_2',''),
+        # Optionale Felder
+        'abnehmer_gruppe': st.session_state.get('customer_abnehmer_gruppe',''),
+        'leistungsdatum': st.session_state.get('customer_leistungsdatum', None),
+        'fahrzeugannahme': st.session_state.get('customer_fahrzeugannahme', None),
+        'hu_au_datum': st.session_state.get('customer_hu_au_datum',''),
+        # Optionale Felder Fahrzeug 2
+        'abnehmer_gruppe_2': st.session_state.get('customer_abnehmer_gruppe_2',''),
+        'leistungsdatum_2': st.session_state.get('customer_leistungsdatum_2', None),
+        'fahrzeugannahme_2': st.session_state.get('customer_fahrzeugannahme_2', None),
+        'hu_au_datum_2': st.session_state.get('customer_hu_au_datum_2',''),
+        # Toggle States
+        'zusaetzliche_angaben': st.session_state.get('customer_zusaetzliche_angaben', False),
+        'zusaetzliche_angaben_2': st.session_state.get('customer_zusaetzliche_angaben_2', False)
     }
 
+# ================================================================================================
+# BESTEHENDE FUNKTIONEN (UNVERÄNDERT)
+# ================================================================================================
 def render_filial_mitarbeiter_selection():
-    """Filial- und Mitarbeiterauswahl mit festen Datenstrukturen"""
+    """Filial- und Mitarbeiterauswahl mit festen Datenstrukturen (UNVERÄNDERT)"""
     st.markdown("---")
     st.markdown("#### Filiale und Ansprechpartner auswählen")
     st.markdown("Diese Informationen werden in das Angebot und den Footer aufgenommen:")
@@ -589,7 +756,7 @@ def render_actions(total, breakdown, detected_season):
                 st.warning("Warenkorb ist leer!")
 
 # ================================================================================================
-# MAIN
+# MAIN (UNVERÄNDERT)
 # ================================================================================================
 def main():
     init_session_state()
