@@ -1176,8 +1176,8 @@ def create_professional_pdf(customer_data, detected_season, cart_items, cart_qua
             serviceberater_name = selected_mitarbeiter_info.get('name', '')
 
         vehicle_headers = [
-            "Amtl. Kennzeichen", "Typ/\nModellschlüssel", "Datum\nErstzulassung",
-            "Fahrzeug-Ident.-Nr.", "Fzg.-\nAnnahmedatum", "km-Stand\nFahrzeugannahme", "Serviceberater"
+            "Amtl. Kennzeichen", "Typ/Modellschlüssel", "Datum Erstzulassung",
+            "Fahrzeug-Ident.-Nr.", "Fzg.-Annahmedatum", "km-Stand Fahrzeugannahme", "Serviceberater"
         ]
         
         vehicle_row = [
@@ -1191,16 +1191,16 @@ def create_professional_pdf(customer_data, detected_season, cart_items, cart_qua
         ]
         
         vehicle_data = [vehicle_headers, vehicle_row]
-        vehicle_table = Table(vehicle_data, colWidths=[2.5*cm, 2.0*cm, 2.0*cm, 3.5*cm, 2.2*cm, 2.5*cm, 2.8*cm])  # Breitere Spalten bis an die Ränder
+        vehicle_table = Table(vehicle_data, colWidths=[2.7*cm, 2.3*cm, 2.2*cm, 3.8*cm, 2.4*cm, 2.8*cm, 3.0*cm])  # Noch breitere Spalten bis fast an den Rand
         vehicle_table.setStyle(TableStyle([
             ('BACKGROUND',(0,0),(-1,0), colors.Color(0.95, 0.95, 0.95)),  # Viel helleres Grau
             ('TEXTCOLOR',(0,0),(-1,0), colors.black),  # Schwarzer Text
             ('ALIGN',(0,0),(-1,-1),'CENTER'),
             ('FONTNAME',(0,0),(-1,0),'Helvetica-Bold'),
-            ('FONTSIZE',(0,0),(-1,0),6),  # Kleinere Schrift für Header
+            ('FONTSIZE',(0,0),(-1,0),5),  # Noch kleinere Schrift für Header (5 statt 6)
             ('FONTSIZE',(0,1),(-1,-1),7),  # Normale Schrift für Datenzeile
-            ('BOTTOMPADDING',(0,0),(-1,-1),3),
-            ('TOPPADDING',(0,0),(-1,-1),3),
+            ('BOTTOMPADDING',(0,0),(-1,-1),2),  # Weniger Padding für schmäleren Header
+            ('TOPPADDING',(0,0),(-1,-1),2),
             # Nur EINE Trennlinie zwischen Header und Daten
             ('LINEBELOW',(0,0),(-1,0),0.5,colors.black),  # Nur unter Header
             ('FONTNAME',(0,1),(-1,-1),'Helvetica'),
