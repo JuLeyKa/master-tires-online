@@ -149,9 +149,6 @@ def init_session_state():
     if 'cart_services' not in st.session_state: st.session_state.cart_services = {}
     if 'cart_count' not in st.session_state: st.session_state.cart_count = 0
 
-    if 'offer_scenario' not in st.session_state:
-        st.session_state.offer_scenario = "vergleich"
-
     if 'pdf_created' not in st.session_state:
         st.session_state.pdf_created = False
 
@@ -462,10 +459,10 @@ def render_customer_data():
             st.date_input("Fahrzeugannahmedatum:", key="customer_fahrzeugannahme", value=None)
             st.text_input("HU/AU Datum:", key="customer_hu_au_datum", placeholder="z.B. 06/2027")
 
-    # === FAHRZEUG 2 (nur bei "separate" Szenario) ===
-    if st.session_state.offer_scenario == "separate":
+    # === FAHRZEUG 2 (Optional - nur bei mehreren Positionen sichtbar) ===
+    if len(st.session_state.cart_items) > 1:
         st.markdown("---")
-        st.markdown("##### Fahrzeug 2 (Separate Fahrzeuge)")
+        st.markdown("##### Fahrzeug 2 (Optional - für separate Positionen)")
         
         col10, col11 = st.columns(2)
         
@@ -626,33 +623,6 @@ def render_filial_mitarbeiter_selection():
             if mitarbeiter_info.get('email'):
                 st.markdown(f"E-Mail: {mitarbeiter_info.get('email', '')}")
 
-def render_scenario_selection():
-    st.markdown("---")
-    st.markdown("#### Angebot-Typ auswählen")
-
-    detected = detect_cart_season(st.session_state.cart_items)
-    season_info = get_season_greeting_text(detected)
-
-    st.radio(
-        "Angebot-Szenario:",
-        options=["vergleich","separate","einzelangebot"],
-        format_func=lambda x: {
-            "vergleich":"Vergleichsangebot - Verschiedene Reifenoptionen zur Auswahl für ein Fahrzeug",
-            "separate":"Separate Fahrzeuge - Jede Position ist für ein anderes Fahrzeug",
-            "einzelangebot":"Einzelangebot - Spezifisches Angebot für die ausgewählten Reifen"
-        }[x],
-        key="offer_scenario"
-    )
-
-    if st.session_state.offer_scenario == "vergleich":
-        st.info(f"**Vergleichsangebot:** Der Kunde bekommt mehrere {season_info['season_name']}-Reifenoptionen zur Auswahl präsentiert und kann sich für eine davon entscheiden.")
-    elif st.session_state.offer_scenario == "separate":
-        st.info(f"**Separate Fahrzeuge:** Jede Position wird als separates Fahrzeug behandelt mit eigenständiger {season_info['season_name']}-Reifen-Berechnung.")
-    else:
-        st.info(f"**Einzelangebot:** Direktes, spezifisches Angebot für die ausgewählten {season_info['season_name']}-Reifen ohne Vergleichsoptionen.")
-
-    return detected
-
 def render_actions(total, breakdown, detected_season):
     st.markdown("---")
     st.markdown("#### PDF-Angebot erstellen")
@@ -664,7 +634,6 @@ def render_actions(total, breakdown, detected_season):
             # PDF mit importierten Funktionen erstellen
             pdf_data = create_professional_pdf(
                 st.session_state.customer_data,
-                st.session_state.offer_scenario,
                 detected_season,
                 st.session_state.cart_items,
                 st.session_state.cart_quantities,
@@ -756,7 +725,7 @@ def render_actions(total, breakdown, detected_season):
                 st.warning("Warenkorb ist leer!")
 
 # ================================================================================================
-# MAIN (UNVERÄNDERT)
+# MAIN (ANGEPASST - KEIN ANGEBOT-SZENARIO MEHR)
 # ================================================================================================
 def main():
     init_session_state()
@@ -789,7 +758,8 @@ def main():
     # Filial- und Mitarbeiterauswahl mit festen Datenstrukturen
     render_filial_mitarbeiter_selection()
     
-    detected = render_scenario_selection()
+    # ANGEBOT-SZENARIO ENTFERNT - direkter Aufruf mit detected_season
+    detected = detect_cart_season(st.session_state.cart_items)
     render_actions(total, breakdown, detected)
 
 if __name__ == "__main__":
