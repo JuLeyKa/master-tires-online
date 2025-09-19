@@ -1099,72 +1099,58 @@ def create_professional_pdf(customer_data, detected_season, cart_items, cart_qua
     story.append(Paragraph("Ramsperger Automobile . Postfach 1516 . 73223 Kirchheim u.T.", company_address_style))
     story.append(Spacer(1, 3))  # Weniger Abstand nach Firmenadresse
     
-    # Kundendaten ohne Leerzeilen zwischen den Einträgen
-    left_address_lines = []
+    # Kundendaten OHNE LEERZEILEN - alle in einem Paragraph mit <br/>
+    left_address_parts = []
     if customer_data and customer_data.get('name'):
         if customer_data.get('anrede') and customer_data.get('name'):
-            # Anrede und Name direkt zusammen
-            left_address_lines.append(f"{customer_data['anrede']}")
-            left_address_lines.append(f"{customer_data['name']}")
+            left_address_parts.append(f"{customer_data['anrede']}")
+            left_address_parts.append(f"{customer_data['name']}")
         elif customer_data.get('name'):
-            left_address_lines.append(customer_data['name'])
+            left_address_parts.append(customer_data['name'])
         
         if customer_data.get('strasse'):
             strasse_haus = customer_data['strasse']
             if customer_data.get('hausnummer'):
                 strasse_haus += f" {customer_data['hausnummer']}"
-            left_address_lines.append(strasse_haus)
+            left_address_parts.append(strasse_haus)
         
         if customer_data.get('plz') and customer_data.get('ort'):
-            left_address_lines.append(f"{customer_data['plz']} {customer_data['ort']}")
+            left_address_parts.append(f"{customer_data['plz']} {customer_data['ort']}")
+    
+    # Alle Teile mit <br/> verbinden - KEINE Leerzeilen!
+    left_address_text = "<br/>".join(left_address_parts) if left_address_parts else ""
 
-    # Rechte Spalte: Geschäftsdaten
-    right_data_lines = []
-    right_data_styles = []
+    # Rechte Spalte: Geschäftsdaten - auch als ein Paragraph
+    right_data_parts = []
     
-    # Erste Zeile kleiner
-    right_data_lines.append(f"Bei Zahlungen bitte Rechnungs-Nr. und Kunden-Nr. angeben.")
-    right_data_styles.append(payment_info_style)
-    
-    # Rest normal
-    right_data_lines.append(f"Datum (= Tag der Lieferung): {date_str}")
-    right_data_styles.append(customer_style)
+    # Erste Zeile (kleinere Schrift wird separat behandelt)
+    payment_line = "Bei Zahlungen bitte Rechnungs-Nr. und Kunden-Nr. angeben."
+    right_data_parts.append(f"Datum (= Tag der Lieferung): {date_str}")
     
     if customer_data:
         if customer_data.get('kunden_nr'):
-            right_data_lines.append(f"Kunden-Nr.: {customer_data['kunden_nr']}")
-            right_data_styles.append(customer_style)
+            right_data_parts.append(f"Kunden-Nr.: {customer_data['kunden_nr']}")
         if customer_data.get('abnehmer_gruppe'):
-            right_data_lines.append(f"Abnehmer-Gruppe: {customer_data['abnehmer_gruppe']}")
-            right_data_styles.append(customer_style)
+            right_data_parts.append(f"Abnehmer-Gruppe: {customer_data['abnehmer_gruppe']}")
         if customer_data.get('auftrags_nr'):
-            right_data_lines.append(f"Auftrags-Nr.: {customer_data['auftrags_nr']}")
-            right_data_styles.append(customer_style)
+            right_data_parts.append(f"Auftrags-Nr.: {customer_data['auftrags_nr']}")
         if customer_data.get('betriebs_nr'):
-            right_data_lines.append(f"Betriebs-Nr.: {customer_data['betriebs_nr']}")
-            right_data_styles.append(customer_style)
+            right_data_parts.append(f"Betriebs-Nr.: {customer_data['betriebs_nr']}")
         if customer_data.get('leistungsdatum'):
             leistung_str = format_date_german(customer_data['leistungsdatum'])
             if leistung_str:
-                right_data_lines.append(f"Leistungsdatum: {leistung_str}")
-                right_data_styles.append(customer_style)
+                right_data_parts.append(f"Leistungsdatum: {leistung_str}")
+    
+    right_data_text = "<br/>".join(right_data_parts) if right_data_parts else ""
 
-    # Kundendaten-Tabelle mit drei Spalten für maximalen Abstand
-    max_lines = max(len(left_address_lines), len(right_data_lines))
-    while len(left_address_lines) < max_lines:
-        left_address_lines.append("")
-    while len(right_data_lines) < max_lines:
-        right_data_lines.append("")
-        right_data_styles.append(customer_style)
-
-    addr_data = []
-    for i in range(max_lines):
-        right_style = right_data_styles[i] if i < len(right_data_styles) else customer_style
-        addr_data.append([
-            Paragraph(left_address_lines[i], customer_style),
-            Paragraph("", customer_style),
-            Paragraph(right_data_lines[i], right_style)
-        ])
+    # Eine einzige Tabellenzeile - keine Leerzeilen mehr!
+    addr_data = [
+        [
+            Paragraph(left_address_text, customer_style),
+            Paragraph("", customer_style),  # Leerraum
+            Paragraph(f'<font size="7">{payment_line}</font><br/>{right_data_text}', customer_style)  # Erste Zeile kleiner
+        ]
+    ]
 
     # Drei Spalten: Links | Leerraum | Rechts
     addr_table = Table(addr_data, colWidths=[5*cm, 7*cm, 5*cm])
