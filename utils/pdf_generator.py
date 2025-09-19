@@ -1139,7 +1139,7 @@ def create_professional_pdf(customer_data, detected_season, cart_items, cart_qua
                 right_data_lines.append(f"Leistungsdatum: {leistung_str}")
                 right_data_styles.append(customer_style)
 
-    # Kundendaten-Tabelle: Linke Spalte sehr schmal, rechte ganz rechts
+    # Kundendaten-Tabelle: DREI SPALTEN für maximalen Abstand
     max_lines = max(len(left_address_lines), len(right_data_lines))
     while len(left_address_lines) < max_lines:
         left_address_lines.append("")
@@ -1149,21 +1149,24 @@ def create_professional_pdf(customer_data, detected_season, cart_items, cart_qua
 
     addr_data = []
     for i in range(max_lines):
-        # Linke Spalte immer customer_style, rechte Spalte je nach Index
+        # Drei Spalten: Kundendaten | Leerraum | Geschäftsdaten (ganz rechts)
         right_style = right_data_styles[i] if i < len(right_data_styles) else customer_style
         addr_data.append([
-            Paragraph(left_address_lines[i], customer_style),
-            Paragraph(right_data_lines[i], right_style)  # Unterschiedliche Styles
+            Paragraph(left_address_lines[i], customer_style),  # Kundendaten links
+            Paragraph("", customer_style),                     # Leerraum Mitte
+            Paragraph(right_data_lines[i], right_style)        # Geschäftsdaten ganz rechts
         ])
 
-    # Spaltenbreiten: Linke sehr schmal, rechte ganz weit rechts
-    addr_table = Table(addr_data, colWidths=[5*cm, 12*cm])  # Rechte Spalte noch breiter für maximalen Rechtsabstand
+    # Drei Spalten: Links | Leerraum | Rechts (ganz außen)
+    addr_table = Table(addr_data, colWidths=[5*cm, 7*cm, 5*cm])  # Maximaler Abstand durch Leerraum
     addr_table.setStyle(TableStyle([
         ('VALIGN',(0,0),(-1,-1),'TOP'),
         ('LEFTPADDING',(0,0),(-1,-1),0),
         ('RIGHTPADDING',(0,0),(-1,-1),0),
         ('TOPPADDING',(0,0),(-1,-1),0),
         ('BOTTOMPADDING',(0,0),(-1,-1),0),
+        # Rechte Spalte rechtsbündig für äußersten Rand
+        ('ALIGN',(2,0),(2,-1),'RIGHT'),
     ]))
     story.append(addr_table)
     story.append(Spacer(1, 20))
