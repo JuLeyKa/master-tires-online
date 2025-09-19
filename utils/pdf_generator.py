@@ -1060,6 +1060,16 @@ def create_professional_pdf(customer_data, detected_season, cart_items, cart_qua
         textColor=colors.black
     )
     
+    # NOCH KLEINERE Schriftgröße für "Bei Zahlungen..." Zeile
+    payment_info_style = ParagraphStyle(
+        'PaymentInfo',
+        parent=styles['Normal'],
+        fontName="Helvetica",
+        fontSize=7,  # Noch kleiner für "Bei Zahlungen..."
+        leading=9,
+        textColor=colors.black
+    )
+    
     small_style = ParagraphStyle(
         'Small',
         parent=styles['Normal'], 
@@ -1098,47 +1108,62 @@ def create_professional_pdf(customer_data, detected_season, cart_items, cart_qua
         if customer_data.get('plz') and customer_data.get('ort'):
             left_address_lines.append(f"{customer_data['plz']} {customer_data['ort']}")
 
-    # Rechte Spalte: Geschäftsdaten (weiter nach rechts)
+    # Rechte Spalte: Geschäftsdaten (ganz nach rechts, erste Zeile kleiner)
     right_data_lines = []
+    right_data_styles = []  # Für unterschiedliche Schriftgrößen
+    
+    # Erste Zeile kleiner
     right_data_lines.append(f"Bei Zahlungen bitte Rechnungs-Nr. und Kunden-Nr. angeben.")
+    right_data_styles.append(payment_info_style)  # Kleinere Schrift
+    
+    # Rest normal
     right_data_lines.append(f"Datum (= Tag der Lieferung): {date_str}")
+    right_data_styles.append(customer_style)
     
     if customer_data:
         if customer_data.get('kunden_nr'):
             right_data_lines.append(f"Kunden-Nr.: {customer_data['kunden_nr']}")
+            right_data_styles.append(customer_style)
         if customer_data.get('abnehmer_gruppe'):
             right_data_lines.append(f"Abnehmer-Gruppe: {customer_data['abnehmer_gruppe']}")
+            right_data_styles.append(customer_style)
         if customer_data.get('auftrags_nr'):
             right_data_lines.append(f"Auftrags-Nr.: {customer_data['auftrags_nr']}")
+            right_data_styles.append(customer_style)
         if customer_data.get('betriebs_nr'):
             right_data_lines.append(f"Betriebs-Nr.: {customer_data['betriebs_nr']}")
+            right_data_styles.append(customer_style)
         if customer_data.get('leistungsdatum'):
             leistung_str = format_date_german(customer_data['leistungsdatum'])
             if leistung_str:
                 right_data_lines.append(f"Leistungsdatum: {leistung_str}")
+                right_data_styles.append(customer_style)
 
-    # Kundendaten-Tabelle mit kleinerer Schrift und weiter nach rechts verschobenem rechten Block
+    # Kundendaten-Tabelle: Linke Spalte sehr schmal, rechte ganz rechts
     max_lines = max(len(left_address_lines), len(right_data_lines))
     while len(left_address_lines) < max_lines:
         left_address_lines.append("")
     while len(right_data_lines) < max_lines:
         right_data_lines.append("")
+        right_data_styles.append(customer_style)
 
     addr_data = []
     for i in range(max_lines):
+        # Linke Spalte immer customer_style, rechte Spalte je nach Index
+        right_style = right_data_styles[i] if i < len(right_data_styles) else customer_style
         addr_data.append([
-            Paragraph(left_address_lines[i], customer_style),  # Kleinere Schrift
-            Paragraph(right_data_lines[i], customer_style)     # Kleinere Schrift
+            Paragraph(left_address_lines[i], customer_style),
+            Paragraph(right_data_lines[i], right_style)  # Unterschiedliche Styles
         ])
 
-    # Spaltenbreiten angepasst: Linke Spalte kleiner, rechte weiter nach rechts
-    addr_table = Table(addr_data, colWidths=[7*cm, 10*cm])  # Rechte Spalte breiter und weiter rechts
+    # Spaltenbreiten: Linke sehr schmal, rechte ganz weit rechts
+    addr_table = Table(addr_data, colWidths=[5*cm, 12*cm])  # Rechte Spalte noch breiter für maximalen Rechtsabstand
     addr_table.setStyle(TableStyle([
         ('VALIGN',(0,0),(-1,-1),'TOP'),
         ('LEFTPADDING',(0,0),(-1,-1),0),
         ('RIGHTPADDING',(0,0),(-1,-1),0),
-        ('TOPPADDING',(0,0),(-1,-1),0),  # Kein Padding oben für engere Zeilen
-        ('BOTTOMPADDING',(0,0),(-1,-1),0),  # Kein Padding unten für engere Zeilen
+        ('TOPPADDING',(0,0),(-1,-1),0),
+        ('BOTTOMPADDING',(0,0),(-1,-1),0),
     ]))
     story.append(addr_table)
     story.append(Spacer(1, 20))
