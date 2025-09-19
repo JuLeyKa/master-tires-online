@@ -1272,8 +1272,8 @@ def create_professional_pdf(customer_data, detected_season, cart_items, cart_qua
                 ])
             position_counter += 1
 
-    # Haupttabelle im neuen Stil (wie Fahrzeug-Tabelle)
-    main_table = Table(main_table_data, colWidths=[0.8*cm, 2.2*cm, 4.2*cm, 1.0*cm, 1.4*cm, 1.4*cm, 1.0*cm, 1.0*cm, 1.6*cm])
+    # Haupttabelle im neuen Stil (wie Fahrzeug-Tabelle) - BREIT BIS AN DEN RAND
+    main_table = Table(main_table_data, colWidths=[1.0*cm, 2.8*cm, 5.0*cm, 1.2*cm, 1.8*cm, 1.8*cm, 1.2*cm, 1.2*cm, 2.0*cm])  # Viel breitere Spalten
     main_table.setStyle(TableStyle([
         ('BACKGROUND',(0,0),(-1,0), colors.Color(0.95, 0.95, 0.95)),  # Helleres Grau wie Fahrzeug-Tabelle
         ('TEXTCOLOR',(0,0),(-1,0), colors.black),  # Schwarzer Text
