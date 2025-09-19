@@ -17,7 +17,7 @@ from reportlab.lib import colors
 from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_RIGHT
 
 # ================================================================================================
-# FESTE FILIAL- UND MITARBEITERDATEN (ERSETZT EXCEL-ANBINDUNG)
+# FESTE FILIAL- UND MITARBEITERDATEN (ERSETZT EXCEL-ANBINDUNG) - UNVERÄNDERT
 # ================================================================================================
 def get_filial_data():
     """Gibt die fest definierte Filial- und Mitarbeiterstruktur zurück"""
@@ -795,7 +795,7 @@ def build_phone_number(zentrale, durchwahl):
     return f"{zentrale_clean}-{durchwahl}"
 
 # ================================================================================================
-# SERVICE-PAKETE LADEN UND VERARBEITEN
+# SERVICE-PAKETE LADEN UND VERARBEITEN - UNVERÄNDERT
 # ================================================================================================
 @st.cache_data
 def load_service_packages():
@@ -822,7 +822,7 @@ def get_service_package_by_positionsnummer(positionsnummer):
     return None
 
 # ================================================================================================
-# PERSONALISIERTE ANREDE FUNKTIONEN
+# PERSONALISIERTE ANREDE FUNKTIONEN - UNVERÄNDERT
 # ================================================================================================
 def create_personalized_salutation(customer_data=None):
     """Erstellt personalisierte Anrede basierend auf Anrede und Name"""
@@ -844,7 +844,7 @@ def create_personalized_salutation(customer_data=None):
     return "Sehr geehrte Damen und Herren"
 
 # ================================================================================================
-# SAISON-ERKENNUNG
+# SAISON-ERKENNUNG - UNVERÄNDERT
 # ================================================================================================
 def detect_cart_season(cart_items):
     """Erkennt die dominante Saison im Warenkorb"""
@@ -902,7 +902,7 @@ def get_season_greeting_text(detected_season):
     return season_texts.get(detected_season, season_texts["neutral"])
 
 # ================================================================================================
-# SERVICE DETECTION FÜR DYNAMISCHE ÜBERSCHRIFT
+# SERVICE DETECTION FÜR DYNAMISCHE ÜBERSCHRIFT - UNVERÄNDERT
 # ================================================================================================
 def has_services_in_cart(cart_items, cart_services):
     """Prüft ob Services im Warenkorb aktiviert sind"""
@@ -920,7 +920,7 @@ def get_dynamic_title(cart_items, cart_services):
         return "Angebot Reifen"
 
 # ================================================================================================
-# WARENKORB-BERECHNUNGEN - ANGEPASST FÜR NEUE SERVICE-PAKETE
+# WARENKORB-BERECHNUNGEN - ANGEPASST FÜR NEUE SERVICE-PAKETE - UNVERÄNDERT
 # ================================================================================================
 def calculate_position_total(item, quantity, selected_packages):
     """Berechnet Gesamtkosten für eine Position mit neuen Service-Paketen"""
@@ -953,7 +953,7 @@ def get_cart_total(cart_items, cart_quantities, cart_services):
     return total, breakdown
 
 # ================================================================================================
-# PDF GENERATION - ANGEPASST FÜR NEUE SERVICE-PAKETE
+# NEUE PDF GENERATION - KOMPLETT NEUES LAYOUT NACH VORLAGE
 # ================================================================================================
 def format_eur(value: float) -> str:
     """Formatiert Euro-Beträge"""
@@ -961,51 +961,68 @@ def format_eur(value: float) -> str:
     s = s.replace(",", "X").replace(".", ",").replace("X", ".")
     return f"{s} €"
 
-def _header_footer(canvas, doc, selected_filial_info):
-    """Header mit Ramsperger Logo + Footer mit Filialinformationen"""
+def format_date_german(date_obj):
+    """Formatiert Datum als deutschen String (DD.MM.YYYY)"""
+    if not date_obj:
+        return ""
+    if hasattr(date_obj, 'strftime'):
+        return date_obj.strftime('%d.%m.%Y')
+    return str(date_obj)
+
+def _new_header_footer(canvas, doc):
+    """NEUER Header nach Vorlage: RAMSPERGER AUTOMOBILE links, ANGEBOT zentral, feste Firmenadresse"""
     canvas.saveState()
     width, height = A4
     margin = 20 * mm
 
-    # Header mit Logo - 20% größer
+    # === NEUER HEADER NACH VORLAGE ===
+    # Logo/Firmenname links
     try:
-        # Logo laden und zeichnen
         logo_path = Path("data/Logo.png")
         if logo_path.exists():
             logo = ImageReader(str(logo_path))
-            # Logo-Dimensionen 20% größer: 60mm x 18mm (war 50mm x 15mm)
-            logo_width = 60 * mm
-            logo_height = 18 * mm
-            
-            # Logo links im Header positionieren
-            canvas.drawImage(logo, margin, height - margin + 2, 
+            # Logo links positionieren - größer
+            logo_width = 70 * mm
+            logo_height = 21 * mm
+            canvas.drawImage(logo, margin, height - margin - 5, 
                            width=logo_width, height=logo_height, 
                            mask='auto', preserveAspectRatio=True)
         else:
-            # Fallback Text falls Logo nicht gefunden
-            canvas.setFont("Helvetica-Bold", 11)
+            # Fallback Text falls Logo nicht gefunden - SCHWARZ, GROSS
+            canvas.setFont("Helvetica-Bold", 14)
             canvas.setFillColor(colors.black)
-            canvas.drawString(margin, height - margin + 6, "AUTOHAUS RAMSPERGER")
+            canvas.drawString(margin, height - margin + 2, "RAMSPERGER")
+            canvas.drawString(margin, height - margin - 12, "AUTOMOBILE")
     except Exception:
-        # Fallback bei Fehlern
-        canvas.setFont("Helvetica-Bold", 11)
+        # Fallback bei Fehlern - SCHWARZ, GROSS
+        canvas.setFont("Helvetica-Bold", 14)
         canvas.setFillColor(colors.black)
-        canvas.drawString(margin, height - margin + 6, "AUTOHAUS RAMSPERGER")
+        canvas.drawString(margin, height - margin + 2, "RAMSPERGER")
+        canvas.drawString(margin, height - margin - 12, "AUTOMOBILE")
 
-    # Dünne Linie unter Header
+    # ANGEBOT zentriert (größer, fett)
+    canvas.setFont("Helvetica-Bold", 18)
+    canvas.setFillColor(colors.black)
+    text_width = canvas.stringWidth("ANGEBOT", "Helvetica-Bold", 18)
+    canvas.drawString((width - text_width) / 2, height - margin - 5, "ANGEBOT")
+    
+    # "unverbindlich" zentriert darunter (kleiner)
+    canvas.setFont("Helvetica", 10)
+    text_width_unverb = canvas.stringWidth("unverbindlich", "Helvetica", 10)
+    canvas.drawString((width - text_width_unverb) / 2, height - margin - 20, "unverbindlich")
+
+    # === FESTE FIRMENADRESSE unter Header ===
+    canvas.setFont("Helvetica", 9)
+    canvas.setFillColor(colors.black)
+    company_address = "Ramsperger Automobile . Postfach 1516 . 73223 Kirchheim u.T."
+    canvas.drawString(margin, height - margin - 45, company_address)
+
+    # Dünne Linie unter gesamtem Header
     canvas.setStrokeColor(colors.black)
     canvas.setLineWidth(0.5)
-    canvas.line(margin, height - margin + 2, width - margin, height - margin + 2)
+    canvas.line(margin, height - margin - 50, width - margin, height - margin - 50)
 
-    # Footer mit Filialinformationen
-    canvas.setFont("Helvetica", 8.5)
-    canvas.setFillColor(colors.black)
-    
-    # Filialinformationen
-    if selected_filial_info:
-        filial_text = f"Ramsperger Automobile {selected_filial_info.get('bereich', '')} {selected_filial_info.get('adresse', '')} Telefon: {selected_filial_info.get('zentrale', '')}"
-        canvas.drawString(margin, margin - 8, filial_text)
-
+    # === FOOTER LEER (Informationen kommen in den Haupttext) ===
     canvas.restoreState()
 
 def _p(text, style):
@@ -1013,7 +1030,7 @@ def _p(text, style):
     return Paragraph(text, style)
 
 def create_professional_pdf(customer_data, offer_scenario, detected_season, cart_items, cart_quantities, cart_services, selected_filial_info, selected_mitarbeiter_info):
-    """Erstellt professionelle PDF mit neuen Service-Paketen"""
+    """Erstellt professionelle PDF mit NEUEM LAYOUT NACH VORLAGE"""
     if not cart_items:
         return None
 
@@ -1026,105 +1043,227 @@ def create_professional_pdf(customer_data, offer_scenario, detected_season, cart
         pagesize=A4,
         rightMargin=20*mm,
         leftMargin=20*mm,
-        topMargin=28*mm,
+        topMargin=40*mm,  # Mehr Platz für neuen Header
         bottomMargin=25*mm
     )
 
-    # Styles (kompakter - alles etwas kleiner)
+    # Styles
     styles = getSampleStyleSheet()
-    h1 = ParagraphStyle('H1', parent=styles['Heading1'], fontName="Helvetica-Bold",
-                        fontSize=16, leading=19, spaceAfter=6, textColor=colors.black, alignment=TA_LEFT)
-    h2 = ParagraphStyle('H2', parent=styles['Heading2'], fontName="Helvetica-Bold",
-                        fontSize=11, leading=13, spaceAfter=4, textColor=colors.black, alignment=TA_LEFT)
     normal = ParagraphStyle('NormalPlus', parent=styles['Normal'], fontName="Helvetica",
-                            fontSize=9.5, leading=12, textColor=colors.black)
+                            fontSize=9, leading=11, textColor=colors.black)
     small = ParagraphStyle('Small', parent=styles['Normal'], fontName="Helvetica",
-                           fontSize=8.5, leading=10, textColor=colors.black)
-    cell = ParagraphStyle('cell', parent=normal, fontSize=9, leading=11)
-    cell_c = ParagraphStyle('cellc', parent=cell, alignment=TA_CENTER)
-    cell_r = ParagraphStyle('cellr', parent=cell, alignment=TA_RIGHT)
-
-    # Datum rechts ausrichten Style
-    date_style = ParagraphStyle('DateRight', parent=styles['Normal'], fontName="Helvetica",
-                               fontSize=9.5, leading=12, alignment=TA_RIGHT, textColor=colors.black)
+                           fontSize=8, leading=10, textColor=colors.black)
 
     story = []
 
-    # Kopf - mit reduziertem Abstand zum Logo (kompakter)
-    date_str = datetime.now().strftime('%d.%m.%Y')
+    # === NACH HEADER: Platz für Kundendaten-Layout wie auf Vorlage ===
+    story.append(Spacer(1, 15))  # Abstand nach Header
 
-    # Nur 1 Leerzeile zwischen Logo und Überschrift (kompakter)
-    story.append(Spacer(1, 10))
+    # === KUNDENDATEN LINKS + GESCHÄFTSDATEN RECHTS (wie auf Vorlage) ===
+    date_str = datetime.now().strftime('%d.%m.%Y')
     
+    # LINKS: Kundenadresse (wie auf Vorlage)
+    left_address = []
+    if customer_data and customer_data.get('name'):
+        # Namen mit Anrede zusammenfassen
+        if customer_data.get('anrede') and customer_data.get('name'):
+            left_address.append(f"{customer_data['anrede']} {customer_data['name']}")
+        else:
+            left_address.append(customer_data.get('name', ''))
+        
+        # Straße + Hausnummer
+        strasse_haus = ""
+        if customer_data.get('strasse'):
+            strasse_haus = customer_data['strasse']
+            if customer_data.get('hausnummer'):
+                strasse_haus += f" {customer_data['hausnummer']}"
+        if strasse_haus:
+            left_address.append(strasse_haus)
+        
+        # PLZ + Ort
+        plz_ort = ""
+        if customer_data.get('plz') and customer_data.get('ort'):
+            plz_ort = f"{customer_data['plz']} {customer_data['ort']}"
+        elif customer_data.get('plz'):
+            plz_ort = customer_data['plz']
+        elif customer_data.get('ort'):
+            plz_ort = customer_data['ort']
+        if plz_ort:
+            left_address.append(plz_ort)
+
+    # RECHTS: Geschäftsdaten (wie auf Vorlage)
+    right_data = []
+    right_data.append(f"Datum (= Tag der Lieferung): {date_str}")
+    if customer_data and customer_data.get('kunden_nr'):
+        right_data.append(f"Kunden-Nr.: {customer_data['kunden_nr']}")
+    if customer_data and customer_data.get('abnehmer_gruppe'):
+        right_data.append(f"Abnehmer-Gruppe: {customer_data['abnehmer_gruppe']}")
+    if customer_data and customer_data.get('auftrags_nr'):
+        right_data.append(f"Auftrags-Nr.: {customer_data['auftrags_nr']}")
+    if customer_data and customer_data.get('betriebs_nr'):
+        right_data.append(f"Betriebs-Nr.: {customer_data['betriebs_nr']}")
+    if customer_data and customer_data.get('leistungsdatum'):
+        leistung_str = format_date_german(customer_data['leistungsdatum'])
+        if leistung_str:
+            right_data.append(f"Leistungsdatum: {leistung_str}")
+
+    # Zwei-Spalten-Layout für Adresse + Geschäftsdaten
+    if left_address or right_data:
+        # Left column content
+        left_content = []
+        for addr_line in left_address:
+            left_content.append([_p(addr_line, normal)])
+        # Auffüllen falls rechte Spalte länger
+        while len(left_content) < len(right_data):
+            left_content.append([_p("", normal)])
+
+        # Right column content  
+        right_content = []
+        for data_line in right_data:
+            right_content.append([_p(data_line, normal)])
+        # Auffüllen falls linke Spalte länger
+        while len(right_content) < len(left_address):
+            right_content.append([_p("", normal)])
+
+        # Tabelle für Links/Rechts Layout
+        if left_content or right_content:
+            max_rows = max(len(left_content), len(right_content))
+            combined_data = []
+            for i in range(max_rows):
+                left_cell = left_content[i][0] if i < len(left_content) else _p("", normal)
+                right_cell = right_content[i][0] if i < len(right_content) else _p("", normal)
+                combined_data.append([left_cell, right_cell])
+
+            addr_table = Table(combined_data, colWidths=[9*cm, 8*cm])
+            addr_table.setStyle(TableStyle([
+                ('VALIGN',(0,0),(-1,-1),'TOP'),
+                ('LEFTPADDING',(0,0),(-1,-1),0),
+                ('RIGHTPADDING',(0,0),(-1,-1),0),
+                ('TOPPADDING',(0,0),(-1,-1),2),
+                ('BOTTOMPADDING',(0,0),(-1,-1),2),
+            ]))
+            story.append(addr_table)
+
+    story.append(Spacer(1, 15))
+
+    # === FAHRZEUGDATEN TABELLE (wie auf Vorlage) ===
+    # Sammlung aller Fahrzeuge basierend auf Szenario
+    vehicles = []
+    
+    if offer_scenario == "separate" and len(cart_items) >= 2:
+        # Separate Fahrzeuge: Jedem Reifen ein Fahrzeug zuordnen
+        for i, item in enumerate(cart_items):
+            if i == 0:
+                # Erstes Fahrzeug
+                vehicle = {
+                    'kennzeichen': customer_data.get('kennzeichen', ''),
+                    'typ': customer_data.get('typ_modellschluessel', ''),
+                    'erstzulassung': customer_data.get('erstzulassung'),
+                    'fahrzeug_ident': customer_data.get('fahrgestellnummer', ''),
+                    'fahrzeugannahme': customer_data.get('fahrzeugannahme'),
+                    'km_stand': customer_data.get('km_stand', ''),
+                    'serviceberater': selected_mitarbeiter_info.get('name', '') if selected_mitarbeiter_info else ''
+                }
+            elif i == 1 and customer_data.get('kennzeichen_2'):
+                # Zweites Fahrzeug
+                vehicle = {
+                    'kennzeichen': customer_data.get('kennzeichen_2', ''),
+                    'typ': customer_data.get('typ_modellschluessel_2', ''),
+                    'erstzulassung': customer_data.get('erstzulassung_2'),
+                    'fahrzeug_ident': customer_data.get('fahrgestellnummer_2', ''),
+                    'fahrzeugannahme': customer_data.get('fahrzeugannahme_2'),
+                    'km_stand': customer_data.get('km_stand_2', ''),
+                    'serviceberater': selected_mitarbeiter_info.get('name', '') if selected_mitarbeiter_info else ''
+                }
+            else:
+                # Weitere Fahrzeuge - leer oder aus erstem ableiten
+                vehicle = {
+                    'kennzeichen': '',
+                    'typ': '',
+                    'erstzulassung': None,
+                    'fahrzeug_ident': '',
+                    'fahrzeugannahme': None,
+                    'km_stand': '',
+                    'serviceberater': selected_mitarbeiter_info.get('name', '') if selected_mitarbeiter_info else ''
+                }
+            vehicles.append(vehicle)
+    else:
+        # Alle anderen Szenarien: Ein Fahrzeug für alle Reifen
+        if customer_data:
+            vehicle = {
+                'kennzeichen': customer_data.get('kennzeichen', ''),
+                'typ': customer_data.get('typ_modellschluessel', ''),
+                'erstzulassung': customer_data.get('erstzulassung'),
+                'fahrzeug_ident': customer_data.get('fahrgestellnummer', ''),
+                'fahrzeugannahme': customer_data.get('fahrzeugannahme'),
+                'km_stand': customer_data.get('km_stand', ''),
+                'serviceberater': selected_mitarbeiter_info.get('name', '') if selected_mitarbeiter_info else ''
+            }
+            vehicles.append(vehicle)
+
+    # Fahrzeugdaten-Tabelle erstellen (wenn Fahrzeugdaten vorhanden)
+    if vehicles and any(v.get('kennzeichen') or v.get('typ') or v.get('fahrzeug_ident') for v in vehicles):
+        story.append(_p("Seite 1 von 2", ParagraphStyle('PageInfo', parent=normal, alignment=TA_RIGHT)))
+        story.append(Spacer(1, 10))
+
+        # Tabellen-Header (wie auf Vorlage)
+        vehicle_headers = [
+            "Amtl. Kennzeichen",
+            "Typ/\nModellschlüssel", 
+            "Datum\nErstzulassung",
+            "Fahrzeug-Ident.-Nr.",
+            "Fzg.-\nAnnahmedatum",
+            "km-Stand\nFahrzeugannahme",
+            "Serviceberater"
+        ]
+        
+        # Datenzeilen
+        vehicle_data = [vehicle_headers]
+        for vehicle in vehicles:
+            row = [
+                vehicle.get('kennzeichen', ''),
+                vehicle.get('typ', ''),
+                format_date_german(vehicle.get('erstzulassung')),
+                vehicle.get('fahrzeug_ident', ''),
+                format_date_german(vehicle.get('fahrzeugannahme')),
+                vehicle.get('km_stand', ''),
+                vehicle.get('serviceberater', '')
+            ]
+            vehicle_data.append(row)
+
+        vehicle_table = Table(vehicle_data, colWidths=[2.5*cm, 2*cm, 2*cm, 3.5*cm, 2.2*cm, 2.3*cm, 3*cm])
+        vehicle_table.setStyle(TableStyle([
+            # Header
+            ('BACKGROUND',(0,0),(-1,0), colors.grey),
+            ('TEXTCOLOR',(0,0),(-1,0), colors.whitesmoke),
+            ('ALIGN',(0,0),(-1,-1),'CENTER'),
+            ('FONTNAME',(0,0),(-1,0),'Helvetica-Bold'),
+            ('FONTSIZE',(0,0),(-1,-1),8),
+            ('BOTTOMPADDING',(0,0),(-1,-1),6),
+            ('TOPPADDING',(0,0),(-1,-1),6),
+            ('GRID',(0,0),(-1,-1),0.5,colors.black),
+            # Datenzeilen
+            ('FONTNAME',(0,1),(-1,-1),'Helvetica'),
+            ('TEXTCOLOR',(0,1),(-1,-1), colors.black),
+        ]))
+        story.append(vehicle_table)
+        story.append(Spacer(1, 15))
+
+        # Zusatzinformationen (wie auf Vorlage)
+        if customer_data and customer_data.get('hu_au_datum'):
+            story.append(_p(f"Ihre nächste HU/AU ist: {customer_data['hu_au_datum']}", normal))
+        # Zusatztext wie auf Vorlage (aber ohne den letzten Satz)
+        story.append(_p("Kostenvoranschläge werden im unzerlegten Zustand erstellt. Schäden die erst nach der Demontage sichtbar werden, sind hierbei nicht berücksichtigt!", normal))
+        story.append(Spacer(1, 20))
+
+    # === REIFEN-ANGEBOT BEREICH (bestehende Logik beibehalten) ===
     # Dynamische Überschrift basierend auf Warenkorb-Inhalt
     dynamic_title = get_dynamic_title(cart_items, cart_services)
-    story.append(_p(dynamic_title, h1))
+    story.append(_p(dynamic_title, ParagraphStyle('H2', parent=styles['Heading2'], 
+                                                  fontName="Helvetica-Bold", fontSize=12, 
+                                                  leading=14, spaceAfter=8, textColor=colors.black)))
 
-    # Datum rechts oben positionieren
-    story.append(_p(f"Datum: {date_str}", date_style))
-
-    # Kompaktere Leerzeilen zwischen Überschrift und Kundendaten
-    story.append(Spacer(1, 12))
-    story.append(Spacer(1, 12))
-
-    # Kundendaten ohne Labels - erweitert für separate Fahrzeuge
-    cust_lines = []
-    if customer_data:
-        if customer_data.get('anrede') and customer_data.get('name'):
-            cust_lines.append(f"{customer_data['anrede']} {customer_data['name']}")
-        elif customer_data.get('name'):
-            cust_lines.append(f"{customer_data['name']}")
-        if customer_data.get('email'):
-            cust_lines.append(f"{customer_data['email']}")
-        
-        # Fahrzeug 1 Daten
-        if customer_data.get('kennzeichen'):
-            cust_lines.append(f"{customer_data['kennzeichen']}")
-        extra = []
-        if customer_data.get('modell'):
-            extra.append(f"{customer_data['modell']}")
-        if customer_data.get('fahrgestellnummer'):
-            extra.append(f"FIN: {customer_data['fahrgestellnummer']}")
-        if extra:
-            cust_lines.append(" · ".join(extra))
-        
-        # Fahrzeug 2 Daten (nur bei "separate" Szenario)
-        if offer_scenario == "separate":
-            if customer_data.get('kennzeichen_2'):
-                cust_lines.append(f"Fahrzeug 2: {customer_data['kennzeichen_2']}")
-            extra_2 = []
-            if customer_data.get('modell_2'):
-                extra_2.append(f"{customer_data['modell_2']}")
-            if customer_data.get('fahrgestellnummer_2'):
-                extra_2.append(f"FIN: {customer_data['fahrgestellnummer_2']}")
-            if extra_2:
-                cust_lines.append(" · ".join(extra_2))
-
-    if cust_lines:
-        for line in cust_lines:
-            story.append(_p(line, normal))
-        # Kompaktere Leerzeilen zwischen Kundendaten und Anrede
-        story.append(Spacer(1, 7))
-
-    # Einleitung mit personalisierter Anrede
-    personal_salutation = create_personalized_salutation(customer_data)
-    intro_text = (
-        f"{personal_salutation},<br/>"
-        f"{season_info['greeting']} {season_info['transition']} "
-        f"Nachfolgend erhalten Sie Ihr individuelles Angebot."
-    )
-    story.append(_p(intro_text, normal))
-    story.append(Spacer(1, 6))
-
-    # Positionsdarstellung ohne "Position X" Titel
-    section_title = {
-        "vergleich": f"Ihr individuelles {dynamic_title.split(' ', 1)[1]}",
-        "separate": f"Angebot für Ihre Fahrzeuge",
-        "einzelangebot": f"Ihr individuelles {dynamic_title.split(' ', 1)[1]}"
-    }.get(offer_scenario, f"Ihr {dynamic_title.split(' ', 1)[1]}")
-    story.append(_p(section_title, h2))
-    story.append(Spacer(1, 4))
-
+    # Positionsdarstellung (bestehende Logik)
     for i, item in enumerate(cart_items, 1):
         quantity = cart_quantities.get(item['id'], 4)
         selected_packages = cart_services.get(item['id'], [])
@@ -1144,24 +1283,23 @@ def create_professional_pdf(customer_data, offer_scenario, detected_season, cart
             eu_parts.append(f"Saison: {item.get('Saison')}")
         eu_label = " | ".join(eu_parts) if eu_parts else "EU-Label: –"
 
-        # Service-Aufschlüsselung für linke Spalte - KORRIGIERTE LOGIK
+        # Service-Aufschlüsselung für linke Spalte
         service_lines = []
         for package in selected_packages:
             pkg_price = float(package['preis'])
-            
-            # Alle Service-Pakete sind Pauschalpreise
             service_lines.append(f"{package['bezeichnung']}: {format_eur(pkg_price)}")
 
-        # Linke Spalte (Info + Services) - größere Schrift
+        # Linke Spalte (Info + Services)
+        cell_style = ParagraphStyle('cell', parent=normal, fontSize=9, leading=11)
         left_rows = [
-            [_p(f"<b>{item['Reifengröße']}</b> – <b>{item['Fabrikat']} {item['Profil']}</b>", cell)],
-            [_p(f"Teilenummer: {item['Teilenummer']} · Einzelpreis: <b>{format_eur(item['Preis_EUR'])}</b>", cell)],
-            [_p(f"{eu_label}", cell)]
+            [_p(f"<b>{item['Reifengröße']}</b> – <b>{item['Fabrikat']} {item['Profil']}</b>", cell_style)],
+            [_p(f"Teilenummer: {item['Teilenummer']} · Einzelpreis: <b>{format_eur(item['Preis_EUR'])}</b>", cell_style)],
+            [_p(f"{eu_label}", cell_style)]
         ]
         
         # Service-Zeilen hinzufügen
         for service_line in service_lines:
-            left_rows.append([_p(service_line, cell)])
+            left_rows.append([_p(service_line, cell_style)])
 
         left_tbl = Table(left_rows, colWidths=[12*cm])
         left_tbl.setStyle(TableStyle([
@@ -1173,15 +1311,18 @@ def create_professional_pdf(customer_data, offer_scenario, detected_season, cart
             ('TOPPADDING',(0,0),(-1,-1),1),
         ]))
 
-        # Rechte Spalte - GROSSE GRÜNE BOX für Gesamtpreis bei Vergleichsangeboten
+        # Rechte Spalte
+        cell_c_style = ParagraphStyle('cellc', parent=cell_style, alignment=TA_CENTER)
+        cell_r_style = ParagraphStyle('cellr', parent=cell_style, alignment=TA_RIGHT)
+        
         if offer_scenario == "vergleich":
-            # Aufschlüsselung oberhalb der grünen Box für Vergleichsangebote
+            # Grüne Box für Vergleichsangebote
             right_rows = [
-                [_p(f"<b>{quantity}×</b>", cell_c)],  # Stückzahl
-                [_p(" ", cell_c)],  # Spacer
-                [_p(f"Reifen: {format_eur(reifen_kosten)}", cell_r)],  # Reifen-Aufschlüsselung
-                [_p(f"Services: {format_eur(service_kosten)}", cell_r)],  # Service-Aufschlüsselung
-                [_p(f"<b>GESAMT</b><br/><b>{format_eur(position_total)}</b>", cell_c)],  # Grüne Box
+                [_p(f"<b>{quantity}×</b>", cell_c_style)],  # Stückzahl
+                [_p(" ", cell_c_style)],  # Spacer
+                [_p(f"Reifen: {format_eur(reifen_kosten)}", cell_r_style)],
+                [_p(f"Services: {format_eur(service_kosten)}", cell_r_style)],
+                [_p(f"<b>GESAMT</b><br/><b>{format_eur(position_total)}</b>", cell_c_style)],
             ]
 
             right_tbl = Table(right_rows, colWidths=[5.6*cm])
@@ -1193,7 +1334,7 @@ def create_professional_pdf(customer_data, offer_scenario, detected_season, cart
                 ('BOTTOMPADDING',(0,0),(-1,-1),2),
                 ('TOPPADDING',(0,0),(-1,-1),1),
                 
-                # Grüne Box für Gesamtpreis (Position 4 - jetzt nach Aufschlüsselung)
+                # Grüne Box für Gesamtpreis
                 ('FONTNAME',(0,4),(-1,4),'Helvetica-Bold'),
                 ('FONTSIZE',(0,4),(-1,4),12),
                 ('BACKGROUND',(0,4),(-1,4), colors.HexColor('#f0fdf4')),
@@ -1207,11 +1348,11 @@ def create_professional_pdf(customer_data, offer_scenario, detected_season, cart
         else:
             # Normale Darstellung für andere Szenarien
             right_rows = [
-                [_p(f"<b>{quantity}×</b>", cell_c)],  # Stückzahl mittig
-                [_p(" ", cell_c)],  # Spacer
-                [_p(f"Reifen: {format_eur(reifen_kosten)}", cell_r)],
-                [_p(f"Services: {format_eur(service_kosten)}", cell_r)],
-                [_p(f"<b>Gesamt: {format_eur(position_total)}</b>", cell_r)],
+                [_p(f"<b>{quantity}×</b>", cell_c_style)],
+                [_p(" ", cell_c_style)],
+                [_p(f"Reifen: {format_eur(reifen_kosten)}", cell_r_style)],
+                [_p(f"Services: {format_eur(service_kosten)}", cell_r_style)],
+                [_p(f"<b>Gesamt: {format_eur(position_total)}</b>", cell_r_style)],
             ]
 
             right_tbl = Table(right_rows, colWidths=[5.6*cm])
@@ -1231,10 +1372,9 @@ def create_professional_pdf(customer_data, offer_scenario, detected_season, cart
             ('BOX',(0,0),(-1,-1),0, colors.white),
         ]))
 
-        # Direkt Card ohne Position-Titel
         story.append(KeepTogether(card))
 
-        # Dünne Trennlinie zwischen Cards (nur wenn nicht letzte Position)
+        # Trennlinie zwischen Positionen
         if i < len(cart_items):
             story.append(Table([[""]], colWidths=[17.6*cm], rowHeights=[0.2]))
             story[-1].setStyle(TableStyle([
@@ -1246,9 +1386,12 @@ def create_professional_pdf(customer_data, offer_scenario, detected_season, cart
             ]))
         story.append(Spacer(1, 3))
 
-    # Kostenaufstellung nur für andere Szenarien (nicht bei Vergleichsangeboten)
+    # Kostenaufstellung (für nicht-Vergleichsangebote)
     if offer_scenario != "vergleich":
-        story.append(_p("Kostenaufstellung", h2))
+        h2_style = ParagraphStyle('H2', parent=styles['Heading2'], 
+                                 fontName="Helvetica-Bold", fontSize=12, 
+                                 leading=14, spaceAfter=6, textColor=colors.black)
+        story.append(_p("Kostenaufstellung", h2_style))
         cost_rows = [['Reifen-Kosten', format_eur(breakdown['reifen'])]]
         if breakdown['services'] > 0:
             cost_rows.append(['Service-Kosten', format_eur(breakdown['services'])])
@@ -1265,7 +1408,7 @@ def create_professional_pdf(customer_data, offer_scenario, detected_season, cart
             ('ALIGN',(1,0),(1,-2),'RIGHT'),
             ('LINEBELOW',(0,-2),(-1,-2), 0.6, colors.black),
 
-            # Gesamtsumme (einzige Farbe)
+            # Gesamtsumme
             ('FONTNAME',(0,-1),(-1,-1),'Helvetica-Bold'),
             ('FONTSIZE',(0,-1),(-1,-1),11),
             ('BACKGROUND',(0,-1),(-1,-1), colors.HexColor('#f0fdf4')),
@@ -1279,17 +1422,16 @@ def create_professional_pdf(customer_data, offer_scenario, detected_season, cart
             ('RIGHTPADDING',(0,0),(-1,-1),3),
         ]))
         story.append(KeepTogether(cost_tbl))
-        story.append(Spacer(1, 5))
+        story.append(Spacer(1, 10))
 
-    # NEUE BULLET POINTS (anstelle der alten) - kompakter
-    story.append(Spacer(1, 5))
+    # Abschließende Informationen (bestehende Logik)
+    story.append(Spacer(1, 10))
     bullets = [
         "Angebot gültig 14 Tage",
-        "Inklusive Reifengarantie 36 Monate",
+        "Inklusive Reifengarantie 36 Monate", 
         "Inklusive Entsorgung Altreifen"
     ]
     
-    # Saisonspezifische Bullet Points hinzufügen
     if detected_season == "winter":
         bullets.append("Wir empfehlen den rechtzeitigen Wechsel auf Winterreifen für optimale Sicherheit bei winterlichen Bedingungen.")
     elif detected_season == "sommer":
@@ -1302,17 +1444,20 @@ def create_professional_pdf(customer_data, offer_scenario, detected_season, cart
 
     for b in bullets:
         story.append(_p(f"• {b}", small))
-    story.append(Spacer(1, 5))
+    story.append(Spacer(1, 8))
 
-    # Geänderte Reihenfolge: Zuerst "Vielen Dank", dann "Für Rückfragen", dann Mitarbeiter
-    story.append(_p("Vielen Dank für Ihr Vertrauen!", h2))
+    # Schluss und Kontaktdaten
+    h2_style = ParagraphStyle('H2', parent=styles['Heading2'], 
+                             fontName="Helvetica-Bold", fontSize=12, 
+                             leading=14, spaceAfter=6, textColor=colors.black)
+    story.append(_p("Vielen Dank für Ihr Vertrauen!", h2_style))
     story.append(_p("Ihr Team von Ramsperger Automobile", normal))
-    story.append(Spacer(1, 5))
+    story.append(Spacer(1, 8))
     
     story.append(_p("Für Rückfragen stehen wir Ihnen gerne zur Verfügung.", small))
-    story.append(Spacer(1, 5))
+    story.append(Spacer(1, 8))
 
-    # Mitarbeiterinformationen hinzufügen
+    # Mitarbeiterinformationen
     if selected_mitarbeiter_info:
         mitarbeiter_name = selected_mitarbeiter_info.get('name', '')
         mitarbeiter_position = selected_mitarbeiter_info.get('position', '')
@@ -1334,18 +1479,21 @@ def create_professional_pdf(customer_data, offer_scenario, detected_season, cart
         
         story.append(_p(mitarbeiter_text, small))
 
-    # PDF bauen mit Header/Footer
-    def header_footer_wrapper(canvas, doc):
-        _header_footer(canvas, doc, selected_filial_info)
-    
-    doc.build(story, onFirstPage=header_footer_wrapper, onLaterPages=header_footer_wrapper)
+    # Filialadresse als Footer-Alternative
+    if selected_filial_info:
+        story.append(Spacer(1, 10))
+        filial_text = f"{selected_filial_info.get('bereich', '')} {selected_filial_info.get('adresse', '')} Telefon: {selected_filial_info.get('zentrale', '')}"
+        story.append(_p(filial_text, small))
+
+    # PDF bauen
+    doc.build(story, onFirstPage=_new_header_footer, onLaterPages=_new_header_footer)
     buffer.seek(0)
     return buffer.getvalue()
 
 # ================================================================================================
-# E-MAIL TEXT & MAILTO (direkter Flow, Regex FIX)
+# E-MAIL TEXT & MAILTO (direkter Flow, Regex FIX) - UNVERÄNDERT
 # ================================================================================================
-_EMAIL_REGEX = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")  # FIX: korrekte Whitespaces
+_EMAIL_REGEX = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 
 def _normalize_crlf(text: str) -> str:
     if text is None:
@@ -1385,7 +1533,7 @@ def create_mailto_link(customer_email, email_text, detected_season):
     return f"mailto:{to_addr}?subject={subject_encoded}&body={body_encoded}"
 
 # ================================================================================================
-# TD-ANFRAGE FUNKTIONEN
+# TD-ANFRAGE FUNKTIONEN - UNVERÄNDERT
 # ================================================================================================
 def create_td_email_text(customer_data, detected_season, cart_items, cart_quantities):
     """Erstellt den E-Mail-Text für die TD-Anfrage"""
