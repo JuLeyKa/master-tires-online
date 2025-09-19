@@ -975,166 +975,131 @@ def format_date_german(date_obj):
     return str(date_obj)
 
 # ================================================================================================
-# GLOBALE VARIABLEN FÜR HEADER-DATEN (werden in create_header_footer genutzt)
+# OPTIMIERTE PDF LAYOUT NACH VORLAGE - NUR LAYOUT-ÄNDERUNGEN
 # ================================================================================================
-_header_data = {}
-
-def set_header_data(customer_data, selected_filial_info, selected_mitarbeiter_info, page_count):
-    """Setzt die globalen Header-Daten für die PDF-Generierung"""
-    global _header_data
-    _header_data = {
-        'customer_data': customer_data,
-        'selected_filial_info': selected_filial_info,
-        'selected_mitarbeiter_info': selected_mitarbeiter_info,
-        'page_count': page_count
-    }
-
-# ================================================================================================
-# ERWEITERTE HEADER-FUNKTION MIT ORIGINALEN TABLE-LAYOUTS
-# ================================================================================================
-def draw_table_on_canvas(canvas, table_data, table_style, col_widths, x, y):
-    """Zeichnet eine Tabelle mit exakt dem originalen Layout auf Canvas"""
-    # Tabellen-Maße berechnen
-    total_width = sum(col_widths)
-    row_height = 15  # Standard-Zeilenhöhe
-    num_rows = len(table_data)
-    total_height = num_rows * row_height
-    
-    canvas.saveState()
-    
-    # Style-Einstellungen aus TableStyle extrahieren und anwenden
-    for style_cmd in table_style._cmds:
-        cmd = style_cmd[0]
-        
-        if cmd == 'BACKGROUND':
-            # Hintergrundfarbe für Header
-            start_col, start_row, end_col, end_row = style_cmd[1:5]
-            color = style_cmd[5]
-            if start_row == 0 and end_row == 0:  # Header-Zeile
-                canvas.setFillColor(color)
-                canvas.rect(x, y + total_height - row_height, total_width, row_height, fill=1, stroke=0)
-        
-        elif cmd == 'LINEBELOW':
-            # Linie unter Header
-            start_col, start_row, end_col, end_row = style_cmd[1:5]
-            line_width = style_cmd[5]
-            line_color = style_cmd[6]
-            if start_row == 0:
-                canvas.setStrokeColor(line_color)
-                canvas.setLineWidth(line_width)
-                canvas.line(x, y + total_height - row_height, x + total_width, y + total_height - row_height)
-    
-    # Text zeichnen
-    for row_idx, row_data in enumerate(table_data):
-        y_pos = y + total_height - (row_idx + 1) * row_height + 5  # +5 für Padding
-        x_pos = x + 2  # +2 für Padding
-        
-        for col_idx, cell_data in enumerate(row_data):
-            # Schriftart und -größe setzen
-            if row_idx == 0:  # Header
-                canvas.setFont("Helvetica-Bold", 5)
-                canvas.setFillColor(colors.black)
-            else:  # Daten
-                canvas.setFont("Helvetica", 7)
-                canvas.setFillColor(colors.black)
-            
-            # Text-Alignment (vereinfacht für CENTER)
-            cell_width = col_widths[col_idx]
-            text_width = canvas.stringWidth(str(cell_data), canvas._fontname, canvas._fontsize)
-            text_x = x_pos + (cell_width - text_width) / 2  # Zentriert
-            
-            # Mehrzeiligen Text handhaben (vereinfacht)
-            if '\n' in str(cell_data):
-                lines = str(cell_data).split('\n')
-                for line_idx, line in enumerate(lines):
-                    line_y = y_pos - (line_idx * 8)  # 8 für Zeilenabstand
-                    canvas.drawString(text_x, line_y, line)
-            else:
-                canvas.drawString(text_x, y_pos, str(cell_data))
-            
-            x_pos += cell_width
-    
-    # Tabellen-Rahmen zeichnen
-    canvas.setStrokeColor(colors.black)
-    canvas.setLineWidth(0.5)
-    canvas.rect(x, y, total_width, total_height, fill=0, stroke=1)
-    
-    # Vertikale Linien
-    x_line = x
-    for width in col_widths[:-1]:
-        x_line += width
-        canvas.line(x_line, y, x_line, y + total_height)
-    
-    # Horizontale Linien (nur zwischen Header und Daten)
-    if num_rows > 1:
-        canvas.line(x, y + total_height - row_height, x + total_width, y + total_height - row_height)
-    
-    canvas.restoreState()
-    return total_height
-
 def create_header_footer(canvas, doc):
-    """EXAKTER Header mit originalen Table-Layouts auf jeder Seite"""
+    """Header mit Logo links oben, ANGEBOT darunter zentriert, nichts rechts"""
     canvas.saveState()
     width, height = A4
     margin = 20 * mm
-    
-    # Globale Header-Daten abrufen
-    global _header_data
-    customer_data = _header_data.get('customer_data', {})
-    selected_filial_info = _header_data.get('selected_filial_info', {})
-    selected_mitarbeiter_info = _header_data.get('selected_mitarbeiter_info', {})
-    page_count = _header_data.get('page_count', 1)
-    
-    # Y-Position Tracker
-    current_y = height - margin
-    
-    # === 1. LOGO LINKS OBEN ===
+
+    # === LOGO LINKS OBEN ===
     try:
         logo_path = Path("data/Logo.png")
         if logo_path.exists():
             logo = ImageReader(str(logo_path))
             logo_width = 65 * mm
             logo_height = 18 * mm
-            canvas.drawImage(logo, margin, current_y - logo_height, 
+            # Logo ganz oben links
+            canvas.drawImage(logo, margin, height - margin - logo_height, 
                            width=logo_width, height=logo_height, 
                            mask='auto', preserveAspectRatio=True)
         else:
-            # Fallback Text
+            # Fallback Text - ganz oben
             canvas.setFont("Helvetica-Bold", 12)
             canvas.setFillColor(colors.black)
-            canvas.drawString(margin, current_y - 12, "RAMSPERGER")
-            canvas.drawString(margin, current_y - 24, "AUTOMOBILE")
+            canvas.drawString(margin, height - margin - 12, "RAMSPERGER")
+            canvas.drawString(margin, height - margin - 24, "AUTOMOBILE")
     except Exception:
-        # Fallback Text
+        # Fallback Text - ganz oben
         canvas.setFont("Helvetica-Bold", 12)
         canvas.setFillColor(colors.black)
-        canvas.drawString(margin, current_y - 12, "RAMSPERGER")
-        canvas.drawString(margin, current_y - 24, "AUTOMOBILE")
-    
-    # === 2. ANGEBOT ZENTRIERT ===
+        canvas.drawString(margin, height - margin - 12, "RAMSPERGER")
+        canvas.drawString(margin, height - margin - 24, "AUTOMOBILE")
+
+    # === ANGEBOT ZENTRIERT UNTER DEM LOGO ===
     canvas.setFont("Helvetica-Bold", 14)
     canvas.setFillColor(colors.black)
     angebot_width = canvas.stringWidth("ANGEBOT", "Helvetica-Bold", 14)
-    canvas.drawString((width - angebot_width) / 2, current_y - 20, "ANGEBOT")
+    # Unter dem Logo positionieren
+    canvas.drawString((width - angebot_width) / 2, height - margin - 35, "ANGEBOT")
     
     # "unverbindlich" zentriert darunter
     canvas.setFont("Helvetica", 8)
     unverb_width = canvas.stringWidth("unverbindlich", "Helvetica", 8)
-    canvas.drawString((width - unverb_width) / 2, current_y - 30, "unverbindlich")
+    canvas.drawString((width - unverb_width) / 2, height - margin - 45, "unverbindlich")
+
+    # === RECHTS BLEIBT LEER (kein VW-Logo) ===
+
+    canvas.restoreState()
+
+def create_professional_pdf(customer_data, detected_season, cart_items, cart_quantities, cart_services, selected_filial_info, selected_mitarbeiter_info):
+    """Erstellt PDF mit optimiertem Layout - KLEINERE FIRMENADRESSE, KEINE LEERZEILEN"""
+    if not cart_items:
+        return None
+
+    buffer = io.BytesIO()
+    doc = SimpleDocTemplate(
+        buffer,
+        pagesize=A4,
+        rightMargin=20*mm,
+        leftMargin=20*mm,
+        topMargin=65*mm,
+        bottomMargin=25*mm
+    )
+
+    # Styles mit optimierten Schriftgrößen
+    styles = getSampleStyleSheet()
     
-    current_y -= 50
+    normal_style = ParagraphStyle(
+        'Normal',
+        parent=styles['Normal'],
+        fontName="Helvetica",
+        fontSize=9,
+        leading=11,
+        textColor=colors.black
+    )
     
-    # === 3. FIRMENADRESSE ===
-    canvas.setFont("Helvetica", 7)
-    canvas.setFillColor(colors.black)
-    canvas.drawString(margin, current_y, "Ramsperger Automobile . Postfach 1516 . 73223 Kirchheim u.T.")
-    current_y -= 18
+    # NEUE KLEINERE Schriftgröße für Firmenadresse
+    company_address_style = ParagraphStyle(
+        'CompanyAddress',
+        parent=styles['Normal'],
+        fontName="Helvetica",
+        fontSize=7,  # KLEINER: von 8 auf 7
+        leading=9,   # Entsprechend angepasst
+        textColor=colors.black
+    )
     
-    # === 4. ORIGINALE KUNDENDATEN-TABELLE EXAKT NACHBAUEN ===
+    # Kundendaten-Style (größer als Firmenadresse)
+    customer_style = ParagraphStyle(
+        'Customer',
+        parent=styles['Normal'],
+        fontName="Helvetica",
+        fontSize=8,  # Bleibt bei 8 für Kundendaten
+        leading=10,
+        textColor=colors.black
+    )
+    
+    # NOCH KLEINERE Schriftgröße für "Bei Zahlungen..." Zeile
+    payment_info_style = ParagraphStyle(
+        'PaymentInfo',
+        parent=styles['Normal'],
+        fontName="Helvetica",
+        fontSize=7,
+        leading=9,
+        textColor=colors.black
+    )
+    
+    small_style = ParagraphStyle(
+        'Small',
+        parent=styles['Normal'], 
+        fontName="Helvetica",
+        fontSize=8,
+        leading=10,
+        textColor=colors.black
+    )
+
+    story = []
     date_today = datetime.now()
     date_str = date_today.strftime('%d.%m.%Y')
+
+    # === SEITE 1: FIRMENADRESSE + KUNDENDATEN ===
     
-    # Kundendaten links zusammenbauen (EXAKT wie im Original)
+    # FIRMENADRESSE mit kleinerer Schrift
+    story.append(Paragraph("Ramsperger Automobile . Postfach 1516 . 73223 Kirchheim u.T.", company_address_style))
+    story.append(Spacer(1, 3))  # Weniger Abstand nach Firmenadresse
+    
+    # Kundendaten OHNE LEERZEILEN - alle in einem Paragraph mit <br/>
     left_address_parts = []
     if customer_data and customer_data.get('name'):
         if customer_data.get('anrede') and customer_data.get('name'):
@@ -1152,10 +1117,13 @@ def create_header_footer(canvas, doc):
         if customer_data.get('plz') and customer_data.get('ort'):
             left_address_parts.append(f"{customer_data['plz']} {customer_data['ort']}")
     
-    left_address_text = "\n".join(left_address_parts) if left_address_parts else ""
-    
-    # Rechte Spalte: Geschäftsdaten (EXAKT wie im Original)
+    # Alle Teile mit <br/> verbinden - KEINE Leerzeilen!
+    left_address_text = "<br/>".join(left_address_parts) if left_address_parts else ""
+
+    # Rechte Spalte: Geschäftsdaten - auch als ein Paragraph
     right_data_parts = []
+    
+    # Erste Zeile (kleinere Schrift wird separat behandelt)
     payment_line = "Bei Zahlungen bitte Rechnungs-Nr. und Kunden-Nr. angeben."
     right_data_parts.append(f"Datum (= Tag der Lieferung): {date_str}")
     
@@ -1173,35 +1141,39 @@ def create_header_footer(canvas, doc):
             if leistung_str:
                 right_data_parts.append(f"Leistungsdatum: {leistung_str}")
     
-    right_data_text = "\n".join(right_data_parts) if right_data_parts else ""
-    
-    # ORIGINALE Adress-Tabelle (EXAKT wie im Original mit first line size=7)
+    right_data_text = "<br/>".join(right_data_parts) if right_data_parts else ""
+
+    # Eine einzige Tabellenzeile - keine Leerzeilen mehr!
     addr_data = [
         [
-            left_address_text,
-            "",  # Leerraum
-            f'{payment_line}\n{right_data_text}'  # Erste Zeile wird separat behandelt
+            Paragraph(left_address_text, customer_style),
+            Paragraph("", customer_style),  # Leerraum
+            Paragraph(f'<font size="7">{payment_line}</font><br/>{right_data_text}', customer_style)  # Erste Zeile kleiner
         ]
     ]
-    
-    # Adress-Tabelle zeichnen mit originalen Spaltenbreiten
-    addr_col_widths = [5*cm, 7*cm, 5*cm]
-    addr_table_height = draw_address_table_special(canvas, addr_data, addr_col_widths, margin, current_y - 60, payment_line, right_data_text, left_address_text)
-    current_y -= addr_table_height + 20
-    
-    # === 5. SEITENZAHL ===
-    page_num = canvas.getPageNumber()
-    canvas.setFont("Helvetica", 9)
-    page_text = f"Seite {page_num} von {page_count}"
-    page_width = canvas.stringWidth(page_text, "Helvetica", 9)
-    canvas.drawString(width - margin - page_width, current_y, page_text)
-    current_y -= 20
-    
-    # === 6. ORIGINALE FAHRZEUGDATEN-TABELLE ===
+
+    # Drei Spalten: Links | Leerraum | Rechts
+    addr_table = Table(addr_data, colWidths=[5*cm, 7*cm, 5*cm])
+    addr_table.setStyle(TableStyle([
+        ('VALIGN',(0,0),(-1,-1),'TOP'),
+        ('LEFTPADDING',(0,0),(-1,-1),0),
+        ('RIGHTPADDING',(0,0),(-1,-1),0),
+        ('TOPPADDING',(0,0),(-1,-1),0),
+        ('BOTTOMPADDING',(0,0),(-1,-1),0),
+        ('ALIGN',(2,0),(2,-1),'RIGHT'),
+    ]))
+    story.append(addr_table)
+    story.append(Spacer(1, 20))
+
+    # Seite 1 von 2 (rechtsbündig)
+    story.append(Paragraph("Seite 1 von 2", ParagraphStyle('PageInfo', parent=normal_style, alignment=TA_RIGHT)))
+    story.append(Spacer(1, 12))
+
+    # === FAHRZEUGDATEN-TABELLE - IMMER ANZEIGEN ===
     serviceberater_name = ""
     if selected_mitarbeiter_info:
         serviceberater_name = selected_mitarbeiter_info.get('name', '')
-    
+
     vehicle_headers = [
         "Amtl. Kennzeichen", "Typ/\nModellschlüssel", "Datum\nErstzulassung",
         "Fahrzeug-Ident.-Nr.", "Fzg.-\nAnnahmedatum", "km-Stand\nFahrzeugannahme", "Serviceberater"
@@ -1218,9 +1190,8 @@ def create_header_footer(canvas, doc):
     ]
     
     vehicle_data = [vehicle_headers, vehicle_row]
-    
-    # ORIGINALE TableStyle nachbauen
-    vehicle_style = TableStyle([
+    vehicle_table = Table(vehicle_data, colWidths=[2.7*cm, 2.3*cm, 2.2*cm, 3.8*cm, 2.4*cm, 2.8*cm, 3.0*cm])
+    vehicle_table.setStyle(TableStyle([
         ('BACKGROUND',(0,0),(-1,0), colors.Color(0.95, 0.95, 0.95)),
         ('TEXTCOLOR',(0,0),(-1,0), colors.black),
         ('ALIGN',(0,0),(-1,-1),'CENTER'),
@@ -1232,117 +1203,17 @@ def create_header_footer(canvas, doc):
         ('LINEBELOW',(0,0),(-1,0),0.5,colors.black),
         ('FONTNAME',(0,1),(-1,-1),'Helvetica'),
         ('TEXTCOLOR',(0,1),(-1,-1), colors.black),
-    ])
-    
-    vehicle_col_widths = [2.7*cm, 2.3*cm, 2.2*cm, 3.8*cm, 2.4*cm, 2.8*cm, 3.0*cm]
-    vehicle_table_height = draw_table_on_canvas(canvas, vehicle_data, vehicle_style, vehicle_col_widths, margin, current_y - 35)
-    current_y -= vehicle_table_height + 15
-    
-    # === 7. HU/AU UND KOSTENVORANSCHLAG TEXT ===
-    canvas.setFont("Helvetica", 9)
+    ]))
+    story.append(vehicle_table)
+    story.append(Spacer(1, 12))
+
+    # HU/AU und Kostenvoranschläge-Text
     if customer_data and customer_data.get('hu_au_datum'):
-        canvas.drawString(margin, current_y, f"Ihre nächste HU/AU ist: {customer_data['hu_au_datum']}")
-        current_y -= 12
-    
-    kostenvoranschlag_text = "Kostenvoranschläge werden im unzerlegten Zustand erstellt. Schäden die erst nach der Demontage sichtbar werden, sind hierbei nicht berücksichtigt!"
-    # Text umbrechen wenn zu lang
-    max_width = width - 2 * margin
-    if canvas.stringWidth(kostenvoranschlag_text, "Helvetica", 9) > max_width:
-        # Vereinfachte Textaufteilung
-        line1 = "Kostenvoranschläge werden im unzerlegten Zustand erstellt. Schäden die erst nach der"
-        line2 = "Demontage sichtbar werden, sind hierbei nicht berücksichtigt!"
-        canvas.drawString(margin, current_y, line1)
-        current_y -= 12
-        canvas.drawString(margin, current_y, line2)
-    else:
-        canvas.drawString(margin, current_y, kostenvoranschlag_text)
-    
-    canvas.restoreState()
+        story.append(Paragraph(f"Ihre nächste HU/AU ist: {customer_data['hu_au_datum']}", normal_style))
+    story.append(Paragraph("Kostenvoranschläge werden im unzerlegten Zustand erstellt. Schäden die erst nach der Demontage sichtbar werden, sind hierbei nicht berücksichtigt!", normal_style))
+    story.append(Spacer(1, 12))
 
-def draw_address_table_special(canvas, addr_data, col_widths, x, y, payment_line, right_data_text, left_address_text):
-    """Spezielle Funktion für Adress-Tabelle mit unterschiedlichen Schriftgrößen"""
-    canvas.saveState()
-    
-    # Kundendaten links (Schriftgröße 8)
-    if left_address_text:
-        canvas.setFont("Helvetica", 8)
-        canvas.setFillColor(colors.black)
-        lines = left_address_text.split('\n')
-        y_pos = y
-        for line in lines:
-            canvas.drawString(x + 2, y_pos, line)
-            y_pos -= 12
-    
-    # Geschäftsdaten rechts - erste Zeile kleiner (Schriftgröße 7)
-    right_x = x + col_widths[0] + col_widths[1]
-    y_pos = y
-    
-    # Erste Zeile (Bei Zahlungen...) mit Schriftgröße 7
-    canvas.setFont("Helvetica", 7)
-    canvas.drawString(right_x, y_pos, payment_line)
-    y_pos -= 10
-    
-    # Restliche Zeilen mit Schriftgröße 8
-    if right_data_text:
-        canvas.setFont("Helvetica", 8)
-        lines = right_data_text.split('\n')
-        for line in lines:
-            canvas.drawString(right_x, y_pos, line)
-            y_pos -= 12
-    
-    canvas.restoreState()
-    return 60  # Geschätzte Höhe der Adress-Tabelle
-
-# ================================================================================================
-# PDF LAYOUT MIT FESTEM HEADER - ORIGINALE TABELLEN ERHALTEN
-# ================================================================================================
-def create_professional_pdf(customer_data, detected_season, cart_items, cart_quantities, cart_services, selected_filial_info, selected_mitarbeiter_info):
-    """Erstellt PDF mit festem Header auf jeder Seite - ALLE ORIGINALEN LAYOUTS ERHALTEN"""
-    if not cart_items:
-        return None
-
-    buffer = io.BytesIO()
-    
-    # Seiten zählen für Header-Info
-    total_pages = 2  # Standardmäßig 2 Seiten
-    
-    # Header-Daten global setzen
-    set_header_data(customer_data, selected_filial_info, selected_mitarbeiter_info, total_pages)
-    
-    # VERGRÖSSERTER TOP-MARGIN für erweiterten Header
-    doc = SimpleDocTemplate(
-        buffer,
-        pagesize=A4,
-        rightMargin=20*mm,
-        leftMargin=20*mm,
-        topMargin=140*mm,  # VERGRÖSSERT für erweiterten Header
-        bottomMargin=25*mm
-    )
-
-    # Styles mit optimierten Schriftgrößen (UNVERÄNDERT)
-    styles = getSampleStyleSheet()
-    
-    normal_style = ParagraphStyle(
-        'Normal',
-        parent=styles['Normal'],
-        fontName="Helvetica",
-        fontSize=9,
-        leading=11,
-        textColor=colors.black
-    )
-    
-    small_style = ParagraphStyle(
-        'Small',
-        parent=styles['Normal'], 
-        fontName="Helvetica",
-        fontSize=8,
-        leading=10,
-        textColor=colors.black
-    )
-
-    story = []
-    
-    # === HAUPTTABELLE IM NEUEN STIL (UNVERÄNDERT) ===
+    # === HAUPTTABELLE IM NEUEN STIL ===
     main_headers = [
         "Nr.", "Arbeitsposition/\nTeilenummer", "Bezeichnung", 
         "Mit-\narbeiter", "Einzel-\npreis", "Menge/\nZeit", "Rabatt", "Steuer-\nCode", "Betrag\nEUR"
@@ -1394,13 +1265,13 @@ def create_professional_pdf(customer_data, detected_season, cart_items, cart_qua
                 ])
                 position_counter += 1
 
-    # Haupttabelle im neuen Stil (UNVERÄNDERT)
-    main_table = Table(main_table_data, colWidths=[1.1*cm, 2.6*cm, 5.2*cm, 1.2*cm, 1.8*cm, 1.8*cm, 1.1*cm, 1.1*cm, 1.9*cm])
+    # Haupttabelle im neuen Stil - ETWAS SCHMÄLER, NICHT ZU NAH AN RÄNDERN
+    main_table = Table(main_table_data, colWidths=[1.1*cm, 2.6*cm, 5.2*cm, 1.2*cm, 1.8*cm, 1.8*cm, 1.1*cm, 1.1*cm, 1.9*cm])  # Etwas schmäler als zuvor
     main_table.setStyle(TableStyle([
-        ('BACKGROUND',(0,0),(-1,0), colors.Color(0.95, 0.95, 0.95)),
-        ('TEXTCOLOR',(0,0),(-1,0), colors.black),
-        ('FONTNAME',(0,0),(-1,0),'Helvetica'),
-        ('FONTSIZE',(0,0),(-1,0),6),
+        ('BACKGROUND',(0,0),(-1,0), colors.Color(0.95, 0.95, 0.95)),  # Helleres Grau wie Fahrzeug-Tabelle
+        ('TEXTCOLOR',(0,0),(-1,0), colors.black),  # Schwarzer Text
+        ('FONTNAME',(0,0),(-1,0),'Helvetica'),  # Normal statt Bold
+        ('FONTSIZE',(0,0),(-1,0),6),  # Größer: 6 statt 5
         ('ALIGN',(0,0),(-1,0),'CENTER'),
         ('FONTNAME',(0,1),(-1,-1),'Helvetica'),
         ('FONTSIZE',(0,1),(-1,-1),8),
@@ -1408,40 +1279,43 @@ def create_professional_pdf(customer_data, detected_season, cart_items, cart_qua
         ('RIGHTPADDING',(0,0),(-1,-1),2),
         ('TOPPADDING',(0,0),(-1,-1),2),
         ('BOTTOMPADDING',(0,0),(-1,-1),2),
+        # Nur EINE Trennlinie unter Header (wie Fahrzeug-Tabelle)
         ('LINEBELOW',(0,0),(-1,0),0.5,colors.black),
         ('ALIGN',(4,1),(-1,-1),'RIGHT'),
         ('ALIGN',(5,1),(5,-1),'CENTER'),
-        ('ALIGN',(-1,1),(-1,-1),'CENTER'),
+        ('ALIGN',(-1,1),(-1,-1),'CENTER'),  # Beträge zentriert unter "Betrag EUR"
     ]))
     
     story.append(main_table)
     story.append(Spacer(1, 12))
 
-    # GARANTIE-TEXTE (UNVERÄNDERT)
+    # GARANTIE-TEXTE IMMER NACH LETZTER POSITION
+    # Text 1: Radschrauben-Hinweis
     radschrauben_text = """Wir weisen darauf hin, dass die Radschrauben nach 50 - 100 km nachgezogen werden müssen. Die max. Einlagerungszeit beträgt 7 Monate, bei Überschreitung erfolgt eine weitere Saisonabrechnung. Die zur Aufbewahrung übergebenen Räder müssen innerhalb von 12 Monate abgeholt werden."""
     story.append(Paragraph(radschrauben_text, small_style))
     story.append(Spacer(1, 8))
     
+    # Text 2: Reifen-Garantie
     garantie_text = """Reifen/Kompletträder in dieser Rechnung sind inklusive kostenloser 36 Monate Reifen Garantie gemäß den Bedingungen im Reifen Garantie Pass (Original Rechnung oder Rechnungskopie bitte als Garantienachweis im Fahrzeug mitführen)"""
     story.append(Paragraph(garantie_text, small_style))
     story.append(Spacer(1, 12))
 
-    # Gesamtbetrag (UNVERÄNDERT)
+    # Gesamtbetrag (netto)
     story.append(Paragraph(f"Gesamtbetrag (netto): {format_currency_german(total_netto)}", 
                           ParagraphStyle('NettoTotal', parent=normal_style, alignment=TA_RIGHT)))
     story.append(Spacer(1, 15))
 
-    # Zwischensumme (UNVERÄNDERT)
+    # Zwischensumme
     story.append(Paragraph("Zwischensumme", ParagraphStyle('Zwischensumme', parent=normal_style, alignment=TA_RIGHT)))
     story.append(Paragraph(format_currency_german(total_netto), ParagraphStyle('ZwischensummeWert', parent=normal_style, alignment=TA_RIGHT, fontName='Helvetica-Bold')))
 
-    # Footer Seite 1 (UNVERÄNDERT)
+    # Footer Seite 1 (mit Filial-Infos)
     story.append(Spacer(1, 15))
     footer_text1 = "Die Lieferung auf Rechnung Dritter (z.B. Agenturware) erfolgt im Namen und für Rechnung des Leistungserbringers. Ggf. enthaltene USt. ist den beigefügten Belegen zu entnehmen."
     story.append(Paragraph(footer_text1, small_style))
     story.append(Spacer(1, 8))
 
-    # Firmen-Footer Seite 1 (UNVERÄNDERT)
+    # Firmen-Footer Seite 1
     if selected_filial_info:
         filial_adresse = selected_filial_info.get('adresse', 'Robert-Bosch-Str. 9-11 | 72622 Nürtingen')
         filial_telefon = selected_filial_info.get('zentrale', '07022/9211-0')
@@ -1468,10 +1342,23 @@ def create_professional_pdf(customer_data, detected_season, cart_items, cart_qua
     ]))
     story.append(footer_table1)
 
-    # === SEITE 2: ÜBERTRAG UND MWST (Header wird automatisch gezeichnet) ===
+    # === SEITE 2: ÜBERTRAG UND MWST ===
     story.append(PageBreak())
 
-    # Haupttabelle Header + Übertrag (UNVERÄNDERT)
+    # Kundendaten wiederholen auf Seite 2
+    story.append(addr_table)
+    story.append(Spacer(1, 20))
+    
+    # Seite 2 von 2
+    story.append(Paragraph("Seite 2 von 2", ParagraphStyle('PageInfo2', parent=normal_style, alignment=TA_RIGHT)))
+    story.append(Spacer(1, 12))
+
+    # Fahrzeugdaten wiederholen
+    if customer_data and (customer_data.get('kennzeichen') or customer_data.get('typ_modellschluessel')):
+        story.append(vehicle_table)
+        story.append(Spacer(1, 12))
+
+    # Haupttabelle Header + Übertrag
     main_headers_page2 = [
         "Nr.", "Arbeitsposition/\nTeilenummer", "Bezeichnung", 
         "Mit-\narbeiter", "Einzel-\npreis", "Menge/\nZeit", "Rabatt", "Steuer-\nCode", "Betrag\nEUR"
@@ -1503,13 +1390,12 @@ def create_professional_pdf(customer_data, detected_season, cart_items, cart_qua
     story.append(uebertrag_table)
     story.append(Spacer(1, 15))
 
-    # Rest der Seite 2 (UNVERÄNDERT)
-    date_today = datetime.now()
+    # Angebot gültig bis (30 Tage)
     gueltig_bis = date_today + timedelta(days=30)
     gueltig_str = gueltig_bis.strftime('%d-%m-%Y')
     story.append(Paragraph(f"Angebot gültig bis {gueltig_str}", normal_style))
 
-    # Serviceberater Text (UNVERÄNDERT)
+    # Serviceberater Text (interaktiv)
     if selected_mitarbeiter_info:
         mitarbeiter_name = selected_mitarbeiter_info.get('name', '')
         mitarbeiter_email = selected_mitarbeiter_info.get('email', '')
@@ -1524,7 +1410,7 @@ def create_professional_pdf(customer_data, detected_season, cart_items, cart_qua
     story.append(Paragraph('Besuchen Sie uns doch im Internet. Unter www.ramsperger-automobile.de finden Sie alles über uns und "...die Menschen machen den Unterschied!"', normal_style))
     story.append(Spacer(1, 15))
 
-    # === MWST-TABELLE (UNVERÄNDERT) ===
+    # === MWST-TABELLE ===
     mwst_betrag = total_netto * 0.19
     brutto_gesamt = total_netto + mwst_betrag
 
@@ -1551,7 +1437,7 @@ def create_professional_pdf(customer_data, detected_season, cart_items, cart_qua
     story.append(Spacer(1, 8))
     story.append(Paragraph("Zahlungsziel: Bar / Kasse bar", normal_style))
 
-    # PDF erstellen mit festem Header auf jeder Seite
+    # PDF erstellen
     doc.build(story, onFirstPage=create_header_footer, onLaterPages=create_header_footer)
     buffer.seek(0)
     return buffer.getvalue()
