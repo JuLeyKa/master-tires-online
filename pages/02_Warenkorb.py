@@ -627,72 +627,79 @@ def render_filial_mitarbeiter_selection():
                 st.markdown(f"E-Mail: {mitarbeiter_info.get('email', '')}")
 
 def render_scenario_selection():
-    st.markdown("---")
-    st.markdown("#### Angebot-Typ auswählen")
-
+    # ANGEBOT-TYP AUSWAHL ENTFERNT - Automatisch ein Angebot pro Position
     detected = detect_cart_season(st.session_state.cart_items)
     season_info = get_season_greeting_text(detected)
-
-    st.radio(
-        "Angebot-Szenario:",
-        options=["vergleich","separate","einzelangebot"],
-        format_func=lambda x: {
-            "vergleich":"Vergleichsangebot - Verschiedene Reifenoptionen zur Auswahl für ein Fahrzeug",
-            "separate":"Separate Fahrzeuge - Jede Position ist für ein anderes Fahrzeug",
-            "einzelangebot":"Einzelangebot - Spezifisches Angebot für die ausgewählten Reifen"
-        }[x],
-        key="offer_scenario"
-    )
-
-    if st.session_state.offer_scenario == "vergleich":
-        st.info(f"**Vergleichsangebot:** Der Kunde bekommt mehrere {season_info['season_name']}-Reifenoptionen zur Auswahl präsentiert und kann sich für eine davon entscheiden.")
-    elif st.session_state.offer_scenario == "separate":
-        st.info(f"**Separate Fahrzeuge:** Jede Position wird als separates Fahrzeug behandelt mit eigenständiger {season_info['season_name']}-Reifen-Berechnung.")
+    
+    # Automatisch auf "einzelangebot" setzen (wird für PDF-Erstellung verwendet)
+    st.session_state.offer_scenario = "einzelangebot"
+    
+    st.markdown("---")
+    st.markdown("#### Angebot-Erstellung")
+    num_positions = len(st.session_state.cart_items)
+    if num_positions > 1:
+        st.info(f"**{num_positions} separate Angebote:** Für jede Reifenposition wird ein eigenes Angebot erstellt ({season_info['season_name']}-Reifen).")
     else:
-        st.info(f"**Einzelangebot:** Direktes, spezifisches Angebot für die ausgewählten {season_info['season_name']}-Reifen ohne Vergleichsoptionen.")
+        st.info(f"**Einzelangebot:** Ein Angebot für die ausgewählten {season_info['season_name']}-Reifen wird erstellt.")
 
     return detected
 
 def render_actions(total, breakdown, detected_season):
     st.markdown("---")
-    st.markdown("#### PDF-Angebot erstellen")
+    st.markdown("#### PDF-Angebote erstellen")
 
     col1, col2, col3, col4, col5 = st.columns(5)
 
     with col1:
-        if st.button("📄 PDF-Angebot erstellen", use_container_width=True, type="primary"):
-            # PDF mit importierten Funktionen erstellen
-            pdf_data = create_professional_pdf(
-                st.session_state.customer_data,
-                st.session_state.offer_scenario,
-                detected_season,
-                st.session_state.cart_items,
-                st.session_state.cart_quantities,
-                st.session_state.cart_services,
-                st.session_state.selected_filial_info,
-                st.session_state.selected_mitarbeiter_info
-            )
+        if st.button("📄 PDF-Angebote erstellen", use_container_width=True, type="primary"):
+            # Ein PDF pro Position erstellen
+            created_pdfs = []
             
-            if pdf_data:
+            for i, item in enumerate(st.session_state.cart_items, 1):
+                # Einzelposition für PDF
+                single_item = [item]
+                single_quantities = {item['id']: st.session_state.cart_quantities.get(item['id'], 4)}
+                single_services = {item['id']: st.session_state.cart_services.get(item['id'], [])}
+                
+                pdf_data = create_professional_pdf(
+                    st.session_state.customer_data,
+                    st.session_state.offer_scenario,
+                    detected_season,
+                    single_item,  # Nur eine Position
+                    single_quantities,
+                    single_services,
+                    st.session_state.selected_filial_info,
+                    st.session_state.selected_mitarbeiter_info
+                )
+                
+                if pdf_data:
+                    ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+                    season_info = get_season_greeting_text(detected_season)
+                    # Dateiname mit Position
+                    filename = f"Angebot_Ramsperger_Position_{i}_{season_info['season_name']}_{ts}.pdf"
+                    created_pdfs.append((pdf_data, filename, i))
+            
+            if created_pdfs:
                 st.session_state.current_email_text = create_email_text(
                     st.session_state.customer_data,
                     detected_season
                 )
-                ts = datetime.now().strftime("%Y%m%d_%H%M%S")
-                season_info = get_season_greeting_text(detected_season)
-                filename = f"Angebot_Ramsperger_{season_info['season_name']}_{ts}.pdf"
-
-                st.success("✅ PDF-Angebot erfolgreich erstellt!")
-                st.download_button(
-                    label="📥 PDF-Angebot herunterladen",
-                    data=pdf_data,
-                    file_name=filename,
-                    mime="application/pdf",
-                    use_container_width=True
-                )
+                st.session_state.created_pdfs = created_pdfs
+                
+                st.success(f"✅ {len(created_pdfs)} PDF-Angebote erfolgreich erstellt!")
+                
+                # Download-Buttons für alle PDFs
+                for pdf_data, filename, position in created_pdfs:
+                    st.download_button(
+                        label=f"📥 Position {position} herunterladen",
+                        data=pdf_data,
+                        file_name=filename,
+                        mime="application/pdf",
+                        use_container_width=True
+                    )
                 st.session_state.pdf_created = True
             else:
-                st.error("Fehler beim Erstellen der PDF-Datei")
+                st.error("Fehler beim Erstellen der PDF-Dateien")
 
     with col2:
         # Direkter mailto-Flow für Kundenangebot (mit Kunden-E-Mail)
@@ -702,7 +709,7 @@ def render_actions(total, breakdown, detected_season):
                       help="Bitte E-Mail-Adresse bei Kundendaten eingeben")
         elif not st.session_state.pdf_created:
             st.button("📧 Erst PDF erstellen", use_container_width=True, disabled=True,
-                      help="Bitte zuerst PDF-Angebot erstellen")
+                      help="Bitte zuerst PDF-Angebote erstellen")
         else:
             mailto_link = create_mailto_link(
                 customer_email,
@@ -735,6 +742,8 @@ def render_actions(total, breakdown, detected_season):
         if st.button("Warenkorb leeren", use_container_width=True, type="secondary"):
             clear_cart()
             st.session_state.pdf_created = False
+            if 'created_pdfs' in st.session_state:
+                del st.session_state.created_pdfs
             st.success("Warenkorb geleert!")
             st.rerun()
 
@@ -751,6 +760,8 @@ def render_actions(total, breakdown, detected_season):
                 st.success("Reifen erfolgreich ausgebucht!")
                 clear_cart()
                 st.session_state.pdf_created = False
+                if 'created_pdfs' in st.session_state:
+                    del st.session_state.created_pdfs
                 st.rerun()
             else:
                 st.warning("Warenkorb ist leer!")
