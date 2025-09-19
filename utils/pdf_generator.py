@@ -1300,6 +1300,29 @@ def create_professional_pdf(customer_data, detected_season, cart_items, cart_qua
     story.append(Paragraph(garantie_text, small_style))
     story.append(Spacer(1, 12))
 
+    # Angebot gültig bis (30 Tage) - HIERHER VERSCHOBEN
+    gueltig_bis = date_today + timedelta(days=30)
+    gueltig_str = gueltig_bis.strftime('%d-%m-%Y')
+    story.append(Paragraph(f"Angebot gültig bis {gueltig_str}", normal_style))
+    story.append(Spacer(1, 8))
+
+    # Serviceberater Text (interaktiv) - HIERHER VERSCHOBEN
+    if selected_mitarbeiter_info:
+        mitarbeiter_name = selected_mitarbeiter_info.get('name', '')
+        mitarbeiter_email = selected_mitarbeiter_info.get('email', '')
+        
+        if "E-Mail" in selected_mitarbeiter_info.get('position', ''):
+            service_text = f"Es bediente Sie Ihr Service-Team. Für Rückfragen stehen wir Ihnen gerne zur Verfügung. e-Mail: {mitarbeiter_email}"
+        else:
+            service_text = f"Es bediente Sie Ihr Serviceberater Herr {mitarbeiter_name}. Für Rückfragen stehe ich Ihnen gerne persönlich zur Verfügung. e-Mail: {mitarbeiter_email}"
+        
+        story.append(Paragraph(service_text, normal_style))
+        story.append(Spacer(1, 8))
+    
+    # Internet-Text - HIERHER VERSCHOBEN
+    story.append(Paragraph('Besuchen Sie uns doch im Internet. Unter www.ramsperger-automobile.de finden Sie alles über uns und "...die Menschen machen den Unterschied!"', normal_style))
+    story.append(Spacer(1, 12))
+
     # Gesamtbetrag (netto)
     story.append(Paragraph(f"Gesamtbetrag (netto): {format_currency_german(total_netto)}", 
                           ParagraphStyle('NettoTotal', parent=normal_style, alignment=TA_RIGHT)))
@@ -1448,25 +1471,6 @@ def create_professional_pdf(customer_data, detected_season, cart_items, cart_qua
     
     story.append(uebertrag_table)
     story.append(Spacer(1, 15))
-
-    # Angebot gültig bis (30 Tage)
-    gueltig_bis = date_today + timedelta(days=30)
-    gueltig_str = gueltig_bis.strftime('%d-%m-%Y')
-    story.append(Paragraph(f"Angebot gültig bis {gueltig_str}", normal_style))
-
-    # Serviceberater Text (interaktiv)
-    if selected_mitarbeiter_info:
-        mitarbeiter_name = selected_mitarbeiter_info.get('name', '')
-        mitarbeiter_email = selected_mitarbeiter_info.get('email', '')
-        
-        if "E-Mail" in selected_mitarbeiter_info.get('position', ''):
-            service_text = f"Es bediente Sie Ihr Service-Team. Für Rückfragen stehen wir Ihnen gerne zur Verfügung. e-Mail: {mitarbeiter_email}"
-        else:
-            service_text = f"Es bediente Sie Ihr Serviceberater Herr {mitarbeiter_name}. Für Rückfragen stehe ich Ihnen gerne persönlich zur Verfügung. e-Mail: {mitarbeiter_email}"
-        
-        story.append(Paragraph(service_text, normal_style))
-    
-    story.append(Paragraph('Besuchen Sie uns doch im Internet. Unter www.ramsperger-automobile.de finden Sie alles über uns und "...die Menschen machen den Unterschied!"', normal_style))
 
     # PDF erstellen
     doc.build(story, onFirstPage=create_header_footer, onLaterPages=create_header_footer)
