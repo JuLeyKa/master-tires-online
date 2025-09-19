@@ -4,7 +4,7 @@ from datetime import datetime
 from pathlib import Path
 
 # Import der ausgelagerten PDF- und Angebots-Funktionen
-from pages.pdf_generator import (
+from pages._pdf_generator import (
     get_filial_data, get_filial_options, get_mitarbeiter_for_filial, get_filial_info, build_phone_number,
     load_service_packages, get_service_package_by_positionsnummer,
     create_personalized_salutation, detect_cart_season, get_season_greeting_text, 
