@@ -981,7 +981,7 @@ def create_header_footer(canvas, doc):
     """Header mit Logo links oben, ANGEBOT darunter zentriert, nichts rechts"""
     canvas.saveState()
     width, height = A4
-    margin = 10 * mm  # REDUZIERT: von 20mm auf 10mm für höhere Positionierung
+    margin = 5 * mm  # NOCHMALS REDUZIERT: von 10mm auf 5mm für noch höhere Positionierung
 
     # === LOGO LINKS OBEN ===
     try:
@@ -990,18 +990,18 @@ def create_header_footer(canvas, doc):
             logo = ImageReader(str(logo_path))
             logo_width = 65 * mm
             logo_height = 18 * mm
-            # Logo höher positioniert - weniger Abstand zum oberen Rand
+            # Logo noch höher positioniert - minimal Abstand zum oberen Rand
             canvas.drawImage(logo, margin, height - margin - logo_height, 
                            width=logo_width, height=logo_height, 
                            mask='auto', preserveAspectRatio=True)
         else:
-            # Fallback Text - höher positioniert
+            # Fallback Text - noch höher positioniert
             canvas.setFont("Helvetica-Bold", 12)
             canvas.setFillColor(colors.black)
             canvas.drawString(margin, height - margin - 12, "RAMSPERGER")
             canvas.drawString(margin, height - margin - 24, "AUTOMOBILE")
     except Exception:
-        # Fallback Text - höher positioniert
+        # Fallback Text - noch höher positioniert
         canvas.setFont("Helvetica-Bold", 12)
         canvas.setFillColor(colors.black)
         canvas.drawString(margin, height - margin - 12, "RAMSPERGER")
@@ -1011,10 +1011,10 @@ def create_header_footer(canvas, doc):
     canvas.setFont("Helvetica-Bold", 14)
     canvas.setFillColor(colors.black)
     angebot_width = canvas.stringWidth("ANGEBOT", "Helvetica-Bold", 14)
-    # Entsprechend höher positioniert
+    # Entsprechend noch höher positioniert
     canvas.drawString((width - angebot_width) / 2, height - margin - 35, "ANGEBOT")
     
-    # "unverbindlich" zentriert darunter - entsprechend höher
+    # "unverbindlich" zentriert darunter - entsprechend noch höher
     canvas.setFont("Helvetica", 8)
     unverb_width = canvas.stringWidth("unverbindlich", "Helvetica", 8)
     canvas.drawString((width - unverb_width) / 2, height - margin - 45, "unverbindlich")
