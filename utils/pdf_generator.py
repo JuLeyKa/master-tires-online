@@ -1391,13 +1391,18 @@ def create_professional_pdf(customer_data, detected_season, cart_items, cart_qua
     story.append(Spacer(1, 8))
     story.append(Paragraph("Zahlungsziel: Bar / Kasse bar", normal_style))
 
-    # Footer Seite 1 (mit Filial-Infos)
-    story.append(Spacer(1, 15))
+    # TRENNLINIE VOR FOOTER - dünner schwarzer Strich
+    story.append(Spacer(1, 10))
+    from reportlab.platypus import HRFlowable
+    story.append(HRFlowable(width="100%", thickness=0.5, color=colors.black))
+    story.append(Spacer(1, 8))
+
+    # FOOTER AUF SEITE 1 - mit Filial-Infos
     footer_text1 = "Die Lieferung auf Rechnung Dritter (z.B. Agenturware) erfolgt im Namen und für Rechnung des Leistungserbringers. Ggf. enthaltene USt. ist den beigefügten Belegen zu entnehmen."
     story.append(Paragraph(footer_text1, small_style))
     story.append(Spacer(1, 8))
 
-    # Firmen-Footer Seite 1
+    # Firmen-Footer auf Seite 1
     if selected_filial_info:
         filial_adresse = selected_filial_info.get('adresse', 'Robert-Bosch-Str. 9-11 | 72622 Nürtingen')
         filial_telefon = selected_filial_info.get('zentrale', '07022/9211-0')
