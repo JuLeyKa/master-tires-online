@@ -1368,20 +1368,22 @@ def create_professional_pdf(customer_data, detected_season, cart_items, cart_qua
     # MWST-TABELLE MIT GLEICHER GESAMTBREITE WIE FAHRZEUGDATEN-TABELLE (19.2cm)
     mwst_table = Table(mwst_data, colWidths=[1.5*cm, 2.0*cm, 2.0*cm, 2.2*cm, 1.2*cm, 2.0*cm, 2.2*cm, 2.0*cm, 2.1*cm])
     
-    # GLEICHER STIL WIE FAHRZEUGDATEN-TABELLE
+    # GLEICHER STIL WIE FAHRZEUGDATEN-TABELLE MIT SPEZIFISCHEN SPALTEN-AUSRICHTUNGEN
     mwst_table.setStyle(TableStyle([
         ('BACKGROUND',(0,0),(-1,0), colors.Color(0.95, 0.95, 0.95)),
         ('TEXTCOLOR',(0,0),(-1,0), colors.black),
-        ('ALIGN',(0,0),(-1,-1),'CENTER'),
+        ('ALIGN',(0,0),(0,-1),'CENTER'),      # Steuer Code: zentriert
+        ('ALIGN',(1,0),(3,-1),'LEFT'),        # Arbeit, Material, Steuerbasis: linksbündig
+        ('ALIGN',(4,0),(4,-1),'CENTER'),      # %-Mwst: zentriert
+        ('ALIGN',(5,0),(-1,-1),'LEFT'),       # Mwst, Altwerte, Gesamtbetrag: linksbündig
         ('FONTNAME',(0,0),(-1,0),'Helvetica-Bold'),
-        ('FONTSIZE',(0,0),(-1,0),4),  # KLEINER: von 5 auf 4
-        ('FONTSIZE',(0,1),(-1,-1),6), # KLEINER: von 7 auf 6
+        ('FONTSIZE',(0,0),(-1,0),4),
+        ('FONTSIZE',(0,1),(-1,-1),6),
         ('BOTTOMPADDING',(0,0),(-1,-1),2),
         ('TOPPADDING',(0,0),(-1,-1),2),
         ('LINEBELOW',(0,0),(-1,0),0.5,colors.black),
         ('FONTNAME',(0,1),(-1,-1),'Helvetica'),
         ('TEXTCOLOR',(0,1),(-1,-1), colors.black),
-        ('ALIGN',(1,1),(-1,-1),'RIGHT'),
     ]))
 
     story.append(mwst_table)
