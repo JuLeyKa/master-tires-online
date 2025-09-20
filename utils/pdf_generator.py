@@ -1194,8 +1194,8 @@ def create_professional_pdf(customer_data, detected_season, cart_items, cart_qua
         ('TEXTCOLOR',(0,0),(-1,0), colors.black),
         ('ALIGN',(0,0),(-1,-1),'CENTER'),
         ('FONTNAME',(0,0),(-1,0),'Helvetica-Bold'),
-        ('FONTSIZE',(0,0),(-1,0),4),  # KLEINER: von 5 auf 4
-        ('FONTSIZE',(0,1),(-1,-1),6), # KLEINER: von 7 auf 6
+        ('FONTSIZE',(0,0),(-1,0),5),  # ERHÖHT: von 4 auf 5 - gleich wie Haupttabelle
+        ('FONTSIZE',(0,1),(-1,-1),6), # BLEIBT: bei 6 für Daten
         ('BOTTOMPADDING',(0,0),(-1,-1),2),
         ('TOPPADDING',(0,0),(-1,-1),2),
         ('LINEBELOW',(0,0),(-1,0),0.5,colors.black),
