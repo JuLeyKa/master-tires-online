@@ -1138,19 +1138,15 @@ def create_professional_pdf(customer_data, detected_season, cart_items, cart_qua
     
     right_data_text = "<br/>".join(right_data_parts) if right_data_parts else ""
 
-    # NEUE LAYOUT-STRUKTUR: Firmenadresse und Geschäftsdaten parallel, Kundendaten darunter
+    # KOMBINIERTE STRUKTUR: Firmenadresse + Kundendaten links, Geschäftsdaten rechts
+    # Firmenadresse mit kleinerer Schrift, dann direkt Kundendaten
+    combined_left = f'<font size="6">Ramsperger Automobile . Postfach 1516 . 73223 Kirchheim u.T.</font><br/>{left_address_text}'
+    
     layout_data = [
-        # Zeile 1: Firmenadresse links, Geschäftsdaten rechts
         [
-            Paragraph("Ramsperger Automobile . Postfach 1516 . 73223 Kirchheim u.T.", company_address_style),
-            Paragraph("", company_address_style),  # Leerraum
-            Paragraph(f'<font size="6">{payment_line}</font><br/>{right_data_text}', customer_style)
-        ],
-        # Zeile 2: Kundendaten links, Leerraum rechts
-        [
-            Paragraph(left_address_text, customer_style),
+            Paragraph(combined_left, customer_style),
             Paragraph("", customer_style),  # Leerraum
-            Paragraph("", customer_style)   # Leer rechts
+            Paragraph(f'<font size="6">{payment_line}</font><br/>{right_data_text}', customer_style)
         ]
     ]
 
@@ -1161,7 +1157,7 @@ def create_professional_pdf(customer_data, detected_season, cart_items, cart_qua
         ('LEFTPADDING',(0,0),(-1,-1),0),
         ('RIGHTPADDING',(0,0),(-1,-1),0),
         ('TOPPADDING',(0,0),(-1,-1),0),
-        ('BOTTOMPADDING',(0,0),(-1,-1),2),  # Kleiner Abstand zwischen Zeilen
+        ('BOTTOMPADDING',(0,0),(-1,-1),0),
         ('ALIGN',(2,0),(2,0),'RIGHT'),      # Geschäftsdaten rechtsbündig
     ]))
     story.append(combined_table)
