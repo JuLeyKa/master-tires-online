@@ -1045,8 +1045,8 @@ def create_professional_pdf(customer_data, detected_season, cart_items, cart_qua
         'Normal',
         parent=styles['Normal'],
         fontName="Helvetica",
-        fontSize=9,
-        leading=11,
+        fontSize=8,    # KLEINER: von 9 auf 8
+        leading=10,    # Angepasst
         textColor=colors.black
     )
     
@@ -1055,18 +1055,18 @@ def create_professional_pdf(customer_data, detected_season, cart_items, cart_qua
         'CompanyAddress',
         parent=styles['Normal'],
         fontName="Helvetica",
-        fontSize=7,  # KLEINER: von 8 auf 7
-        leading=9,   # Entsprechend angepasst
+        fontSize=6,  # KLEINER: von 7 auf 6
+        leading=8,   # Angepasst
         textColor=colors.black
     )
     
-    # Kundendaten-Style (größer als Firmenadresse)
+    # Kundendaten-Style
     customer_style = ParagraphStyle(
         'Customer',
         parent=styles['Normal'],
         fontName="Helvetica",
-        fontSize=8,  # Bleibt bei 8 für Kundendaten
-        leading=10,
+        fontSize=7,  # KLEINER: von 8 auf 7
+        leading=9,   # Angepasst
         textColor=colors.black
     )
     
@@ -1075,8 +1075,8 @@ def create_professional_pdf(customer_data, detected_season, cart_items, cart_qua
         'PaymentInfo',
         parent=styles['Normal'],
         fontName="Helvetica",
-        fontSize=7,
-        leading=9,
+        fontSize=6,  # KLEINER: von 7 auf 6
+        leading=8,
         textColor=colors.black
     )
     
@@ -1084,8 +1084,8 @@ def create_professional_pdf(customer_data, detected_season, cart_items, cart_qua
         'Small',
         parent=styles['Normal'], 
         fontName="Helvetica",
-        fontSize=8,
-        leading=10,
+        fontSize=7,  # KLEINER: von 8 auf 7
+        leading=9,   # Angepasst
         textColor=colors.black
     )
 
@@ -1097,7 +1097,7 @@ def create_professional_pdf(customer_data, detected_season, cart_items, cart_qua
     
     # FIRMENADRESSE mit kleinerer Schrift
     story.append(Paragraph("Ramsperger Automobile . Postfach 1516 . 73223 Kirchheim u.T.", company_address_style))
-    story.append(Spacer(1, 3))  # Weniger Abstand nach Firmenadresse
+    story.append(Spacer(1, 2))  # REDUZIERT: von 3 auf 2
     
     # Kundendaten OHNE LEERZEILEN - alle in einem Paragraph mit <br/>
     left_address_parts = []
@@ -1148,7 +1148,7 @@ def create_professional_pdf(customer_data, detected_season, cart_items, cart_qua
         [
             Paragraph(left_address_text, customer_style),
             Paragraph("", customer_style),  # Leerraum
-            Paragraph(f'<font size="7">{payment_line}</font><br/>{right_data_text}', customer_style)  # Erste Zeile kleiner
+            Paragraph(f'<font size="6">{payment_line}</font><br/>{right_data_text}', customer_style)  # Erste Zeile kleiner angepasst
         ]
     ]
 
@@ -1163,11 +1163,11 @@ def create_professional_pdf(customer_data, detected_season, cart_items, cart_qua
         ('ALIGN',(2,0),(2,-1),'RIGHT'),
     ]))
     story.append(addr_table)
-    story.append(Spacer(1, 20))
+    story.append(Spacer(1, 15))  # REDUZIERT: von 20 auf 15
 
-    # Seite 1 von 2 (rechtsbündig)
-    story.append(Paragraph("Seite 1 von 2", ParagraphStyle('PageInfo', parent=normal_style, alignment=TA_RIGHT)))
-    story.append(Spacer(1, 12))
+    # Seite 1 von 1 (angepasst da nur noch eine Seite)
+    story.append(Paragraph("Seite 1 von 1", ParagraphStyle('PageInfo', parent=normal_style, alignment=TA_RIGHT)))
+    story.append(Spacer(1, 8))   # REDUZIERT: von 12 auf 8
 
     # === FAHRZEUGDATEN-TABELLE - IMMER ANZEIGEN ===
     serviceberater_name = ""
@@ -1196,8 +1196,8 @@ def create_professional_pdf(customer_data, detected_season, cart_items, cart_qua
         ('TEXTCOLOR',(0,0),(-1,0), colors.black),
         ('ALIGN',(0,0),(-1,-1),'CENTER'),
         ('FONTNAME',(0,0),(-1,0),'Helvetica-Bold'),
-        ('FONTSIZE',(0,0),(-1,0),5),
-        ('FONTSIZE',(0,1),(-1,-1),7),
+        ('FONTSIZE',(0,0),(-1,0),4),  # KLEINER: von 5 auf 4
+        ('FONTSIZE',(0,1),(-1,-1),6), # KLEINER: von 7 auf 6
         ('BOTTOMPADDING',(0,0),(-1,-1),2),
         ('TOPPADDING',(0,0),(-1,-1),2),
         ('LINEBELOW',(0,0),(-1,0),0.5,colors.black),
@@ -1205,13 +1205,13 @@ def create_professional_pdf(customer_data, detected_season, cart_items, cart_qua
         ('TEXTCOLOR',(0,1),(-1,-1), colors.black),
     ]))
     story.append(vehicle_table)
-    story.append(Spacer(1, 12))
+    story.append(Spacer(1, 8))   # REDUZIERT: von 12 auf 8
 
     # HU/AU und Kostenvoranschläge-Text
     if customer_data and customer_data.get('hu_au_datum'):
         story.append(Paragraph(f"Ihre nächste HU/AU ist: {customer_data['hu_au_datum']}", normal_style))
     story.append(Paragraph("Kostenvoranschläge werden im unzerlegten Zustand erstellt. Schäden die erst nach der Demontage sichtbar werden, sind hierbei nicht berücksichtigt!", normal_style))
-    story.append(Spacer(1, 12))
+    story.append(Spacer(1, 8))   # REDUZIERT: von 12 auf 8
 
     # === HAUPTTABELLE IM NEUEN STIL ===
     main_headers = [
@@ -1266,45 +1266,44 @@ def create_professional_pdf(customer_data, detected_season, cart_items, cart_qua
                 position_counter += 1
 
     # Haupttabelle im neuen Stil - ETWAS SCHMÄLER, NICHT ZU NAH AN RÄNDERN
-    main_table = Table(main_table_data, colWidths=[1.1*cm, 2.6*cm, 5.2*cm, 1.2*cm, 1.8*cm, 1.8*cm, 1.1*cm, 1.1*cm, 1.9*cm])  # Etwas schmäler als zuvor
+    main_table = Table(main_table_data, colWidths=[1.1*cm, 2.6*cm, 5.2*cm, 1.2*cm, 1.8*cm, 1.8*cm, 1.1*cm, 1.1*cm, 1.9*cm])
     main_table.setStyle(TableStyle([
-        ('BACKGROUND',(0,0),(-1,0), colors.Color(0.95, 0.95, 0.95)),  # Helleres Grau wie Fahrzeug-Tabelle
-        ('TEXTCOLOR',(0,0),(-1,0), colors.black),  # Schwarzer Text
-        ('FONTNAME',(0,0),(-1,0),'Helvetica'),  # Normal statt Bold
-        ('FONTSIZE',(0,0),(-1,0),6),  # Größer: 6 statt 5
+        ('BACKGROUND',(0,0),(-1,0), colors.Color(0.95, 0.95, 0.95)),
+        ('TEXTCOLOR',(0,0),(-1,0), colors.black),
+        ('FONTNAME',(0,0),(-1,0),'Helvetica'),
+        ('FONTSIZE',(0,0),(-1,0),5),  # KLEINER: von 6 auf 5
         ('ALIGN',(0,0),(-1,0),'CENTER'),
         ('FONTNAME',(0,1),(-1,-1),'Helvetica'),
-        ('FONTSIZE',(0,1),(-1,-1),8),
+        ('FONTSIZE',(0,1),(-1,-1),7), # KLEINER: von 8 auf 7
         ('LEFTPADDING',(0,0),(-1,-1),2),
         ('RIGHTPADDING',(0,0),(-1,-1),2),
         ('TOPPADDING',(0,0),(-1,-1),2),
         ('BOTTOMPADDING',(0,0),(-1,-1),2),
-        # Nur EINE Trennlinie unter Header (wie Fahrzeug-Tabelle)
         ('LINEBELOW',(0,0),(-1,0),0.5,colors.black),
         ('ALIGN',(4,1),(-1,-1),'RIGHT'),
         ('ALIGN',(5,1),(5,-1),'CENTER'),
-        ('ALIGN',(-1,1),(-1,-1),'CENTER'),  # Beträge zentriert unter "Betrag EUR"
+        ('ALIGN',(-1,1),(-1,-1),'CENTER'),
     ]))
     
     story.append(main_table)
-    story.append(Spacer(1, 12))
+    story.append(Spacer(1, 8))   # REDUZIERT: von 12 auf 8
 
     # GARANTIE-TEXTE IMMER NACH LETZTER POSITION
     # Text 1: Radschrauben-Hinweis
     radschrauben_text = """Wir weisen darauf hin, dass die Radschrauben nach 50 - 100 km nachgezogen werden müssen. Die max. Einlagerungszeit beträgt 7 Monate, bei Überschreitung erfolgt eine weitere Saisonabrechnung. Die zur Aufbewahrung übergebenen Räder müssen innerhalb von 12 Monate abgeholt werden."""
     story.append(Paragraph(radschrauben_text, small_style))
-    story.append(Spacer(1, 8))
+    story.append(Spacer(1, 6))   # REDUZIERT: von 8 auf 6
     
     # Text 2: Reifen-Garantie
     garantie_text = """Reifen/Kompletträder in dieser Rechnung sind inklusive kostenloser 36 Monate Reifen Garantie gemäß den Bedingungen im Reifen Garantie Pass (Original Rechnung oder Rechnungskopie bitte als Garantienachweis im Fahrzeug mitführen)"""
     story.append(Paragraph(garantie_text, small_style))
-    story.append(Spacer(1, 12))
+    story.append(Spacer(1, 8))   # REDUZIERT: von 12 auf 8
 
     # Angebot gültig bis (30 Tage) - HIERHER VERSCHOBEN
     gueltig_bis = date_today + timedelta(days=30)
     gueltig_str = gueltig_bis.strftime('%d-%m-%Y')
     story.append(Paragraph(f"Angebot gültig bis {gueltig_str}", normal_style))
-    story.append(Spacer(1, 8))
+    story.append(Spacer(1, 6))   # REDUZIERT: von 8 auf 6
 
     # Serviceberater Text (interaktiv) - HIERHER VERSCHOBEN
     if selected_mitarbeiter_info:
@@ -1317,16 +1316,16 @@ def create_professional_pdf(customer_data, detected_season, cart_items, cart_qua
             service_text = f"Es bediente Sie Ihr Serviceberater Herr {mitarbeiter_name}. Für Rückfragen stehe ich Ihnen gerne persönlich zur Verfügung. e-Mail: {mitarbeiter_email}"
         
         story.append(Paragraph(service_text, normal_style))
-        story.append(Spacer(1, 8))
+        story.append(Spacer(1, 6))   # REDUZIERT: von 8 auf 6
     
     # Internet-Text - HIERHER VERSCHOBEN
     story.append(Paragraph('Besuchen Sie uns doch im Internet. Unter www.ramsperger-automobile.de finden Sie alles über uns und "...die Menschen machen den Unterschied!"', normal_style))
-    story.append(Spacer(1, 12))
+    story.append(Spacer(1, 8))   # REDUZIERT: von 12 auf 8
 
     # Gesamtbetrag (netto)
     story.append(Paragraph(f"Gesamtbetrag (netto): {format_currency_german(total_netto)}", 
                           ParagraphStyle('NettoTotal', parent=normal_style, alignment=TA_RIGHT)))
-    story.append(Spacer(1, 15))
+    story.append(Spacer(1, 10))  # REDUZIERT: von 15 auf 10
 
     # === NEUE MWST-TABELLE DIREKT HIER AUF SEITE 1 - IM FAHRZEUGDATEN-STIL ===
     # Material/Arbeit aufteilen aus breakdown
@@ -1373,29 +1372,29 @@ def create_professional_pdf(customer_data, detected_season, cart_items, cart_qua
     
     # GLEICHER STIL WIE FAHRZEUGDATEN-TABELLE
     mwst_table.setStyle(TableStyle([
-        ('BACKGROUND',(0,0),(-1,0), colors.Color(0.95, 0.95, 0.95)),  # Grauer Header wie Fahrzeugdaten
+        ('BACKGROUND',(0,0),(-1,0), colors.Color(0.95, 0.95, 0.95)),
         ('TEXTCOLOR',(0,0),(-1,0), colors.black),
         ('ALIGN',(0,0),(-1,-1),'CENTER'),
-        ('FONTNAME',(0,0),(-1,0),'Helvetica-Bold'),  # Header bold wie Fahrzeugdaten
-        ('FONTSIZE',(0,0),(-1,0),5),  # Gleiche Header-Schriftgröße
-        ('FONTSIZE',(0,1),(-1,-1),7), # Gleiche Daten-Schriftgröße
+        ('FONTNAME',(0,0),(-1,0),'Helvetica-Bold'),
+        ('FONTSIZE',(0,0),(-1,0),4),  # KLEINER: von 5 auf 4
+        ('FONTSIZE',(0,1),(-1,-1),6), # KLEINER: von 7 auf 6
         ('BOTTOMPADDING',(0,0),(-1,-1),2),
         ('TOPPADDING',(0,0),(-1,-1),2),
-        ('LINEBELOW',(0,0),(-1,0),0.5,colors.black),  # Nur eine Linie unter Header
+        ('LINEBELOW',(0,0),(-1,0),0.5,colors.black),
         ('FONTNAME',(0,1),(-1,-1),'Helvetica'),
         ('TEXTCOLOR',(0,1),(-1,-1), colors.black),
-        ('ALIGN',(1,1),(-1,-1),'RIGHT'),  # Beträge rechtsbündig
+        ('ALIGN',(1,1),(-1,-1),'RIGHT'),
     ]))
 
     story.append(mwst_table)
-    story.append(Spacer(1, 8))
+    story.append(Spacer(1, 6))   # REDUZIERT: von 8 auf 6
     story.append(Paragraph("Zahlungsziel: Bar / Kasse bar", normal_style))
 
     # TRENNLINIE VOR FOOTER - dünner schwarzer Strich
-    story.append(Spacer(1, 10))
+    story.append(Spacer(1, 8))   # REDUZIERT: von 10 auf 8
     from reportlab.platypus import HRFlowable
     story.append(HRFlowable(width="100%", thickness=0.5, color=colors.black))
-    story.append(Spacer(1, 8))
+    story.append(Spacer(1, 6))   # REDUZIERT: von 8 auf 6
 
     # FOOTER AUF SEITE 1 - mit Filial-Infos
     footer_text1 = "Die Lieferung auf Rechnung Dritter (z.B. Agenturware) erfolgt im Namen und für Rechnung des Leistungserbringers. Ggf. enthaltene USt. ist den beigefügten Belegen zu entnehmen."
@@ -1404,7 +1403,7 @@ def create_professional_pdf(customer_data, detected_season, cart_items, cart_qua
         'FooterSmall',
         parent=styles['Normal'], 
         fontName="Helvetica",
-        fontSize=4,  # EXTRA KLEIN: von 8 auf 4
+        fontSize=4,  # EXTRA KLEIN
         leading=5,   # Kompakte Zeilenhöhe
         textColor=colors.black
     )
@@ -1431,7 +1430,7 @@ def create_professional_pdf(customer_data, detected_season, cart_items, cart_qua
     footer_table1 = Table(footer_data1, colWidths=[4*cm, 4*cm, 4*cm, 4*cm])
     footer_table1.setStyle(TableStyle([
         ('FONTNAME',(0,0),(-1,-1),'Helvetica'),
-        ('FONTSIZE',(0,0),(-1,-1),4),    # EXTRA KLEIN: von 5 auf 4
+        ('FONTSIZE',(0,0),(-1,-1),4),    # EXTRA KLEIN
         ('VALIGN',(0,0),(-1,-1),'TOP'),
         ('LEFTPADDING',(0,0),(-1,-1),1),
         ('RIGHTPADDING',(0,0),(-1,-1),1),
@@ -1440,55 +1439,7 @@ def create_professional_pdf(customer_data, detected_season, cart_items, cart_qua
     ]))
     story.append(footer_table1)
 
-    # === SEITE 2: NUR ÜBERTRAG UND SERVICEBERATER-TEXT ===
-    story.append(PageBreak())
-
-    # Kundendaten wiederholen auf Seite 2
-    story.append(addr_table)
-    story.append(Spacer(1, 20))
-    
-    # Seite 2 von 2
-    story.append(Paragraph("Seite 2 von 2", ParagraphStyle('PageInfo2', parent=normal_style, alignment=TA_RIGHT)))
-    story.append(Spacer(1, 12))
-
-    # Fahrzeugdaten wiederholen
-    if customer_data and (customer_data.get('kennzeichen') or customer_data.get('typ_modellschluessel')):
-        story.append(vehicle_table)
-        story.append(Spacer(1, 12))
-
-    # Haupttabelle Header + Übertrag
-    main_headers_page2 = [
-        "Nr.", "Arbeitsposition/\nTeilenummer", "Bezeichnung", 
-        "Mit-\narbeiter", "Einzel-\npreis", "Menge/\nZeit", "Rabatt", "Steuer-\nCode", "Betrag\nEUR"
-    ]
-    
-    uebertrag_data = [
-        main_headers_page2,
-        ["", "", "Übertrag", "", "", "", "", "", format_currency_german(total_netto)]
-    ]
-    
-    uebertrag_table = Table(uebertrag_data, colWidths=[0.8*cm, 2.2*cm, 4.2*cm, 1.0*cm, 1.4*cm, 1.4*cm, 1.0*cm, 1.0*cm, 1.6*cm])
-    uebertrag_table.setStyle(TableStyle([
-        ('BACKGROUND',(0,0),(-1,0), colors.grey),
-        ('TEXTCOLOR',(0,0),(-1,0), colors.whitesmoke),
-        ('FONTNAME',(0,0),(-1,0),'Helvetica-Bold'),
-        ('FONTSIZE',(0,0),(-1,0),7),
-        ('ALIGN',(0,0),(-1,0),'CENTER'),
-        ('FONTNAME',(0,1),(-1,-1),'Helvetica'),
-        ('FONTSIZE',(0,1),(-1,-1),8),
-        ('LEFTPADDING',(0,0),(-1,-1),2),
-        ('RIGHTPADDING',(0,0),(-1,-1),2),
-        ('TOPPADDING',(0,0),(-1,-1),2),
-        ('BOTTOMPADDING',(0,0),(-1,-1),2),
-        ('GRID',(0,0),(-1,-1),0.5,colors.black),
-        ('ALIGN',(-1,1),(-1,-1),'RIGHT'),
-        ('FONTNAME',(0,1),(-1,1),'Helvetica-Bold'),
-    ]))
-    
-    story.append(uebertrag_table)
-    story.append(Spacer(1, 15))
-
-    # PDF erstellen
+    # PDF erstellen - NUR NOCH EINE SEITE
     doc.build(story, onFirstPage=create_header_footer, onLaterPages=create_header_footer)
     buffer.seek(0)
     return buffer.getvalue()
