@@ -1416,13 +1416,25 @@ def create_professional_pdf(customer_data, detected_season, cart_items, cart_qua
     story.append(Paragraph(footer_text1, footer_small_style))
     # KEIN SPACER - direkt zur Footer-Tabelle
 
-    # Firmen-Footer auf Seite 1 - KOMPAKTER FORMATIERT
+    # Firmen-Footer auf Seite 1 - MIT INTELLIGENTER FILIAL-LOGIK
     if selected_filial_info:
+        # Filiale wurde ausgewählt
         filial_adresse = selected_filial_info.get('adresse', 'Robert-Bosch-Str. 9-11 | 72622 Nürtingen')
-        filial_telefon = selected_filial_info.get('zentrale', '07022/9211-0')
+        
+        # Telefonnummer-Logik: Mitarbeiter-Durchwahl oder Zentrale
+        if selected_mitarbeiter_info and selected_mitarbeiter_info.get('durchwahl'):
+            # Mitarbeiter mit Durchwahl ausgewählt
+            zentrale = selected_filial_info.get('zentrale', '07022/9211-0')
+            durchwahl = selected_mitarbeiter_info.get('durchwahl')
+            filial_telefon = build_phone_number(zentrale, durchwahl)
+        else:
+            # Nur Filiale oder Mitarbeiter ohne Durchwahl → Zentrale verwenden
+            filial_telefon = selected_filial_info.get('zentrale', '07022/9211-0')
     else:
-        filial_adresse = "Robert-Bosch-Str. 9-11 | 72622 Nürtingen"
-        filial_telefon = "07022/9211-0"
+        # KEINE Filiale ausgewählt → Standard: VW KH verwenden
+        vw_kh_data = get_filial_info('vw_kh')
+        filial_adresse = vw_kh_data.get('adresse', 'Hindenburgstr. 45 | 73230 Kirchheim')
+        filial_telefon = vw_kh_data.get('zentrale', '07021/5001-100')
 
     footer_data1 = [
         [
