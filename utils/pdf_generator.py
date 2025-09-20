@@ -1117,24 +1117,30 @@ def create_professional_pdf(customer_data, detected_season, cart_items, cart_qua
     
     left_address_text = "<br/>".join(left_address_parts) if left_address_parts else ""
 
-    # Geschäftsdaten für rechte Spalte vorbereiten
+    # Geschäftsdaten für rechte Spalte vorbereiten - IMMER ANZEIGEN
     right_data_parts = []
     payment_line = "Bei Zahlungen bitte Rechnungs-Nr. und Kunden-Nr. angeben."
     right_data_parts.append(f"Datum (= Tag der Lieferung): {date_str}")
     
-    if customer_data:
-        if customer_data.get('kunden_nr'):
-            right_data_parts.append(f"Kunden-Nr.: {customer_data['kunden_nr']}")
-        if customer_data.get('abnehmer_gruppe'):
-            right_data_parts.append(f"Abnehmer-Gruppe: {customer_data['abnehmer_gruppe']}")
-        if customer_data.get('auftrags_nr'):
-            right_data_parts.append(f"Auftrags-Nr.: {customer_data['auftrags_nr']}")
-        if customer_data.get('betriebs_nr'):
-            right_data_parts.append(f"Betriebs-Nr.: {customer_data['betriebs_nr']}")
-        if customer_data.get('leistungsdatum'):
-            leistung_str = format_date_german(customer_data['leistungsdatum'])
-            if leistung_str:
-                right_data_parts.append(f"Leistungsdatum: {leistung_str}")
+    # IMMER alle Zeilen anzeigen - mit leeren Werten falls nicht eingegeben
+    kunden_nr = customer_data.get('kunden_nr', '') if customer_data else ''
+    abnehmer_gruppe = customer_data.get('abnehmer_gruppe', '') if customer_data else ''
+    auftrags_nr = customer_data.get('auftrags_nr', '') if customer_data else ''
+    betriebs_nr = customer_data.get('betriebs_nr', '') if customer_data else ''
+    leistungsdatum = customer_data.get('leistungsdatum', None) if customer_data else None
+    
+    right_data_parts.append(f"Kunden-Nr.: {kunden_nr}")
+    right_data_parts.append(f"Abnehmer-Gruppe: {abnehmer_gruppe}")
+    right_data_parts.append(f"Auftrags-Nr.: {auftrags_nr}")
+    right_data_parts.append(f"Betriebs-Nr.: {betriebs_nr}")
+    
+    # Leistungsdatum nur wenn vorhanden
+    if leistungsdatum:
+        leistung_str = format_date_german(leistungsdatum)
+        if leistung_str:
+            right_data_parts.append(f"Leistungsdatum: {leistung_str}")
+    else:
+        right_data_parts.append("Leistungsdatum:")
     
     right_data_text = "<br/>".join(right_data_parts) if right_data_parts else ""
 
