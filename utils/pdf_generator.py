@@ -1422,7 +1422,7 @@ def create_professional_pdf(customer_data, detected_season, cart_items, cart_qua
     footer_table1 = Table(footer_data1, colWidths=[4*cm, 4*cm, 4*cm, 4*cm])
     footer_table1.setStyle(TableStyle([
         ('FONTNAME',(0,0),(-1,-1),'Helvetica'),
-        ('FONTSIZE',(0,0),(-1,-1),6),
+        ('FONTSIZE',(0,0),(-1,-1),5),    # VERKLEINERT: von 6 auf 5 für kompakteren Footer
         ('VALIGN',(0,0),(-1,-1),'TOP'),
         ('LEFTPADDING',(0,0),(-1,-1),1),
         ('RIGHTPADDING',(0,0),(-1,-1),1),
