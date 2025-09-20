@@ -1095,11 +1095,9 @@ def create_professional_pdf(customer_data, detected_season, cart_items, cart_qua
 
     # === SEITE 1: FIRMENADRESSE + KUNDENDATEN ===
     
-    # FIRMENADRESSE mit kleinerer Schrift
-    story.append(Paragraph("Ramsperger Automobile . Postfach 1516 . 73223 Kirchheim u.T.", company_address_style))
-    story.append(Spacer(1, 4))  # ERHÖHT: von 2 auf 4 - schönere Optik
+    # === SEITE 1: FIRMENADRESSE + KUNDENDATEN + GESCHÄFTSDATEN ===
     
-    # Kundendaten OHNE LEERZEILEN - alle in einem Paragraph mit <br/>
+    # Kundendaten für linke Spalte vorbereiten
     left_address_parts = []
     if customer_data and customer_data.get('name'):
         if customer_data.get('anrede') and customer_data.get('name'):
@@ -1117,13 +1115,10 @@ def create_professional_pdf(customer_data, detected_season, cart_items, cart_qua
         if customer_data.get('plz') and customer_data.get('ort'):
             left_address_parts.append(f"{customer_data['plz']} {customer_data['ort']}")
     
-    # Alle Teile mit <br/> verbinden - KEINE Leerzeilen!
     left_address_text = "<br/>".join(left_address_parts) if left_address_parts else ""
 
-    # Rechte Spalte: Geschäftsdaten - auch als ein Paragraph
+    # Geschäftsdaten für rechte Spalte vorbereiten
     right_data_parts = []
-    
-    # Erste Zeile (kleinere Schrift wird separat behandelt)
     payment_line = "Bei Zahlungen bitte Rechnungs-Nr. und Kunden-Nr. angeben."
     right_data_parts.append(f"Datum (= Tag der Lieferung): {date_str}")
     
@@ -1143,27 +1138,34 @@ def create_professional_pdf(customer_data, detected_season, cart_items, cart_qua
     
     right_data_text = "<br/>".join(right_data_parts) if right_data_parts else ""
 
-    # Eine einzige Tabellenzeile - keine Leerzeilen mehr!
-    addr_data = [
+    # NEUE LAYOUT-STRUKTUR: Firmenadresse und Geschäftsdaten parallel, Kundendaten darunter
+    layout_data = [
+        # Zeile 1: Firmenadresse links, Geschäftsdaten rechts
+        [
+            Paragraph("Ramsperger Automobile . Postfach 1516 . 73223 Kirchheim u.T.", company_address_style),
+            Paragraph("", company_address_style),  # Leerraum
+            Paragraph(f'<font size="6">{payment_line}</font><br/>{right_data_text}', customer_style)
+        ],
+        # Zeile 2: Kundendaten links, Leerraum rechts
         [
             Paragraph(left_address_text, customer_style),
             Paragraph("", customer_style),  # Leerraum
-            Paragraph(f'<font size="6">{payment_line}</font><br/>{right_data_text}', customer_style)  # Erste Zeile kleiner angepasst
+            Paragraph("", customer_style)   # Leer rechts
         ]
     ]
 
-    # Drei Spalten: Links | Leerraum | Rechts
-    addr_table = Table(addr_data, colWidths=[5*cm, 7*cm, 5*cm])
-    addr_table.setStyle(TableStyle([
+    # Tabelle mit 3 Spalten: Links | Leerraum | Rechts
+    combined_table = Table(layout_data, colWidths=[5*cm, 7*cm, 5*cm])
+    combined_table.setStyle(TableStyle([
         ('VALIGN',(0,0),(-1,-1),'TOP'),
         ('LEFTPADDING',(0,0),(-1,-1),0),
         ('RIGHTPADDING',(0,0),(-1,-1),0),
         ('TOPPADDING',(0,0),(-1,-1),0),
-        ('BOTTOMPADDING',(0,0),(-1,-1),0),
-        ('ALIGN',(2,0),(2,-1),'RIGHT'),
+        ('BOTTOMPADDING',(0,0),(-1,-1),2),  # Kleiner Abstand zwischen Zeilen
+        ('ALIGN',(2,0),(2,0),'RIGHT'),      # Geschäftsdaten rechtsbündig
     ]))
-    story.append(addr_table)
-    story.append(Spacer(1, 20))  # ERHÖHT: von 15 auf 20 - schönere Optik
+    story.append(combined_table)
+    story.append(Spacer(1, 20))  # Abstand nach der gesamten Tabelle
 
     # Seite 1 von 1 (angepasst da nur noch eine Seite)
     story.append(Paragraph("Seite 1 von 1", ParagraphStyle('PageInfo', parent=normal_style, alignment=TA_RIGHT)))
