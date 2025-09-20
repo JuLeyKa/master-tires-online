@@ -1409,7 +1409,7 @@ def create_professional_pdf(customer_data, detected_season, cart_items, cart_qua
         textColor=colors.black
     )
     story.append(Paragraph(footer_text1, footer_small_style))
-    story.append(Spacer(1, 4))  # Weniger Abstand
+    # KEIN SPACER - direkt zur Footer-Tabelle
 
     # Firmen-Footer auf Seite 1 - KOMPAKTER FORMATIERT
     if selected_filial_info:
