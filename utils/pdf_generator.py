@@ -1399,10 +1399,19 @@ def create_professional_pdf(customer_data, detected_season, cart_items, cart_qua
 
     # FOOTER AUF SEITE 1 - mit Filial-Infos
     footer_text1 = "Die Lieferung auf Rechnung Dritter (z.B. Agenturware) erfolgt im Namen und für Rechnung des Leistungserbringers. Ggf. enthaltene USt. ist den beigefügten Belegen zu entnehmen."
-    story.append(Paragraph(footer_text1, small_style))
-    story.append(Spacer(1, 8))
+    # KLEINERE SCHRIFT für Footer-Text
+    footer_small_style = ParagraphStyle(
+        'FooterSmall',
+        parent=styles['Normal'], 
+        fontName="Helvetica",
+        fontSize=4,  # EXTRA KLEIN: von 8 auf 4
+        leading=5,   # Kompakte Zeilenhöhe
+        textColor=colors.black
+    )
+    story.append(Paragraph(footer_text1, footer_small_style))
+    story.append(Spacer(1, 4))  # Weniger Abstand
 
-    # Firmen-Footer auf Seite 1
+    # Firmen-Footer auf Seite 1 - KOMPAKTER FORMATIERT
     if selected_filial_info:
         filial_adresse = selected_filial_info.get('adresse', 'Robert-Bosch-Str. 9-11 | 72622 Nürtingen')
         filial_telefon = selected_filial_info.get('zentrale', '07022/9211-0')
@@ -1412,20 +1421,22 @@ def create_professional_pdf(customer_data, detected_season, cart_items, cart_qua
 
     footer_data1 = [
         [
-            Paragraph(f"Ramsperger Automobile<br/>GmbH &amp; Co.KG<br/>{filial_adresse}<br/>Telefon ({filial_telefon})<br/>Telefax ({filial_telefon.replace('-0', '-613')})<br/>eMail:<br/>info@ramsperger-automobile.de<br/>Internet:<br/>www.ramsperger-automobile.de", small_style),
-            Paragraph("Bankverbindung:<br/>Volksbank Mittlerer Neckar eG<br/>IBAN:<br/>DE36 6129 0120 0439 6380 03<br/>BIC: GENODES1NUE", small_style),
-            Paragraph("Rechtsform: KG Sitz: Kirchheim u. T.<br/>Amtsgericht Stuttgart<br/>Handelsregister: HRA 231034<br/>USt-Id.Nr. DE 199 195 203<br/>Steuer-Nr.69026/26107", small_style),
-            Paragraph("Komplementär:<br/>Ramsperger Automobile<br/>Verwaltungs-GmbH<br/>Sitz Kirchheim u.T.<br/>HRB: 231579<br/>Geschäftsführer:<br/>Frank Eberhart", small_style)
+            Paragraph(f"Ramsperger Automobile GmbH &amp; Co.KG<br/>{filial_adresse}<br/>Telefon ({filial_telefon}) | Telefax ({filial_telefon.replace('-0', '-613')})<br/>eMail: info@ramsperger-automobile.de<br/>Internet: www.ramsperger-automobile.de", footer_small_style),
+            Paragraph("Bankverbindung: Volksbank Mittlerer Neckar eG<br/>IBAN: DE36 6129 0120 0439 6380 03<br/>BIC: GENODES1NUE", footer_small_style),
+            Paragraph("Rechtsform: KG Sitz: Kirchheim u. T.<br/>Amtsgericht Stuttgart | Handelsregister: HRA 231034<br/>USt-Id.Nr. DE 199 195 203 | Steuer-Nr.69026/26107", footer_small_style),
+            Paragraph("Komplementär: Ramsperger Automobile Verwaltungs-GmbH<br/>Sitz Kirchheim u.T. | HRB: 231579<br/>Geschäftsführer: Frank Eberhart", footer_small_style)
         ]
     ]
     
     footer_table1 = Table(footer_data1, colWidths=[4*cm, 4*cm, 4*cm, 4*cm])
     footer_table1.setStyle(TableStyle([
         ('FONTNAME',(0,0),(-1,-1),'Helvetica'),
-        ('FONTSIZE',(0,0),(-1,-1),5),    # VERKLEINERT: von 6 auf 5 für kompakteren Footer
+        ('FONTSIZE',(0,0),(-1,-1),4),    # EXTRA KLEIN: von 5 auf 4
         ('VALIGN',(0,0),(-1,-1),'TOP'),
         ('LEFTPADDING',(0,0),(-1,-1),1),
         ('RIGHTPADDING',(0,0),(-1,-1),1),
+        ('TOPPADDING',(0,0),(-1,-1),1),     # Kompakte Abstände
+        ('BOTTOMPADDING',(0,0),(-1,-1),1),
     ]))
     story.append(footer_table1)
 
