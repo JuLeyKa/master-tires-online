@@ -981,7 +981,7 @@ def create_header_footer(canvas, doc):
     """Header mit Logo links oben, ANGEBOT darunter zentriert, nichts rechts"""
     canvas.saveState()
     width, height = A4
-    margin = 5 * mm  # NOCHMALS REDUZIERT: von 10mm auf 5mm für noch höhere Positionierung
+    margin = 15 * mm  # ERHÖHT: von 5mm auf 15mm - Logo weiter runter
 
     # === LOGO LINKS OBEN ===
     try:
@@ -990,18 +990,18 @@ def create_header_footer(canvas, doc):
             logo = ImageReader(str(logo_path))
             logo_width = 65 * mm
             logo_height = 18 * mm
-            # Logo noch höher positioniert - minimal Abstand zum oberen Rand
+            # Logo weiter runter positioniert
             canvas.drawImage(logo, margin, height - margin - logo_height, 
                            width=logo_width, height=logo_height, 
                            mask='auto', preserveAspectRatio=True)
         else:
-            # Fallback Text - noch höher positioniert
+            # Fallback Text - weiter runter
             canvas.setFont("Helvetica-Bold", 12)
             canvas.setFillColor(colors.black)
             canvas.drawString(margin, height - margin - 12, "RAMSPERGER")
             canvas.drawString(margin, height - margin - 24, "AUTOMOBILE")
     except Exception:
-        # Fallback Text - noch höher positioniert
+        # Fallback Text - weiter runter
         canvas.setFont("Helvetica-Bold", 12)
         canvas.setFillColor(colors.black)
         canvas.drawString(margin, height - margin - 12, "RAMSPERGER")
@@ -1011,10 +1011,10 @@ def create_header_footer(canvas, doc):
     canvas.setFont("Helvetica-Bold", 14)
     canvas.setFillColor(colors.black)
     angebot_width = canvas.stringWidth("ANGEBOT", "Helvetica-Bold", 14)
-    # Entsprechend noch höher positioniert
+    # Entsprechend weiter runter positioniert
     canvas.drawString((width - angebot_width) / 2, height - margin - 35, "ANGEBOT")
     
-    # "unverbindlich" zentriert darunter - entsprechend noch höher
+    # "unverbindlich" zentriert darunter
     canvas.setFont("Helvetica", 8)
     unverb_width = canvas.stringWidth("unverbindlich", "Helvetica", 8)
     canvas.drawString((width - unverb_width) / 2, height - margin - 45, "unverbindlich")
@@ -1097,7 +1097,7 @@ def create_professional_pdf(customer_data, detected_season, cart_items, cart_qua
     
     # FIRMENADRESSE mit kleinerer Schrift
     story.append(Paragraph("Ramsperger Automobile . Postfach 1516 . 73223 Kirchheim u.T.", company_address_style))
-    story.append(Spacer(1, 2))  # REDUZIERT: von 3 auf 2
+    story.append(Spacer(1, 4))  # ERHÖHT: von 2 auf 4 - schönere Optik
     
     # Kundendaten OHNE LEERZEILEN - alle in einem Paragraph mit <br/>
     left_address_parts = []
@@ -1163,11 +1163,11 @@ def create_professional_pdf(customer_data, detected_season, cart_items, cart_qua
         ('ALIGN',(2,0),(2,-1),'RIGHT'),
     ]))
     story.append(addr_table)
-    story.append(Spacer(1, 15))  # REDUZIERT: von 20 auf 15
+    story.append(Spacer(1, 20))  # ERHÖHT: von 15 auf 20 - schönere Optik
 
     # Seite 1 von 1 (angepasst da nur noch eine Seite)
     story.append(Paragraph("Seite 1 von 1", ParagraphStyle('PageInfo', parent=normal_style, alignment=TA_RIGHT)))
-    story.append(Spacer(1, 8))   # REDUZIERT: von 12 auf 8
+    story.append(Spacer(1, 12))  # ERHÖHT: von 8 auf 12 - schönere Optik
 
     # === FAHRZEUGDATEN-TABELLE - IMMER ANZEIGEN ===
     serviceberater_name = ""
@@ -1205,13 +1205,13 @@ def create_professional_pdf(customer_data, detected_season, cart_items, cart_qua
         ('TEXTCOLOR',(0,1),(-1,-1), colors.black),
     ]))
     story.append(vehicle_table)
-    story.append(Spacer(1, 8))   # REDUZIERT: von 12 auf 8
+    story.append(Spacer(1, 12))  # ERHÖHT: von 8 auf 12 - schönere Optik
 
     # HU/AU und Kostenvoranschläge-Text
     if customer_data and customer_data.get('hu_au_datum'):
         story.append(Paragraph(f"Ihre nächste HU/AU ist: {customer_data['hu_au_datum']}", normal_style))
     story.append(Paragraph("Kostenvoranschläge werden im unzerlegten Zustand erstellt. Schäden die erst nach der Demontage sichtbar werden, sind hierbei nicht berücksichtigt!", normal_style))
-    story.append(Spacer(1, 8))   # REDUZIERT: von 12 auf 8
+    story.append(Spacer(1, 12))  # ERHÖHT: von 8 auf 12 - schönere Optik
 
     # === HAUPTTABELLE IM NEUEN STIL ===
     main_headers = [
@@ -1286,24 +1286,24 @@ def create_professional_pdf(customer_data, detected_season, cart_items, cart_qua
     ]))
     
     story.append(main_table)
-    story.append(Spacer(1, 8))   # REDUZIERT: von 12 auf 8
+    story.append(Spacer(1, 10))  # ERHÖHT: von 8 auf 10 - schönere Optik
 
     # GARANTIE-TEXTE IMMER NACH LETZTER POSITION
     # Text 1: Radschrauben-Hinweis
     radschrauben_text = """Wir weisen darauf hin, dass die Radschrauben nach 50 - 100 km nachgezogen werden müssen. Die max. Einlagerungszeit beträgt 7 Monate, bei Überschreitung erfolgt eine weitere Saisonabrechnung. Die zur Aufbewahrung übergebenen Räder müssen innerhalb von 12 Monate abgeholt werden."""
     story.append(Paragraph(radschrauben_text, small_style))
-    story.append(Spacer(1, 6))   # REDUZIERT: von 8 auf 6
+    story.append(Spacer(1, 8))   # ERHÖHT: von 6 auf 8 - schönere Optik
     
     # Text 2: Reifen-Garantie
     garantie_text = """Reifen/Kompletträder in dieser Rechnung sind inklusive kostenloser 36 Monate Reifen Garantie gemäß den Bedingungen im Reifen Garantie Pass (Original Rechnung oder Rechnungskopie bitte als Garantienachweis im Fahrzeug mitführen)"""
     story.append(Paragraph(garantie_text, small_style))
-    story.append(Spacer(1, 8))   # REDUZIERT: von 12 auf 8
+    story.append(Spacer(1, 10))  # ERHÖHT: von 8 auf 10 - schönere Optik
 
     # Angebot gültig bis (30 Tage) - HIERHER VERSCHOBEN
     gueltig_bis = date_today + timedelta(days=30)
     gueltig_str = gueltig_bis.strftime('%d-%m-%Y')
     story.append(Paragraph(f"Angebot gültig bis {gueltig_str}", normal_style))
-    story.append(Spacer(1, 6))   # REDUZIERT: von 8 auf 6
+    story.append(Spacer(1, 8))   # ERHÖHT: von 6 auf 8 - schönere Optik
 
     # Serviceberater Text (interaktiv) - HIERHER VERSCHOBEN
     if selected_mitarbeiter_info:
@@ -1316,16 +1316,16 @@ def create_professional_pdf(customer_data, detected_season, cart_items, cart_qua
             service_text = f"Es bediente Sie Ihr Serviceberater Herr {mitarbeiter_name}. Für Rückfragen stehe ich Ihnen gerne persönlich zur Verfügung. e-Mail: {mitarbeiter_email}"
         
         story.append(Paragraph(service_text, normal_style))
-        story.append(Spacer(1, 6))   # REDUZIERT: von 8 auf 6
+        story.append(Spacer(1, 8))   # ERHÖHT: von 6 auf 8 - schönere Optik
     
     # Internet-Text - HIERHER VERSCHOBEN
     story.append(Paragraph('Besuchen Sie uns doch im Internet. Unter www.ramsperger-automobile.de finden Sie alles über uns und "...die Menschen machen den Unterschied!"', normal_style))
-    story.append(Spacer(1, 8))   # REDUZIERT: von 12 auf 8
+    story.append(Spacer(1, 10))  # ERHÖHT: von 8 auf 10 - schönere Optik
 
     # Gesamtbetrag (netto)
     story.append(Paragraph(f"Gesamtbetrag (netto): {format_currency_german(total_netto)}", 
                           ParagraphStyle('NettoTotal', parent=normal_style, alignment=TA_RIGHT)))
-    story.append(Spacer(1, 10))  # REDUZIERT: von 15 auf 10
+    story.append(Spacer(1, 12))  # ERHÖHT: von 10 auf 12 - schönere Optik
 
     # === NEUE MWST-TABELLE DIREKT HIER AUF SEITE 1 - IM FAHRZEUGDATEN-STIL ===
     # Material/Arbeit aufteilen aus breakdown
@@ -1387,24 +1387,24 @@ def create_professional_pdf(customer_data, detected_season, cart_items, cart_qua
     ]))
 
     story.append(mwst_table)
-    story.append(Spacer(1, 6))   # REDUZIERT: von 8 auf 6
+    story.append(Spacer(1, 8))   # ERHÖHT: von 6 auf 8 - schönere Optik
     story.append(Paragraph("Zahlungsziel: Bar / Kasse bar", normal_style))
 
     # TRENNLINIE VOR FOOTER - dünner schwarzer Strich
-    story.append(Spacer(1, 8))   # REDUZIERT: von 10 auf 8
+    story.append(Spacer(1, 10))  # ERHÖHT: von 8 auf 10 - schönere Optik
     from reportlab.platypus import HRFlowable
     story.append(HRFlowable(width="100%", thickness=0.5, color=colors.black))
-    story.append(Spacer(1, 6))   # REDUZIERT: von 8 auf 6
+    story.append(Spacer(1, 8))   # ERHÖHT: von 6 auf 8 - schönere Optik
 
     # FOOTER AUF SEITE 1 - mit Filial-Infos
     footer_text1 = "Die Lieferung auf Rechnung Dritter (z.B. Agenturware) erfolgt im Namen und für Rechnung des Leistungserbringers. Ggf. enthaltene USt. ist den beigefügten Belegen zu entnehmen."
-    # KLEINERE SCHRIFT für Footer-Text
+    # VERGRÖßERTE SCHRIFT für Footer-Text
     footer_small_style = ParagraphStyle(
         'FooterSmall',
         parent=styles['Normal'], 
         fontName="Helvetica",
-        fontSize=4,  # EXTRA KLEIN
-        leading=5,   # Kompakte Zeilenhöhe
+        fontSize=6,  # VERGRÖSSERT: von 4pt auf 6pt - bessere Lesbarkeit
+        leading=7,   # Entsprechend angepasst
         textColor=colors.black
     )
     story.append(Paragraph(footer_text1, footer_small_style))
@@ -1430,7 +1430,7 @@ def create_professional_pdf(customer_data, detected_season, cart_items, cart_qua
     footer_table1 = Table(footer_data1, colWidths=[4*cm, 4*cm, 4*cm, 4*cm])
     footer_table1.setStyle(TableStyle([
         ('FONTNAME',(0,0),(-1,-1),'Helvetica'),
-        ('FONTSIZE',(0,0),(-1,-1),4),    # EXTRA KLEIN
+        ('FONTSIZE',(0,0),(-1,-1),6),    # VERGRÖSSERT: von 4pt auf 6pt - bessere Lesbarkeit
         ('VALIGN',(0,0),(-1,-1),'TOP'),
         ('LEFTPADDING',(0,0),(-1,-1),1),
         ('RIGHTPADDING',(0,0),(-1,-1),1),
